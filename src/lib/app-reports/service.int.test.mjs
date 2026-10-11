@@ -331,7 +331,8 @@ test('יצירת קשר: 404 לדיווח חסר, 422 בלי מייל, שליח�
   const comment = gh.comments.at(-1);
   assert.equal(comment.issue, withMail.body.issueNumber);
   assert.ok(comment.body.includes('נשלח מייל למדווח'));
-  assert.equal(comment.body.includes('אפשר פרטים?'), false);
+  assert.ok(comment.body.includes('נושא: שאלה'));
+  assert.ok(comment.body.includes('> אפשר פרטים?'));
   assert.equal(comment.body.includes('reporter@example.com'), false);
 
   // GitHub נופל — הפנייה עדיין מצליחה

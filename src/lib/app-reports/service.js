@@ -397,7 +397,7 @@ export async function contactReporter({ reportId, subject, message, user }, deps
   // המייל כבר נשלח — כשל ב-GitHub לא מכשיל את הפנייה
   const github = doc.issueNumber ? githubFor(deps) : null;
   if (github) {
-    await github.createComment(doc.issueNumber, buildOutboundComment({ reportId }))
+    await github.createComment(doc.issueNumber, buildOutboundComment({ reportId, subject: s, message: m }))
       .catch((err) => console.error(`App report ${reportId}: contact comment failed:`, err?.message));
   }
   return { status: 200, body: { success: true, entry: { ...entry, byUserId: entry.byUserId ? String(entry.byUserId) : null } } };
