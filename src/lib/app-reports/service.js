@@ -12,7 +12,7 @@ import { handleIssueStateChange } from './state-change.js';
 import { planPublication } from './merge.js';
 import { verifyUnsubscribeToken } from './unsubscribe.js';
 import {
-  newReplyToken, buildReplyAddress, validateInboundPayload, isAutoReply, inboundMessageBody, buildInboundComment,
+  newReplyToken, buildReplyAddress, validateInboundPayload, isAutoReply, inboundMessageBody, buildInboundComment, buildOutboundComment,
 } from './inbound.js';
 export { hasAppReportsAccess } from '../roles.js';
 
@@ -383,7 +383,7 @@ export async function contactReporter({ reportId, subject, message, user }, deps
   if (!s || s.length > 200) return { status: 422, body: { error: 'subject: 1..200 chars', field: 'subject' } };
   if (!m || m.length > 5000) return { status: 422, body: { error: 'message: 1..5000 chars', field: 'message' } };
 
-  const doc = await AppReport.findOne({ reportId }).select('reportId title reporterEmail replyToken').lean();
+  const doc = await AppReport.findOne({ reportId }).select('reportId title reporterEmail replyToken issueNumber').lean();
   if (!doc) return { status: 404, body: { error: 'Report not found' } };
   if (!doc.reporterEmail) return { status: 422, body: { error: 'Reporter left no email', field: 'reporterEmail' } };
 
@@ -394,6 +394,12 @@ export async function contactReporter({ reportId, subject, message, user }, deps
 
   const entry = { direction: 'out', byUserId: user.id || null, byName: user.name || '', subject: s, message: m, sentAt: deps.now || new Date() };
   await AppReport.updateOne({ reportId }, { $push: { contactLog: entry } });
+  // המייל כבר נשלח — כשל ב-GitHub לא מכשיל את הפנייה
+  const github = doc.issueNumber ? githubFor(deps) : null;
+  if (github) {
+    await github.createComment(doc.issueNumber, buildOutboundComment({ reportId }))
+      .catch((err) => console.error(`App report ${reportId}: contact comment failed:`, err?.message));
+  }
   return { status: 200, body: { success: true, entry: { ...entry, byUserId: entry.byUserId ? String(entry.byUserId) : null } } };
 }
 

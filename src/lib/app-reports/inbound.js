@@ -145,6 +145,11 @@ export function inboundMessageBody({ text, html }) {
 }
 
 /** התגובה הציבורית ב-issue: בלי כתובת מייל ובלי תיוג משתמשים. */
+/** הערה ב-issue כשהצוות שלח מייל למדווח. בלי תוכן המייל — רק ציון שנשלח. */
+export function buildOutboundComment({ reportId }) {
+  return ['**נשלח מייל למדווח**', `[הדוח המלא (למפתחים)](${reportPageUrl(reportId)})`, `<!-- app-report-contact: ${reportId} -->`].join('\n\n');
+}
+
 export function buildInboundComment({ reportId, message, attachments = 0 }) {
   const quoted = sanitizeUserText(message || '(ללא טקסט)').split('\n').map((l) => `> ${l}`).join('\n');
   const parts = ['**תשובת המדווח במייל**', quoted];

@@ -311,7 +311,7 @@ test('ניהול: המייל חוזר רק למנהל כללי; רשימה עם 
 test('יצירת קשר: 404 לדיווח חסר, 422 בלי מייל, שליחה ושמירה בהיסטוריה', async (t) => {
   if (db.skip) return t.skip(db.skip);
   const sent = [];
-  const deps = { sendContactMail: async (m) => { sent.push(m); return { sent: true }; } };
+  const deps = { config, fetchImpl: gh.fetch, sendContactMail: async (m) => { sent.push(m); return { sent: true }; } };
   const user = { id: String(new mongoose.Types.ObjectId()), name: 'מפתח' };
   const noMail = await post(crash());
   const withMail = await post(manual());
@@ -328,6 +328,16 @@ test('יצירת קשר: 404 לדיווח חסר, 422 בלי מייל, שליח�
   assert.equal(doc.contactLog.length, 1);
   assert.equal(doc.contactLog[0].byName, 'מפתח');
   assert.equal(doc.contactLog[0].subject, 'שאלה');
+  const comment = gh.comments.at(-1);
+  assert.equal(comment.issue, withMail.body.issueNumber);
+  assert.ok(comment.body.includes('נשלח מייל למדווח'));
+  assert.equal(comment.body.includes('אפשר פרטים?'), false);
+  assert.equal(comment.body.includes('reporter@example.com'), false);
+
+  // GitHub נופל — הפנייה עדיין מצליחה
+  const ghDown = await contactReporter({ reportId: withMail.body.reportId, subject: 'ש', message: 'ה', user },
+    { ...deps, fetchImpl: async () => { throw new Error('down'); } });
+  assert.equal(ghDown.status, 200);
 
   const failing = await contactReporter({ reportId: withMail.body.reportId, subject: 'ש', message: 'ה', user }, { sendContactMail: async () => ({ sent: false }) });
   assert.equal(failing.status, 502);
