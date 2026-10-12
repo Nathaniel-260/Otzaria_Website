@@ -14,7 +14,7 @@ import { verifyUnsubscribeToken } from './unsubscribe.js';
 import {
   newReplyToken, buildReplyAddress, validateInboundPayload, isAutoReply, inboundMessageBody, buildInboundComment,
 } from './inbound.js';
-import { PRODUCT_KEYS, getProduct, productFilter, productOf } from './products.js';
+import { PRODUCT_KEYS, getProduct, isProductKey, productFilter, productOf } from './products.js';
 export { hasAppReportsAccess } from '../roles.js';
 
 const LEASE_MS = 2 * 60 * 1000;
@@ -23,7 +23,9 @@ export const STATE_BATCH = 30;
 export const INBOUND_BATCH = 20;
 
 /** לקוח GitHub לריפו של המוצר; deps.githubFor מחליף אותו (בדיקות). null כשאין טוקן. */
-function githubFor(deps, product) {
+export function githubFor(deps, product) {
+  // בלי ברירת מחדל: קורא ששכח מוצר היה מגיב על issue באותו מספר בריפו של אוצריא
+  if (!isProductKey(product)) throw new Error(`githubFor: unknown product ${product}`);
   if (deps.githubFor) return deps.githubFor(product);
   if (!deps.config?.githubToken) return null;
   return createGithubClient({ token: deps.config.githubToken, repo: getProduct(product).repo, fetchImpl: deps.fetchImpl });

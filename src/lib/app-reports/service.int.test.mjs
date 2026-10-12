@@ -12,7 +12,7 @@ import { startMongo } from '../corrections/testing/mongo.js';
 import { FakeIssuesGitHub, FakeGitHubRepos } from './testing/fake-github.js';
 import { handleAppReportPost } from './handler.js';
 import { MAX_BODY_BYTES, MAX_MINIDUMP_BYTES } from './validation.js';
-import { runAppReportsSync, contactReporter, listReports, getReportDetail, loadReportFile, loadReportImage, loadPublicImage, unsubscribeByToken, ingestInboundReply } from './service.js';
+import { githubFor, runAppReportsSync, contactReporter, listReports, getReportDetail, loadReportFile, loadReportImage, loadPublicImage, unsubscribeByToken, ingestInboundReply } from './service.js';
 import { handleInboundEmailPost } from './inbound-handler.js';
 import { parseReplyAddress } from './inbound.js';
 import { getAppReportsConfig } from './config.js';
@@ -1034,4 +1034,16 @@ test('מוצרים: הסרה ממייל חלה על כל הדיווחים של �
   assert.equal(await flags(a.body.reportId), true);
   assert.equal(await flags(b.body.reportId), true);
   assert.equal(await flags(other.body.reportId), false);
+});
+
+test('מוצרים: githubFor בלי מוצר זורק במקום לנתב בשקט לריפו של אוצריא', () => {
+  const picked = [];
+  const deps = { githubFor: (product) => { picked.push(product); return {}; }, config: { githubToken: 't' } };
+  for (const bad of [undefined, null, '', 'constructor', 'other']) {
+    assert.throws(() => githubFor(deps, bad), /unknown product/, String(bad));
+  }
+  assert.deepEqual(picked, []);
+  githubFor(deps, 'offline-update');
+  assert.deepEqual(picked, ['offline-update']);
+  assert.equal(githubFor({ config: {} }, 'otzaria'), null);
 });
