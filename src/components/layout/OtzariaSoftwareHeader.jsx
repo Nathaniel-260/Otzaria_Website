@@ -86,79 +86,94 @@ function AuthActions({ pathname, compact = false, onNavigate }) {
   )
 }
 
+/** קישור התרומה — כפתור מלא בצבע התרומה, מחוץ לרשימת הניווט כדי שיבלוט בכל עמוד
+ *  (גם בנייד, ליד כפתור התפריט). ראו .donation-nav-link ב-styles/effects.css. */
+function DonationButton({ link, className = '', onClick }) {
+  return (
+    <NavLink link={link} onClick={onClick} className={`donation-nav-link text-sm ${className}`}>
+      <span className="material-symbols-outlined donation-nav-icon" aria-hidden="true">
+        {link.icon}
+      </span>
+      {link.label}
+    </NavLink>
+  )
+}
+
 export default function OtzariaSoftwareHeader({ showAuth = false }) {
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const donationLink = MAIN_NAV_LINKS.find(link => link.emphasis === 'donation')
+  const navLinks = MAIN_NAV_LINKS.filter(link => link.emphasis !== 'donation')
 
+  // כותרת בסגנון ה-topBar של האפליקציה: רקע surfaceContainerHigh אטום, קו הפרדה דק,
+  // בלי זכוכית ובלי צל.
   return (
-    <header className="sticky top-0 z-50 w-full glass-strong border-b border-neutral-200 bg-white/80 backdrop-blur-md">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-8">
+    <header className="sticky top-0 z-50 w-full border-b border-surface-variant bg-top-bar">
+      <div className="container mx-auto flex h-16 max-w-[76rem] items-center justify-between gap-4 px-4 md:px-8">
         {/* קישור הלוגו מופיע בכל דף ואינו מצדיק prefetch */}
-        <Link href="/" prefetch={false} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+        <Link href="/" prefetch={false} className="flex min-h-12 shrink-0 items-center gap-2.5 rounded-lg transition-opacity hover:opacity-80">
           <Image src="/logo.webp" alt="לוגו אוצריא" width={32} height={32} />
-          <span className="text-xl font-bold text-foreground font-frank">אוצריא</span>
+          <span className="text-xl font-bold text-on-surface">אוצריא</span>
         </Link>
-        
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-6">
-          {MAIN_NAV_LINKS.map(link => {
-            const isDonationLink = link.emphasis === 'donation'
 
+        {/* Desktop Nav */}
+        <nav className="hidden lg:flex items-center gap-1">
+          {navLinks.map(link => {
+            const isActive = pathname === link.href
             return (
               <NavLink
                 key={link.label}
                 link={link}
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  pathname === link.href && !isDonationLink ? 'text-primary font-bold' : 'text-foreground/80'
-                } ${link.highlight ? 'bg-primary/10 text-primary px-3 py-1.5 rounded-lg hover:bg-primary/20' : ''} ${
-                  isDonationLink ? 'donation-nav-link' : ''
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  link.highlight
+                    ? 'bg-secondary-container text-on-secondary-container hover:bg-tile/70'
+                    : isActive
+                      ? 'bg-card-selected text-primary'
+                      : 'text-on-surface-variant hover:bg-card-selected hover:text-on-surface'
                 }`}
               >
-                {isDonationLink && (
-                  <span className="material-symbols-outlined donation-nav-icon" aria-hidden="true">
-                    {link.icon}
-                  </span>
-                )}
                 {link.label}
               </NavLink>
             )
           })}
-          {showAuth && <AuthActions pathname={pathname} />}
         </nav>
 
-        {/* Mobile Menu Button */}
-        <button 
-          className="md:hidden p-2 text-foreground"
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-        >
-          <span className="material-symbols-outlined text-3xl">menu</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {donationLink && <DonationButton link={donationLink} />}
+          {showAuth && (
+            <div className="hidden lg:block">
+              <AuthActions pathname={pathname} />
+            </div>
+          )}
+
+          {/* Mobile Menu Button */}
+          <button
+            type="button"
+            className="lg:hidden flex h-12 w-12 items-center justify-center rounded-lg text-on-surface hover:bg-card-selected"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-expanded={isMenuOpen}
+            aria-label="תפריט"
+          >
+            <span className="material-symbols-outlined text-2xl">{isMenuOpen ? 'close' : 'menu'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="md:hidden absolute top-16 left-0 w-full bg-white border-b border-neutral-200 shadow-lg p-4 flex flex-col gap-4">
-          {MAIN_NAV_LINKS.map(link => {
-            const isDonationLink = link.emphasis === 'donation'
-
-            return (
-              <NavLink
-                key={link.label}
-                link={link}
-                onClick={() => setIsMenuOpen(false)}
-                className={`text-lg font-medium p-2 hover:bg-neutral-50 rounded-lg text-foreground ${
-                  isDonationLink ? 'donation-nav-link' : ''
-                }`}
-              >
-                {isDonationLink && (
-                  <span className="material-symbols-outlined donation-nav-icon" aria-hidden="true">
-                    {link.icon}
-                  </span>
-                )}
-                {link.label}
-              </NavLink>
-            )
-          })}
+        <div className="lg:hidden absolute top-16 left-0 w-full border-b border-surface-variant bg-top-bar p-3 flex flex-col gap-0.5">
+          {navLinks.map(link => (
+            <NavLink
+              key={link.label}
+              link={link}
+              onClick={() => setIsMenuOpen(false)}
+              className={`rounded-lg px-3 py-3 text-base font-medium hover:bg-card-selected ${
+                pathname === link.href ? 'text-primary' : 'text-on-surface'
+              }`}
+            >
+              {link.label}
+            </NavLink>
+          ))}
           {showAuth && <AuthActions pathname={pathname} compact onNavigate={() => setIsMenuOpen(false)} />}
         </div>
       )}

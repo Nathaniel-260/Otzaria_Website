@@ -70,8 +70,8 @@ export default function DownloadAssistantOptions({ platform, links }: { platform
 
   return (
     <div className="grid gap-4">
-      <div role="note" className="flex gap-3 p-4 rounded-xl border-2 border-amber-400 bg-amber-50 text-amber-900">
-        <span className="material-symbols-outlined text-3xl text-amber-600 flex-shrink-0">warning</span>
+      <div role="note" className="flex gap-3 p-4 rounded-lg border border-glow bg-tile/45 text-on-surface">
+        <span className="material-symbols-outlined text-3xl text-on-tile flex-shrink-0">warning</span>
         <div>
           <p className="font-bold text-lg mb-1">שימו לב: זה אינו קובץ ההתקנה של אוצריא עצמה, אלא מסייע ההורדה.</p>
           <p>
@@ -85,26 +85,28 @@ export default function DownloadAssistantOptions({ platform, links }: { platform
         <a
           key={button.key}
           href={links[button.key]}
-          className="flex items-center gap-4 p-4 rounded-xl border-2 border-primary hover:shadow-md transition-all group bg-white"
+          className="flex items-center gap-4 p-4 rounded-lg transition-colors group bg-card hover:bg-card-selected"
         >
-          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-            <span className="material-symbols-outlined text-2xl">{button.icon}</span>
+          <span className="w-10 h-10 bg-tile text-on-tile rounded-lg hidden sm:flex shrink-0 items-center justify-center" aria-hidden="true">
+            <span className="material-symbols-outlined text-[22px]">{button.icon}</span>
+          </span>
+          <div className="min-w-0 flex-1">
+            <h4 className="font-bold text-on-surface">{button.title}</h4>
+            <p className="text-sm text-on-surface-variant">{button.desc}</p>
           </div>
-          <div className="flex-1">
-            <h4 className="font-bold text-neutral-800">{button.title}</h4>
-            <p className="text-sm text-neutral-500">{button.desc}</p>
-          </div>
-          <span className="material-symbols-outlined text-primary">download</span>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-on-primary group-hover:bg-primary-hover">
+            <span className="material-symbols-outlined">download</span>
+          </span>
         </a>
       ))}
 
       {config.note && buttons.length > 1 && (
-        <p className="text-sm text-neutral-600">{config.note}</p>
+        <p className="text-sm text-on-surface-variant">{config.note}</p>
       )}
 
-      <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
-        <h4 className="font-bold text-neutral-800 mb-2">איך ממשיכים אחרי ההורדה</h4>
-        <ol className="list-decimal pr-5 space-y-1 text-neutral-700">
+      <div className="p-4 rounded-lg bg-card">
+        <h4 className="font-bold text-on-surface mb-2">איך ממשיכים אחרי ההורדה</h4>
+        <ol className="list-decimal pr-5 space-y-1 text-on-surface-variant marker:text-primary">
           {config.steps.map((step, index) => (
             <li key={index}>{step}</li>
           ))}
@@ -117,8 +119,8 @@ export default function DownloadAssistantOptions({ platform, links }: { platform
 // מסייע ה-Windows יודע להכין גם יעד Android: ה-APK, או החבילה המלאה עם הספרייה.
 export function AndroidAssistantNotice({ href }: { href: string }) {
   return (
-    <div role="note" className="flex gap-3 p-4 mt-2 rounded-xl border-2 border-amber-400 bg-amber-50 text-amber-900">
-      <span className="material-symbols-outlined text-3xl text-amber-600 flex-shrink-0">info</span>
+    <div role="note" className="flex gap-3 p-4 mt-2 rounded-lg border border-glow bg-tile/45 text-on-surface">
+      <span className="material-symbols-outlined text-3xl text-on-tile flex-shrink-0">info</span>
       <div className="flex-1">
         <p className="font-bold text-lg mb-1">אין אינטרנט במכשיר?</p>
         <p>
@@ -131,7 +133,7 @@ export function AndroidAssistantNotice({ href }: { href: string }) {
         </p>
         <a
           href={href}
-          className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-lg border-2 border-primary bg-white text-primary font-bold hover:shadow-md transition-all"
+          className="inline-flex min-h-12 items-center gap-2 mt-3 px-4 py-2 rounded-lg bg-primary text-on-primary font-semibold hover:bg-primary-hover transition-colors"
         >
           <span className="material-symbols-outlined">download</span>
           <span>הורדת מסייע ההורדה ל-Windows</span>

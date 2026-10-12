@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import DownloadAssistantOptions, { AndroidAssistantNotice, hasDownloadAssistant } from './DownloadAssistantOptions'
+import SectionHeading from './SectionHeading'
+import IconTile from './IconTile'
 
 // מבנה נתוני ההורדות המוחזר מ-/api/github-releases
 type PlatformLinks = Record<string, string | undefined>
@@ -121,36 +123,39 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
       ? `${config.subtitle} · באמצעות מסייע ההורדה`
       : config.subtitle
 
+    // שורת כרטיס בסגנון המתקין: אריח אייקון, כותרת ושורת משנה, ו"כפתור" ראשי מלא
     if (large) {
       return (
         <button
+          type="button"
           onClick={config.onClick}
-          className="flex items-center gap-6 p-8 bg-white border-2 border-primary rounded-2xl hover:shadow-2xl transition-all group w-full max-w-md"
+          className="group flex w-full items-center gap-4 rounded-lg bg-card p-4 text-start transition-colors hover:bg-card-selected focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:gap-5 sm:p-6"
         >
-          <div className="w-20 h-20 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-            <span className="material-symbols-outlined text-5xl text-primary group-hover:scale-110 transition-transform">
-              {config.icon}
-            </span>
+          <IconTile icon={config.icon} size="lg" />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-xl font-bold text-on-surface sm:text-2xl">{config.title}</h3>
+            <p className="mt-0.5 text-sm text-on-surface-variant sm:text-base">{subtitle}</p>
           </div>
-          <div className="flex-1 text-right">
-            <h3 className="text-2xl font-bold mb-1">{config.title}</h3>
-            <p className="text-neutral-500">{subtitle}</p>
-          </div>
-          <span className="material-symbols-outlined text-3xl text-primary">download</span>
+          <span className="inline-flex h-12 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 font-semibold text-on-primary transition-colors group-hover:bg-primary-hover sm:px-5">
+            <span className="material-symbols-outlined">download</span>
+            <span className="hidden sm:inline">הורדה</span>
+          </span>
         </button>
       )
     }
 
     return (
       <button
+        type="button"
         onClick={config.onClick}
-        className="flex flex-col items-center p-6 bg-white border border-neutral-200 rounded-xl hover:border-primary hover:shadow-lg transition-all group h-full"
+        className="group flex h-full w-full items-center gap-4 rounded-lg bg-card p-4 text-start transition-colors hover:bg-card-selected focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:flex-col lg:items-start lg:p-5"
       >
-        <span className="material-symbols-outlined text-6xl text-primary mb-4 group-hover:scale-110 transition-transform">
-          {config.icon}
-        </span>
-        <h3 className="text-xl font-bold mb-1">{config.title}</h3>
-        <p className="text-sm text-neutral-500">{subtitle}</p>
+        <IconTile icon={config.icon} size="md" />
+        <div className="min-w-0 flex-1">
+          <h3 className="text-lg font-bold text-on-surface">{config.title}</h3>
+          <p className="mt-0.5 text-sm text-on-surface-variant">{subtitle}</p>
+        </div>
+        <span className="material-symbols-outlined text-primary lg:hidden" aria-hidden="true">chevron_left</span>
       </button>
     )
   }
@@ -158,34 +163,36 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
   return (
     <>
       {/* Download Section (Software) */}
-      <section id="download" className="py-20 px-4">
+      <section id="download" aria-labelledby="download-heading" className="scroll-mt-20 px-4 py-14 md:px-8 md:py-20">
           <div className="container mx-auto max-w-6xl">
-              <h2 className="text-4xl font-bold text-center mb-4 font-frank">הורדת התוכנה</h2>
+              <SectionHeading id="download-heading" title="הורדת התוכנה" className="md:!mb-6 !mb-5" />
 
               {/* הצגת כפתור הורדה לפלטפורמה שזוהתה */}
               {detectedPlatform && !showAllPlatforms ? (
-                <div className="max-w-2xl mx-auto">
-                  <p className="text-center text-xl text-neutral-600 mb-8">זיהינו שאתה משתמש ב-{getPlatformName(detectedPlatform)}</p>
+                <div className="mx-auto max-w-2xl">
+                  <p className="mb-6 text-center text-lg text-on-surface-variant">זיהינו שאתה משתמש ב-{getPlatformName(detectedPlatform)}</p>
 
-                  <div className="flex flex-col items-center gap-4 mb-8">
+                  <div className="flex flex-col items-center gap-3">
                     {renderPlatformButton(detectedPlatform, true)}
 
                     <button
+                      type="button"
                       onClick={() => setShowAllPlatforms(true)}
-                      className="text-primary hover:underline text-sm font-medium flex items-center gap-1"
+                      className="flex min-h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-primary hover:bg-card-selected"
                     >
                       <span>הורד למערכת אחרת</span>
-                      <span className="material-symbols-outlined text-sm">expand_more</span>
+                      <span className="material-symbols-outlined text-lg">expand_more</span>
                     </button>
                   </div>
                 </div>
               ) : (
                 <>
-                  <p className="text-center text-xl text-neutral-600 mb-12">
+                  <p className="mb-8 text-center text-lg text-on-surface-variant">
                     {detectedPlatform ? 'בחר פלטפורמה' : 'לא הצלחנו לזהות את המערכת שלך - בחר פלטפורמה'}
                   </p>
 
-                  <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6">
+                  {/* נייד: רשימה; טבלט: שתי עמודות; דסקטופ: חמישה כרטיסים אנכיים בשורה */}
+                  <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
                       {renderPlatformButton('windows')}
                       {renderPlatformButton('linux')}
                       {renderPlatformButton('android')}
@@ -194,12 +201,13 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
                   </div>
 
                   {detectedPlatform && (
-                    <div className="text-center mt-6">
+                    <div className="mt-6 text-center">
                       <button
+                        type="button"
                         onClick={() => setShowAllPlatforms(false)}
-                        className="text-primary hover:underline text-sm font-medium flex items-center gap-1 mx-auto"
+                        className="mx-auto flex min-h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-primary hover:bg-card-selected"
                       >
-                        <span className="material-symbols-outlined text-sm">expand_less</span>
+                        <span className="material-symbols-outlined text-lg">expand_less</span>
                         <span>חזור להורדה ל-{getPlatformName(detectedPlatform)}</span>
                       </button>
                     </div>
@@ -267,27 +275,28 @@ function DownloadModal({ isOpen, onClose, platform, links, version }: {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 p-3 sm:p-4" onClick={onClose}>
       {/* כניסה ב-CSS (אותה דעיכה והגדלה מ-0.95 שהייתה ב-framer-motion). ה-exit
           של framer לא פעל ממילא — המודל אינו עטוף ב-AnimatePresence. */}
       <div
         onClick={(e) => e.stopPropagation()}
         style={{ animationDuration: '0.3s' }}
-        className="flex flex-col bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] animate-enter-scale"
+        className="flex flex-col overflow-hidden bg-background rounded-lg w-full max-w-2xl shadow-2xl max-h-[90vh] animate-enter-scale"
       >
         {/* Fixed Header */}
-        <div className="flex items-center justify-between p-6 border-b border-neutral-200 flex-shrink-0">
-          <h2 className="text-2xl font-bold text-neutral-800">
+        {/* כותרת המודל ברקע topBar של האפליקציה, עם קו הפרדה דק */}
+        <div className="flex items-center justify-between gap-3 py-2 ps-5 pe-2 bg-top-bar border-b border-surface-variant flex-shrink-0 sm:ps-6">
+          <h2 className="text-lg font-bold text-on-surface sm:text-xl">
             הורדת אוצריא ל-{platform}
-            {version && <span className="text-sm font-normal text-neutral-500 mr-2"> ({version})</span>}
+            {version && <span className="text-sm font-normal text-on-surface-variant mr-2"> ({version})</span>}
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-500">
+          <button type="button" onClick={onClose} aria-label="סגירה" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg hover:bg-card-selected transition-colors text-on-surface-variant">
             <span className="material-symbols-outlined text-2xl block">close</span>
           </button>
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+        <div className="p-4 overflow-y-auto custom-scrollbar flex-1 sm:p-6">
           <div className="grid gap-3">
             {renderDownloadOptions(platform, links)}
           </div>
@@ -335,7 +344,7 @@ function renderDownloadOptions(platform: string, links: PlatformLinks) {
   const validOptions = platformOptions.filter((opt) => links && links[opt.key])
 
   if (validOptions.length === 0) {
-    return <p className="text-neutral-500 italic p-4 bg-neutral-50 rounded-lg text-center border border-dashed border-neutral-300">אין הורדות זמינות כרגע לגרסה זו.</p>
+    return <p className="text-on-surface-variant p-4 bg-card rounded-lg text-center">אין הורדות זמינות כרגע לגרסה זו.</p>
   }
 
   const optionLinks = validOptions.map((option) => (
@@ -344,16 +353,14 @@ function renderDownloadOptions(platform: string, links: PlatformLinks) {
       href={links[option.key]}
       target={option.isLink ? "_blank" : undefined}
       rel={option.isLink ? "noopener noreferrer" : undefined}
-      className="flex items-center gap-4 p-4 rounded-xl border border-neutral-200 hover:border-primary hover:shadow-md transition-all group bg-neutral-50 hover:bg-white"
+      className="flex items-center gap-4 p-4 rounded-lg transition-colors group bg-card hover:bg-card-selected"
     >
-      <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm text-primary group-hover:scale-110 transition-transform">
-        <span className="material-symbols-outlined text-2xl">{option.icon}</span>
+      <IconTile icon={option.icon} />
+      <div className="min-w-0 flex-1">
+        <h4 className="font-bold text-on-surface">{option.title}</h4>
+        <p className="text-sm text-on-surface-variant">{option.desc}</p>
       </div>
-      <div className="flex-1">
-        <h4 className="font-bold text-neutral-800">{option.title}</h4>
-        <p className="text-sm text-neutral-500">{option.desc}</p>
-      </div>
-      <span className="material-symbols-outlined text-neutral-400 group-hover:text-primary">
+      <span className="material-symbols-outlined text-outline group-hover:text-primary">
         {option.isLink ? 'open_in_new' : 'download'}
       </span>
     </a>

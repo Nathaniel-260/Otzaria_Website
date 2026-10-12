@@ -20,20 +20,39 @@
  * ============================================================ */
 
 @theme {
-  /* --- צבעי המותג (אוצריא) --- */
-  --color-background: #fefbf6;
-  --color-surface: #f8f4ef;
-  --color-surface-variant: #e7e0d8;
-  --color-primary: #6b5d4f;
-  --color-primary-container: #f4ede3;
-  --color-secondary: #8b7355;
-  --color-secondary-container: #f5ead8;
-  --color-accent: #9c7c4f;
+  /* --- צבעי המותג (אוצריא) ---
+   * הערכה הבהירה של אפליקציית אוצריא (AppThemeData.light, זרע #2C1B02, Material 3),
+   * כפי שנמדדה ב-otzaria-design/download-assistant/build_assistant_art.py.
+   * השמות הוותיקים (background / surface / primary ...) נשמרו — הם בשימוש בכל האתר —
+   * וקיבלו את ערכי האפליקציה; לצדם נוספו טוקני M3 החסרים (top-bar, card, tile...). */
+  --color-background: #f6ede5;          /* panelBackground — רקע הדף */
+  --color-surface: #fff8f4;             /* surface — גוף הכרטיס (AppCard) */
+  --color-surface-variant: #e1d4c8;     /* קו הפרדה עדין (גבול ה-topBar) */
+  --color-primary: #805610;             /* primary — כפתור ראשי, קישורים */
+  --color-primary-hover: #8a6423;       /* onPrimary@8 מעל primary */
+  --color-primary-pressed: #8f6a2d;     /* onPrimary@12 מעל primary */
+  --color-primary-container: #fef0e3;   /* cardSelectionOverlay — ריחוף/בחירה */
+  --color-secondary: #6f5b40;           /* secondary */
+  --color-secondary-container: #fbdebc; /* secondaryContainer — אריח אייקון, כפתור טונלי */
+  --color-on-secondary-container: #56442a;
+  --color-accent: #8f6a2d;
   --color-donation: #a93226;
   --color-donation-strong: #8e2a20;
-  --color-on-background: #1c1b1a;
-  --color-on-surface: #1c1b1a;
+  --color-on-background: #201b13;       /* onSurface */
+  --color-on-surface: #201b13;
+  --color-on-surface-variant: #4f4539;  /* טקסט משני */
   --color-on-primary: #ffffff;
+
+  /* --- טוקני M3 נוספים מהאפליקציה --- */
+  --color-top-bar: #f3e6da;             /* surfaceContainerHigh — כותרת עליונה */
+  --color-card: #fff8f4;                /* AppSurfaces.card — בלי מסגרת ובלי צל */
+  --color-card-selected: #fef0e3;       /* כרטיס בריחוף/בחירה */
+  --color-outline: #817567;             /* מסגרת שדה, טקסט חלש */
+  --color-outline-variant: #d3c4b4;     /* קווי הפרדה */
+  --color-tile: #fbdebc;                /* אריח אייקון טונלי */
+  --color-on-tile: #56442a;             /* גליף על האריח */
+  --color-error: #ba1a1a;
+  --color-glow: #e9b96a;                /* זהב — הילה ונקודת הקישוט */
 
   /* --- ניטרלי (היה gray) --- */
   --color-neutral-50: oklch(98.5% 0.002 247.839);

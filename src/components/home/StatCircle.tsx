@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatExactNumber } from '@/lib/homeStats/homeStats'
 
-// עיגול נתון בודד באזור "אוצריא במספרים".
+// כרטיס נתון בודד באזור "אוצריא במספרים".
 //
 // ה-HTML מהשרת מכיל כבר את המספר הסופי (SEO, ובלי הבהוב של 0 לפני ה-hydration).
 // רק אחרי ה-hydration, כשהעיגול נכנס לתצוגה בפעם הראשונה, המספר "נספר" מ-0
@@ -64,33 +64,37 @@ export default function StatCircle({ icon, label, value, index = 0 }: StatCircle
 
   const finalText = formatExactNumber(value)
 
+  // כרטיס נתון בשפת האפליקציה (AppCard + אריח אייקון). השם StatCircle נשמר מהעיצוב
+  // הקודם (עיגולים) כדי לא לשבור ייבוא וטסטים.
   return (
     <div
       ref={circleRef}
-      style={{ animationDelay: `${index * 0.1}s` }}
-      className="animate-enter-up mx-auto flex h-32 w-32 flex-col items-center justify-center rounded-full glass-strong border-2 border-primary/20 shadow-lg transition-shadow hover:shadow-xl sm:h-36 sm:w-36 lg:h-44 lg:w-44"
+      style={{ animationDelay: `${index * 0.08}s` }}
+      className="animate-enter-up flex w-full flex-col items-start gap-3 rounded-lg bg-card p-4 sm:p-5"
     >
-      <span className="material-symbols-outlined text-3xl text-primary lg:text-4xl" aria-hidden="true">
-        {icon}
-      </span>
-      {/* המספר המונפש מוסתר מקוראי מסך (שהיו מקריאים כל שלב בספירה);
-          להם מוגש הטקסט הסופי בנפרד */}
       <span
-        className="mt-1 whitespace-nowrap text-lg font-bold leading-tight text-on-surface tabular-nums sm:text-xl lg:text-2xl"
-        dir="ltr"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-tile text-on-tile"
         aria-hidden="true"
-        data-testid="stat-value"
       >
-        {formatExactNumber(displayValue)}
+        <span className="material-symbols-outlined text-[22px]">{icon}</span>
       </span>
-      <span className="sr-only">{finalText}</span>
-      {/* רוחב מוגבל: תווית ארוכה ("קישורים בין ספרים") נשברת לשתי שורות בתוך העיגול
-          במקום לחרוג מהמסגרת העגולה (בתחתית העיגול המיתר צר מקוטר העיגול).
-          מתחת ל-lg שמור לתווית גובה של שתי שורות (2 × leading-tight) בכל העיגולים,
-          כדי שהאייקון והמספר יישבו באותו גובה בכל העיגולים שבשורה */}
-      <span className="mt-0.5 min-h-[2.5em] max-w-[78%] text-balance text-center text-sm leading-tight text-on-surface/70 lg:min-h-0 lg:text-base">
-        {label}
-      </span>
+      <div className="w-full min-w-0">
+        {/* המספר המונפש מוסתר מקוראי מסך (שהיו מקריאים כל שלב בספירה);
+            להם מוגש הטקסט הסופי בנפרד. dir=ltr עם יישור לימין: המספר צמוד לצד הכרטיס שבו מתחיל הטקסט */}
+        <span
+          className="block whitespace-nowrap text-2xl font-bold leading-tight text-on-surface tabular-nums sm:text-[1.75rem] lg:text-2xl xl:text-[1.75rem]"
+          dir="ltr"
+          style={{ textAlign: 'right' }}
+          aria-hidden="true"
+          data-testid="stat-value"
+        >
+          {formatExactNumber(displayValue)}
+        </span>
+        <span className="sr-only">{finalText}</span>
+        <span className="mt-1 block text-sm leading-snug text-on-surface-variant">
+          {label}
+        </span>
+      </div>
     </div>
   )
 }
