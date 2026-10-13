@@ -79,7 +79,9 @@ export default function HeroSection() {
         </div>
       </div>
 
-      <div className="container mx-auto mt-10 w-full max-w-4xl md:mt-12 2xl:max-w-5xl short:mt-6">
+      {/* מרווח ברור מהכפתורים — השורה היא אזור נפרד ולא המשך של קישור "לפרוייקט..." שמעליה;
+          במסך נמוך (short) מתון יותר, כדי שהכל עדיין ייכנס במסך הראשון */}
+      <div className="container mx-auto mt-12 w-full max-w-4xl md:mt-20 2xl:mt-24 2xl:max-w-5xl short:mt-14">
         <Suspense fallback={<HeroStatsPlaceholder />}>
           <HeroStatsLoader />
         </Suspense>
