@@ -12,7 +12,7 @@ type AssistantButton = {
 }
 
 type AssistantPlatformConfig = {
-  /** שורה אחת: מה מורידים ומה עושים בקובץ */
+  /** מה עושים בקובץ שהורד (מוצג מתחת ל-ASSISTANT_LEAD_TITLE) */
   lead: ReactNode
   buttons: AssistantButton[]
   /** הערה שאין לה מקום אחר (מוצגת אחרי הכפתורים) */
@@ -21,15 +21,18 @@ type AssistantPlatformConfig = {
 
 // הנוסח תואם את מסכי המסייע ואת docs/download_assistant.md בריפו של אוצריא.
 // לא להוסיף כאן שלבים שהמסייע מסביר בעצמו (בחירת המחשב, היקף ההורדה, glib-networking, עמוד הסיום).
+// העובדה החשובה בכל החלונות — שורה מודגשת נפרדת מעל ההסבר הספציפי למערכת
+const ASSISTANT_LEAD_TITLE = 'זה מסייע ההורדה, לא תוכנת ההתקנה.'
+
 const ASSISTANT_CONFIG: Record<string, AssistantPlatformConfig> = {
   Windows: {
-    lead: 'זה מסייע ההורדה, לא תוכנת ההתקנה. הפעילו אותו, והוא יוריד את אוצריא ויכין התקנה — למחשב הזה או למחשב בלי אינטרנט.',
+    lead: 'הפעילו אותו, והוא יוריד את אוצריא ויכין התקנה — למחשב הזה או למחשב בלי אינטרנט.',
     buttons: [
       { key: 'assistant', icon: 'install_desktop', title: 'מסייע ההורדה של אוצריא', desc: <><bdi dir="ltr">Windows 10 / 11</bdi>, כולל מחשבי ARM</> }
     ]
   },
   macOS: {
-    lead: <>זה מסייע ההורדה, לא תוכנת ההתקנה. פתחו את <Nowrap>ה-<Ltr>ZIP</Ltr></Nowrap> שהורד והפעילו את המסייע שבתוכו — משם הוא ינחה אתכם.</>,
+    lead: <>פתחו את <Nowrap>ה-<Ltr>ZIP</Ltr></Nowrap> שהורד והפעילו את המסייע שבתוכו — משם הוא ינחה אתכם.</>,
     buttons: [
       { key: 'assistant', icon: 'laptop_mac', title: 'מסייע ההורדה של אוצריא', desc: 'macOS 12 ומעלה, Intel ו-Apple Silicon' }
     ],
@@ -40,7 +43,7 @@ const ASSISTANT_CONFIG: Record<string, AssistantPlatformConfig> = {
     }
   },
   Linux: {
-    lead: <>זה מסייע ההורדה, לא תוכנת ההתקנה. חלצו את <Nowrap>ה-<Ltr>tar.gz</Ltr></Nowrap> שהורד והפעילו את <Ltr>Otzaria-Download-Assistant</Ltr> שבתיקייה — משם הוא ינחה אתכם.</>,
+    lead: <>חלצו את <Nowrap>ה-<Ltr>tar.gz</Ltr></Nowrap> שהורד והפעילו את <Ltr>Otzaria-Download-Assistant</Ltr> שבתיקייה — משם הוא ינחה אתכם.</>,
     buttons: [
       { key: 'assistantX64', icon: 'computer', title: 'מסייע ההורדה (x64)', desc: 'מעבד Intel או AMD — רוב המחשבים' },
       { key: 'assistantArm64', icon: 'memory', title: 'מסייע ההורדה (ARM64)', desc: 'מעבד ARM' }
@@ -68,7 +71,7 @@ export default function DownloadAssistantOptions({ platform, links }: { platform
 
   return (
     <>
-      <DownloadNote variant="lead">{config.lead}</DownloadNote>
+      <DownloadNote variant="lead" title={ASSISTANT_LEAD_TITLE}>{config.lead}</DownloadNote>
 
       {buttons.map((button, index) => (
         <DownloadOptionCard

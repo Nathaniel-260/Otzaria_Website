@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useDialogA11y } from '@/components/ui/useDialogA11y'
+import { splitVersion } from './downloadVersion'
 
 // משך אנימציית היציאה. אנימציית הכניסה (180ms) ארוכה ממנה מעט — כמו במתקין.
 const EXIT_MS = 150
@@ -30,6 +31,7 @@ export default function DownloadDialog({ title, version, onClose, children }: {
   children: ReactNode
 }) {
   const titleId = useId()
+  const parsedVersion = splitVersion(version)
   const panelRef = useRef<HTMLDivElement>(null)
   const [closing, setClosing] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -77,10 +79,16 @@ export default function DownloadDialog({ title, version, onClose, children }: {
             : 'animate-[enter-up_180ms_cubic-bezier(0,0,0.2,1)_backwards]'
         }`}
       >
-        <DialogHeader titleId={titleId} title={title} version={version} onClose={requestClose} />
+        <DialogHeader titleId={titleId} title={title} version={parsedVersion?.display} onClose={requestClose} />
 
         <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
           <div className="grid gap-3">{children}</div>
+          {/* מספר הבנייה (אחרי ה-+) — לא מעניין את רוב המשתמשים, אבל נשאר זמין לתמיכה, בשולי החלון */}
+          {parsedVersion?.build && (
+            <p className="mt-4 text-center text-xs text-outline">
+              גרסה מלאה: <bdi dir="ltr">{parsedVersion.display}+{parsedVersion.build}</bdi>
+            </p>
+          )}
         </div>
       </div>
     </div>,

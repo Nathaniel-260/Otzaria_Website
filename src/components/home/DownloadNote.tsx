@@ -2,20 +2,25 @@ import type { ReactNode } from 'react'
 
 /**
  * הערה בחלון ההורדה.
- * - "lead": שורת ההסבר הראשית של החלון (מה מורידים ומה עושים בקובץ) — תיבה טונלית שקטה,
- *   role="note".
+ * - "lead": שורת ההסבר הראשית של החלון — תיבה טונלית שקטה, role="note": כותרת מודגשת (title)
+ *   ומתחתיה, בשורה נפרדת, מה עושים בקובץ.
  * - "quiet": הערה משנית שאין לה מקום אחר (uname -m, Gatekeeper) — טקסט קטן עם אייקון.
  */
-export default function DownloadNote({ icon = 'info', variant = 'quiet', children }: {
+export default function DownloadNote({ icon = 'info', variant = 'quiet', title, children }: {
   icon?: string
   variant?: 'lead' | 'quiet'
+  /** ב-lead: שורה מודגשת נפרדת מעל ההסבר — העובדה החשובה, שנקראת גם במבט חטוף */
+  title?: ReactNode
   children: ReactNode
 }) {
   if (variant === 'lead') {
     return (
       <div role="note" className="flex gap-3 rounded-lg bg-tile/40 p-3 text-sm leading-relaxed text-on-surface sm:p-4 sm:text-[0.9375rem]">
         <span aria-hidden="true" className="material-symbols-outlined mt-px shrink-0 text-[22px] text-on-tile">{icon}</span>
-        <p className="min-w-0">{children}</p>
+        <div className="min-w-0">
+          {title && <p className="font-bold">{title}</p>}
+          <p className={title ? 'mt-1 text-on-surface-variant' : undefined}>{children}</p>
+        </div>
       </div>
     )
   }
