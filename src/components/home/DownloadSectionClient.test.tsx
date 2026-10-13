@@ -164,3 +164,25 @@ describe('DownloadSectionClient — נגישות חלון ההורדה', () => {
     expect(links[links.length - 1]).toHaveFocus()
   })
 })
+
+describe('DownloadSectionClient — נוסח החלונות', () => {
+  beforeEach(() => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('test-agent')
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it.each(['Windows', 'macOS', 'Linux'])('%s: שורת ההסבר — רווח לא-נשבר אמיתי לפני הקו, בלי "00a0" גלוי', (name) => {
+    render(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
+    const text = within(openPlatform(name)).getByRole('note').textContent ?? ''
+    expect(text).not.toMatch(/00a0|\u/i)
+    expect(text).toContain(' —')
+  })
+
+  it.each(['Windows', 'macOS', 'Linux', 'Android', 'iOS'])('%s: בלי שורת גרסה בחלון (הגרסה במסך הפתיחה)', (name) => {
+    render(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
+    const dialog = openPlatform(name)
+    expect(dialog.textContent).not.toMatch(/גרסה|0\.9\.98|00a0/)
+  })
+})

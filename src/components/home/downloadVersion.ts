@@ -1,5 +1,5 @@
 // גרסת release של אוצריא היא SemVer עם מספר בנייה אחרי '+' (למשל 0.9.98+801).
-// למשתמש מציגים בכותרת רק את הגרסה עצמה; מספר הבנייה הוא מידע לתמיכה ומוצג בשולי החלון.
+// למשתמש מציגים רק את הגרסה עצמה (שורת המספרים במסך הפתיחה, HeroStatsLoader), בלי מספר הבנייה.
 export function splitVersion(version: string | undefined): { display: string; build: string | null } | null {
   const trimmed = version?.trim().replace(/^v/i, '')
   if (!trimmed) return null

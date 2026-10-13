@@ -211,7 +211,6 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
       {openPlatform && (
         <DownloadDialog
           title={`הורדת אוצריא ל-${getPlatformName(openPlatform)}`}
-          version={stableDownloads?.versions?.[openPlatform] ?? stableDownloads?.version}
           onClose={() => setOpenPlatform(null)}
         >
           {renderDownloadOptions(getPlatformName(openPlatform), getDialogLinks(openPlatform, stableDownloads))}
