@@ -26,6 +26,8 @@ describe('HeroStats', () => {
     const terms = Array.from(container.querySelectorAll('dt'), (el) => el.textContent)
     expect(terms).toEqual(['ספרים', 'גרסה'])
     expect(screen.getByTestId('hero-stat-version')).toHaveTextContent('0.9.98')
+    // משתלבת בשורה: אותן מחלקות ערך כמו המספרים (לא primary)
+    expect(screen.getByTestId('hero-stat-version').className).toBe(screen.getByTestId('hero-stat-value').parentElement?.className)
     expect(container.querySelector('dl')?.style.getPropertyValue('--stat-count')).toBe('2')
   })
 
