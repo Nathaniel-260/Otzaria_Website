@@ -29,13 +29,11 @@ export default function Home() {
 
         <StatsSection />
 
-        {/* עדכון לא-מקוון ותרומה — שני כרטיסים זה לצד זה מטבלט ומעלה */}
-        <section aria-label="עדכון לא-מקוון ותרומה" className="px-4 pt-6 md:px-8 md:pt-10">
-          <div className="container mx-auto grid max-w-6xl gap-4 md:grid-cols-2">
-            <OfflineToolCard />
-            <DonateCallout />
-          </div>
-        </section>
+        {/* שני נושאים נפרדים — שני אזורים זה מתחת לזה, לא כרטיסים זה לצד זה: הכלי הלא-מקוון
+            כפס אופקי, והתרומה כאזור הסיום של הדף (קריאה אחת ברורה לפני הפוטר) */}
+        <OfflineToolCard />
+
+        <DonateCallout />
       </main>
 
       <OtzariaSoftwareFooter />
