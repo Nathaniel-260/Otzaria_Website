@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import DownloadAssistantOptions, { AndroidAssistantNotice, hasDownloadAssistant } from './DownloadAssistantOptions'
 import SectionHeading from './SectionHeading'
 import IconTile from './IconTile'
+import DownloadDialog from './DownloadDialog'
+import DownloadOptionCard from './DownloadOptionCard'
 
 // מבנה נתוני ההורדות המוחזר מ-/api/github-releases
 type PlatformLinks = Record<string, string | undefined>
@@ -35,11 +37,8 @@ type DownloadOption = {
 // stableDownloads מגיע כבר טעון מהשרת (ראו DownloadSection.tsx, ה-Server Component
 // שעוטף את הרכיב הזה) — כאן נשארת רק האינטראקטיביות (זיהוי פלטפורמה, מודלים).
 export default function DownloadSectionClient({ stableDownloads }: { stableDownloads: Downloads | null }) {
-  const [windowsModalOpen, setWindowsModalOpen] = useState(false)
-  const [linuxModalOpen, setLinuxModalOpen] = useState(false)
-  const [androidModalOpen, setAndroidModalOpen] = useState(false)
-  const [macModalOpen, setMacModalOpen] = useState(false)
-  const [iosModalOpen, setIosModalOpen] = useState(false)
+  // חלון ההורדה הפתוח (מפתח פלטפורמה: windows / linux / ...), או null
+  const [openPlatform, setOpenPlatform] = useState<string | null>(null)
 
   const [detectedPlatform, setDetectedPlatform] = useState<string | null>(null)
   const [showAllPlatforms, setShowAllPlatforms] = useState(false)
@@ -88,31 +87,31 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
         icon: 'desktop_windows',
         title: 'Windows',
         subtitle: '10 / 11',
-        onClick: () => setWindowsModalOpen(true)
+        onClick: () => setOpenPlatform('windows')
       },
       linux: {
         icon: 'computer',
         title: 'Linux',
         subtitle: 'כל ההפצות',
-        onClick: () => setLinuxModalOpen(true)
+        onClick: () => setOpenPlatform('linux')
       },
       android: {
         icon: 'phone_android',
         title: 'Android',
         subtitle: 'Google Play / APK',
-        onClick: () => setAndroidModalOpen(true)
+        onClick: () => setOpenPlatform('android')
       },
       ios: {
         icon: 'phone_iphone',
         title: 'iOS',
         subtitle: 'App Store',
-        onClick: () => setIosModalOpen(true)
+        onClick: () => setOpenPlatform('ios')
       },
       macos: {
         icon: 'laptop_mac',
         title: 'macOS',
         subtitle: 'Intel / Apple Silicon',
-        onClick: () => setMacModalOpen(true)
+        onClick: () => setOpenPlatform('macos')
       }
     }
 
@@ -217,93 +216,35 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
           </div>
       </section>
 
-      {/* Modals */}
-      <DownloadModal
-        isOpen={windowsModalOpen}
-        onClose={() => setWindowsModalOpen(false)}
-        platform="Windows"
-        links={stableDownloads?.windows || {}}
-        version={stableDownloads?.versions?.windows ?? stableDownloads?.version}
-      />
-      <DownloadModal
-        isOpen={linuxModalOpen}
-        onClose={() => setLinuxModalOpen(false)}
-        platform="Linux"
-        links={stableDownloads?.linux || {}}
-        version={stableDownloads?.versions?.linux ?? stableDownloads?.version}
-      />
-      <DownloadModal
-        isOpen={androidModalOpen}
-        onClose={() => setAndroidModalOpen(false)}
-        platform="Android"
-        links={{
-          playStore: 'https://play.google.com/store/apps/details?id=org.otzaria.otzaria',
-          apk: stableDownloads?.android?.apk,
-          zipFull: stableDownloads?.android?.zipFull,
-          windowsAssistant: stableDownloads?.windows?.assistant
-        }}
-        version={stableDownloads?.versions?.android ?? stableDownloads?.version}
-      />
-      <DownloadModal
-        isOpen={iosModalOpen}
-        onClose={() => setIosModalOpen(false)}
-        platform="iOS"
-        links={{
-          appStore: 'https://apps.apple.com/us/app/otzaria/id6738098031'
-        }}
-        version={stableDownloads?.version}
-      />
-      <DownloadModal
-        isOpen={macModalOpen}
-        onClose={() => setMacModalOpen(false)}
-        platform="macOS"
-        links={stableDownloads?.macos || {}}
-        version={stableDownloads?.versions?.macos ?? stableDownloads?.version}
-      />
+      {openPlatform && (
+        <DownloadDialog
+          title={`הורדת אוצריא ל-${getPlatformName(openPlatform)}`}
+          version={stableDownloads?.versions?.[openPlatform] ?? stableDownloads?.version}
+          onClose={() => setOpenPlatform(null)}
+        >
+          {renderDownloadOptions(getPlatformName(openPlatform), getDialogLinks(openPlatform, stableDownloads))}
+        </DownloadDialog>
+      )}
     </>
   )
 }
 
-// Download Modal Component
-function DownloadModal({ isOpen, onClose, platform, links, version }: {
-  isOpen: boolean
-  onClose: () => void
-  platform: string
-  links: PlatformLinks
-  version?: string
-}) {
-  if (!isOpen) return null
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=org.otzaria.otzaria'
+const APP_STORE_URL = 'https://apps.apple.com/us/app/otzaria/id6738098031'
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 p-3 sm:p-4" onClick={onClose}>
-      {/* כניסה ב-CSS (אותה דעיכה והגדלה מ-0.95 שהייתה ב-framer-motion). ה-exit
-          של framer לא פעל ממילא — המודל אינו עטוף ב-AnimatePresence. */}
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ animationDuration: '0.3s' }}
-        className="flex flex-col overflow-hidden bg-background rounded-lg w-full max-w-2xl shadow-2xl max-h-[90vh] animate-enter-scale"
-      >
-        {/* Fixed Header */}
-        {/* כותרת המודל ברקע topBar של האפליקציה, עם קו הפרדה דק */}
-        <div className="flex items-center justify-between gap-3 py-2 ps-5 pe-2 bg-top-bar border-b border-surface-variant flex-shrink-0 sm:ps-6">
-          <h2 className="text-lg font-bold text-on-surface sm:text-xl">
-            הורדת אוצריא ל-{platform}
-            {version && <span className="text-sm font-normal text-on-surface-variant mr-2"> ({version})</span>}
-          </h2>
-          <button type="button" onClick={onClose} aria-label="סגירה" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg hover:bg-card-selected transition-colors text-on-surface-variant">
-            <span className="material-symbols-outlined text-2xl block">close</span>
-          </button>
-        </div>
-
-        {/* Scrollable Content */}
-        <div className="p-4 overflow-y-auto custom-scrollbar flex-1 sm:p-6">
-          <div className="grid gap-3">
-            {renderDownloadOptions(platform, links)}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+// הקישורים שמוצגים בחלון של כל מערכת. Android ו-iOS מקבלים גם קישורי חנות קבועים,
+// ו-Android גם את מסייע ה-Windows (להכנת התקנה למכשיר בלי אינטרנט).
+function getDialogLinks(platform: string, downloads: Downloads | null): PlatformLinks {
+  if (platform === 'android') {
+    return {
+      playStore: PLAY_STORE_URL,
+      apk: downloads?.android?.apk,
+      zipFull: downloads?.android?.zipFull,
+      windowsAssistant: downloads?.windows?.assistant
+    }
+  }
+  if (platform === 'ios') return { appStore: APP_STORE_URL }
+  return (downloads?.[platform as 'windows' | 'linux' | 'macos'] as PlatformLinks | undefined) || {}
 }
 
 function renderDownloadOptions(platform: string, links: PlatformLinks) {
@@ -344,26 +285,20 @@ function renderDownloadOptions(platform: string, links: PlatformLinks) {
   const validOptions = platformOptions.filter((opt) => links && links[opt.key])
 
   if (validOptions.length === 0) {
-    return <p className="text-on-surface-variant p-4 bg-card rounded-lg text-center">אין הורדות זמינות כרגע לגרסה זו.</p>
+    return <p className="rounded-lg bg-card p-4 text-center text-on-surface-variant">אין הורדות זמינות כרגע לגרסה זו.</p>
   }
 
-  const optionLinks = validOptions.map((option) => (
-    <a
+  // האפשרות הראשונה היא הפעולה הראשית בחלון; השאר חלופות משניות
+  const optionLinks = validOptions.map((option, index) => (
+    <DownloadOptionCard
       key={option.key}
-      href={links[option.key]}
-      target={option.isLink ? "_blank" : undefined}
-      rel={option.isLink ? "noopener noreferrer" : undefined}
-      className="flex items-center gap-4 p-4 rounded-lg transition-colors group bg-card hover:bg-card-selected"
-    >
-      <IconTile icon={option.icon} />
-      <div className="min-w-0 flex-1">
-        <h4 className="font-bold text-on-surface">{option.title}</h4>
-        <p className="text-sm text-on-surface-variant">{option.desc}</p>
-      </div>
-      <span className="material-symbols-outlined text-outline group-hover:text-primary">
-        {option.isLink ? 'open_in_new' : 'download'}
-      </span>
-    </a>
+      href={links[option.key] as string}
+      icon={option.icon}
+      title={option.title}
+      desc={option.desc}
+      emphasis={index === 0 ? 'primary' : 'tonal'}
+      external={option.isLink}
+    />
   ))
 
   if (platform === 'Android' && links.windowsAssistant) {
