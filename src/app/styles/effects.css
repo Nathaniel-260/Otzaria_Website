@@ -22,7 +22,7 @@
 
   /* כפתור התרומה — משותף לכותרת העליונה (.donation-nav-link) ולאזור הסיום של דף הבית
      (.donation-button-lg). מלא, בצבע התרומה מהפלטה החמה (--color-donation* ב-colors.css), בלי
-     טבעת פועמת: הטבעת האדומה נראתה כהתראה/שגיאה והתחרתה ב"הורידו בחינם". מטרת מגע 44px ומעלה. */
+     טבעת פועמת: הטבעת האדומה נראתה כהתראה/שגיאה והתחרתה ב"הורידו בחינם". מטרת מגע 44px ומעלה (בכותרת — דרך ::before, ראו .donation-nav-link). */
   .donation-button {
     display: inline-flex;
     align-items: center;
@@ -63,6 +63,29 @@
 
   .donation-button-lg .donation-button-icon {
     font-size: 1.375rem;
+  }
+
+  /* בכותרת: בגובה הנראה של פריטי הניווט שלצדו (px-3 py-2 text-sm — 'ספריית אוצריא'), כדי
+     שכל השורה תעמוד על קו אחד; בנייד — ממורכז מול כפתור התפריט. מטרת המגע נשארת 44px:
+     ::before שקוף מרחיב את אזור הלחיצה אנכית, בלי להגדיל את הכפתור הנראה. */
+  .donation-nav-link {
+    position: relative;
+    min-height: 0;
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3.5);
+  }
+
+  .donation-nav-link::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    height: max(100%, 2.75rem);
+    transform: translateY(-50%);
+  }
+
+  /* הלב לא מגדיל את גובה השורה */
+  .donation-nav-link .donation-button-icon {
+    line-height: 1;
   }
 
   /* בכותרת: הלב "מקפץ" קלות כל כמה שניות — תנועה מכובדת ל-prefers-reduced-motion */
