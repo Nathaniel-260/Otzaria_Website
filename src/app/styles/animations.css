@@ -303,25 +303,17 @@
   }
 
   /* ============================================================
-   * "חינם" → "חינם לנצח!" מתחת לספר בגיבור (ForeverTagline) — לולאה רגועה.
+   * "חינם" → "חינם לנצח!" מתחת לספר בגיבור (ForeverTagline) — פעם אחת, ונעצר.
    *
    * השורה עצמה היא תמיד הצירוף המלא "חינם לנצח!" (ממורכז, ולכן המקום שמור ברוחבו המלא
-   * ואין קפיצת layout). התנועה היא רק transform/opacity:
-   *   - "חינם" מתחיל מוזז שמאלה ב---forever-shift = חצי (רוחב "לנצח!" + הרווח) — כלומר
-   *     ממורכז לבד. אחר כך הוא מחליק ימינה (RTL: "לנצח!" בא אחריו) למקומו בצירוף.
-   *   - "לנצח!" נכנס למקום שהתפנה, אות אחר אות (fade + עלייה קצרה + טשטוש שמתבהר), מעט
-   *     אחרי תחילת ההחלקה — כך ש"נכנס למקום" ולא "קופץ".
-   *   - הצירוף מוצג, ואז "לנצח!" דוהה ו"חינם" מחליק חזרה למרכז. וחוזר חלילה.
-   * ה-JS מודד רק את --forever-shift (ForeverTagline); כל השאר כאן.
-   *
-   * כל הרכיבים באותו משך (--forever-cycle) ובלולאה; ההבדל ביניהם הוא העיכוב בלבד, שנשמר
-   * קבוע בין המחזורים — ולכן הם לעולם לא "מחליקים" זה מזה. ציר הזמן (מחזור 7.2s):
-   *   0–0.6s       (פעם אחת) "חינם" עולה מטשטוש, ממורכז לבד
-   *   2.1–2.7s     "חינם" מחליק ימינה; "לנצח!" נכנס מ-2.35s
-   *   ~2.9–5.75s   "חינם לנצח!" ממורכז ומוצג
-   *   5.75–6.05s   "לנצח!" דוהה;  5.8–6.5s "חינם" חוזר למרכז
-   * data-paused: הלולאה נעצרת מחוץ למסך, בלשונית מוסתרת ובריחוף/פוקוס על הגיבור
-   * (WCAG 2.2.2). כל הרכיבים נעצרים יחד, ולכן נשארים מסונכרנים.
+   * ואין קפיצת layout). התנועה היא רק transform/opacity/filter, עם fill-mode forwards:
+   *   0–0.6s     "חינם" עולה מטשטוש — ממורכז לבד (מוזז שמאלה ב---forever-shift = חצי
+   *              רוחב "לנצח!" + חצי הרווח; ה-JS מודד רק את המספר הזה)
+   *   1.5–2.2s   "חינם" מחליק ימינה (RTL: "לנצח!" בא אחריו) למקומו בצירוף
+   *   1.75s+     "לנצח!" נכנס למקום שהתפנה, אות אחר אות (60ms ביניהן) — fade, עלייה
+   *              קצרה וטשטוש שמתבהר, כך שהוא "נכנס למקום" ולא "קופץ"
+   *   2.3–3.0s   קו זהב דק נמתח מתחתיו — ו"חינם לנצח!" נשאר ממורכז.
+   * מתחיל ב-data-state="play" — אחרי שהספר סיים להיפתח (HeroEmblem).
    * ============================================================ */
   @keyframes forever-enter {
     from { opacity: 0; transform: translateY(0.35em); filter: blur(10px); }
@@ -329,33 +321,28 @@
   }
 
   @keyframes forever-slide {
-    0%, 29% { transform: translateX(calc(var(--forever-shift, 1.6em) * -1)); }
-    37%, 80% { transform: translateX(0); }
-    90%, 100% { transform: translateX(calc(var(--forever-shift, 1.6em) * -1)); }
+    from { transform: translateX(calc(var(--forever-shift, 1.6em) * -1)); }
+    to { transform: translateX(0); }
   }
 
-  /* זמן מקומי של כל אות (מתחילת הכניסה שלה); היציאה של המילה כולה — ב-forever-final-out */
   @keyframes forever-letter {
-    0% { opacity: 0; transform: translateY(0.3em); filter: blur(8px); }
-    9%, 60% { opacity: 1; transform: none; filter: blur(0); }
-    62%, 100% { opacity: 0; transform: none; filter: blur(0); }
-  }
-
-  @keyframes forever-final-out {
-    0%, 80% { opacity: 1; }
-    84%, 100% { opacity: 0; }
+    from { opacity: 0; transform: translateY(0.3em); filter: blur(8px); }
+    to { opacity: 1; transform: none; filter: blur(0); }
   }
 
   @keyframes forever-underline {
-    0% { transform: scaleX(0); opacity: 0; }
-    10%, 60% { transform: scaleX(1); opacity: 1; }
-    62%, 100% { transform: scaleX(0); opacity: 0; }
+    from { transform: scaleX(0); opacity: 0; }
+    to { transform: scaleX(1); opacity: 1; }
   }
 
   .forever-line,
   .forever-letter,
   .forever-underline {
     opacity: 0;
+  }
+
+  .forever-first {
+    transform: translateX(calc(var(--forever-shift, 1.6em) * -1));
   }
 
   .forever-letter {
@@ -366,47 +353,28 @@
     transform-origin: right;
   }
 
-  [data-state='play'] {
-    --forever-cycle: 7.2s;
-    --forever-final-at: 2.35s;
-  }
-
   [data-state='play'] .forever-line {
-    animation: forever-enter 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: forever-enter 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
   [data-state='play'] .forever-first {
-    /* האטה רכה בשני הכיוונים — החלקה, לא דחיפה */
-    animation: forever-slide var(--forever-cycle) cubic-bezier(0.65, 0, 0.35, 1) infinite both;
-  }
-
-  [data-state='play'] .forever-final {
-    animation: forever-final-out var(--forever-cycle) ease-in-out infinite both;
+    /* האטה רכה בשני הקצוות — החלקה, לא דחיפה */
+    animation: forever-slide 700ms cubic-bezier(0.65, 0, 0.35, 1) 1.5s forwards;
   }
 
   [data-state='play'] .forever-letter {
-    animation: forever-letter var(--forever-cycle) cubic-bezier(0.16, 1, 0.3, 1) infinite both;
-    animation-delay: calc(var(--forever-final-at) + var(--i, 0) * 60ms);
+    animation: forever-letter 650ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: calc(1.75s + var(--i, 0) * 60ms);
   }
 
   [data-state='play'] .forever-underline {
-    animation: forever-underline var(--forever-cycle) cubic-bezier(0.65, 0, 0.35, 1) infinite both;
-    animation-delay: calc(var(--forever-final-at) + 0.4s);
+    animation: forever-underline 700ms cubic-bezier(0.65, 0, 0.35, 1) 2.3s forwards;
   }
 
-  [data-paused] .forever-line,
-  [data-paused] .forever-first,
-  [data-paused] .forever-final,
-  [data-paused] .forever-letter,
-  [data-paused] .forever-underline {
-    animation-play-state: paused;
-  }
-
-  /* בלי תנועה: אין לולאה — "חינם לנצח!" סטטי, ממורכז */
+  /* בלי תנועה: "חינם לנצח!" סטטי, ממורכז, מיד */
   @media (prefers-reduced-motion: reduce) {
     .forever-line,
     .forever-first,
-    .forever-final,
     .forever-letter,
     .forever-underline {
       opacity: 1;

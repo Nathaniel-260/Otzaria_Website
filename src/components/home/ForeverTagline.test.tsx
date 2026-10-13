@@ -25,17 +25,6 @@ describe('ForeverTagline', () => {
     expect(line.style.getPropertyValue('--forever-shift')).toMatch(/px$/)
   })
 
-  it('הלולאה נעצרת בריחוף על הגיבור וממשיכה ביציאה', () => {
-    const { container } = render(<section><ForeverTagline play /></section>)
-    const p = container.querySelector('p') as HTMLElement
-    const section = container.querySelector('section') as HTMLElement
-    expect(p).not.toHaveAttribute('data-paused')
-    section.dispatchEvent(new Event('pointerenter'))
-    expect(p).toHaveAttribute('data-paused')
-    section.dispatchEvent(new Event('pointerleave'))
-    expect(p).not.toHaveAttribute('data-paused')
-  })
-
   it('הרצף מתחיל רק כש-play מופעל', () => {
     const { container, rerender } = render(<ForeverTagline play={false} />)
     expect(container.firstChild).toHaveAttribute('data-state', 'idle')

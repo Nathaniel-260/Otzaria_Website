@@ -1,22 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { foreverShift, shouldPauseTagline } from './foreverTaglineLogic'
-
-const base = { inView: true, hidden: false, hovered: false, focused: false }
-
-describe('shouldPauseTagline', () => {
-  it('רצה רק כשהיא גלויה ואין אינטראקציה עם הגיבור', () => {
-    expect(shouldPauseTagline(base)).toBe(false)
-  })
-
-  it.each([
-    ['מחוץ למסך', { inView: false }],
-    ['לשונית מוסתרת', { hidden: true }],
-    ['ריחוף', { hovered: true }],
-    ['פוקוס', { focused: true }]
-  ])('%s — עוצרת', (_name, patch) => {
-    expect(shouldPauseTagline({ ...base, ...patch })).toBe(true)
-  })
-})
+import { foreverShift } from './foreverTaglineLogic'
 
 describe('foreverShift', () => {
   it('חצי מרוחב "לנצח!" ועוד חצי רווח', () => {
