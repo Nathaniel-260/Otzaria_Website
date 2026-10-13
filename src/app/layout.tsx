@@ -16,6 +16,19 @@ const frankRuehl = localFont({
   display: "swap",
 });
 
+// OT Vilna — Levi Chyrek / Otzar Fonts; התקבל אישור שימוש באתר.
+// Bold בלבד (700), לטקסט התצוגה המודגש (font-display: הכותרת וכותרות האזורים, שם האתר
+// בכותרת העליונה). אין בו אותיות לטיניות — הן נופלות ל---font-hebrew (typography.css).
+// preload (ברירת המחדל) נשאר: שם האתר בכותרת העליונה משתמש בו בכל עמוד, ובדף הבית הוא
+// גם הכותרת הראשית. ~17KB. adjustFontFallback (ברירת המחדל, Arial מותאם-מידות) מצמצם
+// את קפיצת ה-layout ברגע ההחלפה (display: swap).
+const vilna = localFont({
+  src: "./fonts/OTVilna-Bold.woff2",
+  variable: "--font-vilna",
+  weight: "700",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "אוצריא",
   description: "פלטפורמה משותפת לעריכה ושיתוף",
@@ -36,7 +49,7 @@ export default function RootLayout({
         <link rel="preload" href={ICON_FONT_URL} as="font" type="font/woff2" crossOrigin="anonymous" />
         {/* חסימת שבת/יום טוב מתבצעת כעת בצד שרת ב-src/proxy.js (כולל מעבר חופשי לבוטים) */}
       </head>
-      <body className={`antialiased bg-background text-foreground font-sans ${frankRuehl.variable}`}>
+      <body className={`antialiased bg-background text-foreground font-sans ${frankRuehl.variable} ${vilna.variable}`}>
         <ErrorBoundary>
           <SessionProvider>
             <DialogProvider>

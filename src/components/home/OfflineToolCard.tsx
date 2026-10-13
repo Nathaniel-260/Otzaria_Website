@@ -9,7 +9,7 @@ export default function OfflineToolCard() {
       <div className="container mx-auto flex max-w-6xl 2xl:max-w-7xl flex-col gap-5 rounded-lg bg-card p-6 sm:p-8 md:flex-row md:items-center md:gap-8">
         <IconTile icon="cloud_off" size="lg" />
         <div className="min-w-0 flex-1">
-          <h2 id="offline-heading" className="text-2xl font-bold text-on-surface">המחשב שלכם לא מחובר לאינטרנט?</h2>
+          <h2 id="offline-heading" className="font-display text-2xl font-bold text-on-surface">המחשב שלכם לא מחובר לאינטרנט?</h2>
           <p className="mt-2 max-w-3xl leading-relaxed text-on-surface-variant">
             &quot;עדכוני אוצריא&quot; הוא כלי נפרד שמורידים במחשב מקוון על כונן USB, ומעדכנים
             איתו במחשב הלא-מקוון את התוכנה, את ספריית הספרים ואת התוספים, בלי חיבור לרשת.

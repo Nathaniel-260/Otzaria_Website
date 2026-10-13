@@ -11,7 +11,7 @@ export default function SectionHeading({ id, title, subtitle, className = '' }: 
     <div className={`mb-8 flex flex-col items-center text-center md:mb-10 ${className}`}>
       {/* עטיפה ברוחב הכותרת — הקישוט נמדד ממנה */}
       <div className="flex w-fit max-w-full flex-col">
-        <h2 id={id} className="text-balance text-[1.7rem] font-bold leading-tight text-on-surface md:text-4xl">
+        <h2 id={id} className="text-balance font-display text-[1.7rem] font-bold leading-tight text-on-surface md:text-4xl">
           {title}
         </h2>
         <span className="title-ornament mt-4" aria-hidden="true" />

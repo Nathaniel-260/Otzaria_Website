@@ -1,8 +1,17 @@
 /* ============================================================
  * typography.css — טוקני טיפוגרפיה (גופנים, גדלים, משקלים וריווח)
  * שינוי טיפוגרפיה גלובלי מתבצע כאן.
- * הערה: --font-frank-ruehl מוגדר ע"י next/font ב-layout.tsx.
+ * הערה: --font-frank-ruehl ו---font-vilna מוגדרים ע"י next/font ב-layout.tsx.
  * ============================================================ */
+
+/* גופן התצוגה (OT Vilna Bold) — רק לטקסט מודגש גדול: כותרות ושם האתר. אין בו לטינית,
+   ולכן אותיות לועזיות נופלות ל---font-hebrew.
+   inline בכוונה: --font-vilna מוגדר על <body> (המחלקה של next/font), לא על :root. בלי
+   inline הטוקן היה מחושב ב-:root, שם --font-vilna לא קיים, והערך כולו היה נפסל בשקט
+   (והטקסט יורש את גופן ההורה). עם inline המחלקה font-display מקבלת את ה-var() עצמו. */
+@theme inline {
+  --font-display: var(--font-vilna), var(--font-hebrew);
+}
 
 @theme {
   --font-frank: var(--font-frank-ruehl), serif;
