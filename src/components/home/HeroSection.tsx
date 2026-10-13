@@ -29,7 +29,8 @@ export default function HeroSection() {
   return (
     <section className="overflow-hidden px-4 pb-12 pt-6 sm:pt-10 md:flex md:min-h-[min(calc(100svh-var(--site-header-height)),56rem)] md:flex-col md:justify-center md:px-8 md:py-10 short:py-5">
       <div className="container mx-auto grid w-full max-w-5xl items-center justify-center gap-6 md:grid-cols-[auto_minmax(0,36rem)] md:gap-10 lg:gap-16 2xl:max-w-7xl 2xl:grid-cols-[auto_minmax(0,44rem)] 2xl:gap-24">
-        <HeroEmblem bookClassName="w-36 sm:w-44 md:w-48 lg:w-56 xl:w-64 2xl:w-80 short:w-40 short:lg:w-48" />
+        {/* --book-w: רוחב הספר בכל נקודת שבירה — ממנו נגזר גם ההיסט של "חינם לנצח!" (HeroEmblem) */}
+        <HeroEmblem className="[--book-w:--spacing(36)] sm:[--book-w:--spacing(44)] md:[--book-w:--spacing(48)] lg:[--book-w:--spacing(56)] xl:[--book-w:--spacing(64)] 2xl:[--book-w:--spacing(80)] short:[--book-w:--spacing(40)] short:lg:[--book-w:--spacing(48)]" />
 
         <div className="flex flex-col items-center text-center md:items-start md:text-start">
           {/* עטיפה ברוחב הכותרת — הקישוט נמתח לכל רוחב המילה, כמו בבלוק הכותרת של המתקין */}
