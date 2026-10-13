@@ -163,8 +163,8 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
   return (
     <>
       {/* Download Section (Software) */}
-      <section id="download" aria-labelledby="download-heading" className="scroll-mt-20 px-4 py-14 md:px-8 md:py-20">
-          <div className="container mx-auto max-w-6xl">
+      <section id="download" aria-labelledby="download-heading" className="anchor-section px-4 py-14 md:px-8 md:py-20">
+          <div className="container mx-auto w-full max-w-6xl">
               <SectionHeading id="download-heading" title="הורדת התוכנה" className="md:!mb-6 !mb-5" />
 
               {/* הצגת כפתור הורדה לפלטפורמה שזוהתה */}

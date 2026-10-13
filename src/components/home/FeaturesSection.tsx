@@ -49,7 +49,7 @@ const features = [
 
 export default function FeaturesSection() {
   return (
-    <section id="features" aria-labelledby="features-heading" className="px-4 py-14 md:px-8 md:py-20">
+    <section id="features" aria-labelledby="features-heading" className="anchor-section px-4 py-14 md:px-8 md:py-20">
       <div className="container mx-auto max-w-6xl">
         <SectionHeading
           id="features-heading"

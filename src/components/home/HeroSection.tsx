@@ -13,11 +13,11 @@ const BUTTON_BASE =
   'inline-flex min-h-12 items-center justify-center gap-2 rounded-lg px-6 text-base font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
 export default function HeroSection() {
-  // מ-md: האזור כולו נכנס במסך הראשון (100svh פחות הכותרת העליונה, h-16 = כ-61px; לכל היותר 52rem, כדי שבמסך גבוה לא ייווצר ריק), והתוכן ממורכז
+  // מ-md: האזור כולו נכנס במסך הראשון (100svh פחות הכותרת העליונה, --site-header-height; לכל היותר 52rem, כדי שבמסך גבוה לא ייווצר ריק), והתוכן ממורכז
   // בו אנכית. במסך נמוך (short, ראו layout.css) המרווחים והגדלים מתכווצים כדי שגם שורת המערכות
   // תיראה בלי גלילה.
   return (
-    <section className="overflow-hidden px-4 pb-14 pt-8 sm:pt-12 md:flex md:min-h-[min(calc(100svh-61px),52rem)] md:items-center md:px-8 md:py-12 short:py-6">
+    <section className="overflow-hidden px-4 pb-14 pt-8 sm:pt-12 md:flex md:min-h-[min(calc(100svh-var(--site-header-height)),52rem)] md:items-center md:px-8 md:py-12 short:py-6">
       <div className="container mx-auto grid w-full max-w-5xl items-center justify-center gap-6 md:grid-cols-[auto_minmax(0,36rem)] md:gap-10 lg:gap-16">
         {/* ראשון ב-DOM: בנייד מעל הטקסט, ומ-md (RTL) בעמודה הימנית — הטקסט משמאלו */}
         <div>

@@ -15,8 +15,8 @@ export default function StatsGrid({ items }: { items: StatItem[] }) {
   if (items.length === 0) return null
 
   return (
-    <section id="stats" aria-labelledby="stats-heading" className="px-4 py-14 md:px-8 md:py-16">
-      <div className="container mx-auto max-w-6xl">
+    <section id="stats" aria-labelledby="stats-heading" className="anchor-section px-4 py-14 md:px-8 md:py-20">
+      <div className="container mx-auto w-full max-w-6xl">
         <SectionHeading id="stats-heading" title="אוצריא במספרים" />
         {/* מספר הנתונים משתנה (3–5: מקור שנכשל מוסתר), ולכן flex-wrap עם grow ולא grid:
             נייד — שניים בשורה, טבלט — שלושה, והשורה האחרונה מתמלאת תמיד לרוחב מלא
