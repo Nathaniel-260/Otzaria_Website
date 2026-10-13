@@ -36,8 +36,9 @@
   --color-secondary-container: #fbdebc; /* secondaryContainer — אריח אייקון, כפתור טונלי */
   --color-on-secondary-container: #56442a;
   --color-accent: #8f6a2d;
-  --color-donation: #a93226;
-  --color-donation-strong: #8e2a20;
+  --color-donation: #8c3b1f;           /* תרומה — אדום-חלוד חם מתוך הפלטה (לבן עליו 7.6:1) */
+  --color-donation-hover: #7a3219;
+  --color-on-donation: #ffffff;
   --color-on-background: #201b13;       /* onSurface */
   --color-on-surface: #201b13;
   --color-on-surface-variant: #4f4539;  /* טקסט משני */

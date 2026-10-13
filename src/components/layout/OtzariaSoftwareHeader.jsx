@@ -87,11 +87,11 @@ function AuthActions({ pathname, compact = false, onNavigate }) {
 }
 
 /** קישור התרומה — כפתור מלא בצבע התרומה, מחוץ לרשימת הניווט כדי שיבלוט בכל עמוד
- *  (גם בנייד, ליד כפתור התפריט). ראו .donation-nav-link ב-styles/effects.css. */
+ *  (גם בנייד, ליד כפתור התפריט). ראו .donation-button ב-styles/effects.css. */
 function DonationButton({ link, className = '', onClick }) {
   return (
-    <NavLink link={link} onClick={onClick} className={`donation-nav-link text-sm ${className}`}>
-      <span className="material-symbols-outlined donation-nav-icon" aria-hidden="true">
+    <NavLink link={link} onClick={onClick} className={`donation-button donation-nav-link text-sm ${className}`}>
+      <span className="material-symbols-outlined donation-button-icon" aria-hidden="true">
         {link.icon}
       </span>
       {link.label}

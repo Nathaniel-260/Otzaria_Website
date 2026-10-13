@@ -17,9 +17,9 @@ export default function DonateCallout() {
         <Link
           href="/donate"
           prefetch={false}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-donation px-8 font-semibold text-white transition-colors hover:bg-donation-strong"
+          className="donation-button donation-button-lg"
         >
-          <span className="material-symbols-outlined" aria-hidden="true">volunteer_activism</span>
+          <span className="material-symbols-outlined donation-button-icon" aria-hidden="true">volunteer_activism</span>
           לתרומה לאוצריא
         </Link>
       </div>
