@@ -126,7 +126,14 @@ test('formatStatParts: מדויק עד 100,000, ומעליו קיצור עברי
   assert.deepEqual(formatStatParts(1000000), { number: '1', unit: 'מיליון' })
   assert.deepEqual(formatStatParts(5812829), { number: '5.8', unit: 'מיליון' })
   assert.deepEqual(formatStatParts(5899999), { number: '5.8', unit: 'מיליון' })
+  assert.deepEqual(formatStatParts(100000), { number: '100', unit: 'אלף' })
+  assert.deepEqual(formatStatParts(12345678), { number: '12.3', unit: 'מיליון' })
+  assert.deepEqual(formatStatParts(999999999), { number: '999.9', unit: 'מיליון' })
+  assert.deepEqual(formatStatParts(1000000000), { number: '1', unit: 'מיליארד' })
+  assert.deepEqual(formatStatParts(2750000000), { number: '2.7', unit: 'מיליארד' })
+  assert.deepEqual(formatStatParts(0), { number: '0', unit: null })
   assert.deepEqual(formatStatParts(NaN), { number: '', unit: null })
+  assert.deepEqual(formatStatParts(Infinity), { number: '', unit: null })
 })
 
 test('buildStatItems: הכל חסר → רשימה ריקה', () => {

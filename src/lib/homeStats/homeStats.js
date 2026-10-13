@@ -1,7 +1,7 @@
 // homeStats — לוגיקה טהורה לשורת המספרים שבמסך הפתיחה של דף הבית (HeroStats).
 //
 // אין כאן fetch/DB — רק בחירה, ולידציה ועיצוב של נתונים שכבר נשלפו
-// (השליפה עצמה ב-sources.js). כל נתון לא תקין הופך ל-null, והעיגול שלו
+// (השליפה עצמה ב-sources.js). כל נתון לא תקין הופך ל-null, והפריט שלו
 // פשוט לא מוצג — אף פעם לא מציגים 0 או ערך משוער.
 
 export const LIBRARY_STATS_ASSET = 'library_stats.json'
@@ -97,14 +97,16 @@ export function formatExactNumber(value) {
 const COMPACT_FROM = 100_000
 
 /**
- * @returns {{ number: string, unit: string | null }} החלק המספרי והיחידה (אלף/מיליון), בנפרד —
+ * @returns {{ number: string, unit: string | null }} החלק המספרי והיחידה (אלף/מיליון/מיליארד), בנפרד —
  *   כדי שהרכיב יוכל להציג את היחידה בגודל קטן יותר מהמספר.
  */
 export function formatStatParts(value) {
   if (!Number.isFinite(value)) return { number: '', unit: null }
+  if (value >= 1_000_000_000) {
+    return { number: String(Math.floor(value / 100_000_000) / 10), unit: 'מיליארד' }
+  }
   if (value >= 1_000_000) {
-    const millions = Math.floor(value / 100_000) / 10
-    return { number: String(millions), unit: 'מיליון' }
+    return { number: String(Math.floor(value / 100_000) / 10), unit: 'מיליון' }
   }
   if (value >= COMPACT_FROM) return { number: String(Math.floor(value / 1000)), unit: 'אלף' }
   return { number: formatExactNumber(value), unit: null }
