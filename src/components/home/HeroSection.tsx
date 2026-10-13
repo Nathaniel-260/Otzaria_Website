@@ -23,16 +23,19 @@ function HeroBook() {
         width={550}
         height={550}
         fetchPriority="high"
-        className="relative h-auto w-36 sm:w-44 md:w-60 lg:w-72 xl:w-80"
+        className="relative h-auto w-36 sm:w-44 md:w-60 lg:w-72 xl:w-80 short:w-52 short:lg:w-60"
       />
     </div>
   )
 }
 
 export default function HeroSection() {
+  // מ-md: האזור כולו נכנס במסך הראשון (100svh פחות הכותרת העליונה, h-16 = כ-61px; לכל היותר 52rem, כדי שבמסך גבוה לא ייווצר ריק), והתוכן ממורכז
+  // בו אנכית. במסך נמוך (short, ראו layout.css) המרווחים והגדלים מתכווצים כדי שגם שורת המערכות
+  // תיראה בלי גלילה.
   return (
-    <section className="px-4 pb-14 pt-8 sm:pt-12 md:px-8 md:pb-20 md:pt-16 lg:pt-20">
-      <div className="container mx-auto grid max-w-6xl items-center gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:gap-8 lg:gap-12">
+    <section className="px-4 pb-14 pt-8 sm:pt-12 md:flex md:min-h-[min(calc(100svh-61px),52rem)] md:items-center md:px-8 md:py-12 short:py-6">
+      <div className="container mx-auto grid w-full max-w-6xl items-center gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:gap-8 lg:gap-12">
         {/* ראשון ב-DOM: בנייד מעל הטקסט, ומ-md (RTL) בעמודה הימנית — הטקסט משמאלו */}
         <div>
           <HeroBook />
@@ -44,23 +47,26 @@ export default function HeroSection() {
             תוכנה חופשית ובקוד פתוח
           </span>
 
-          <h1 className="mt-5 text-5xl font-bold leading-none text-on-surface sm:text-6xl lg:text-7xl">
-            אוצריא
-          </h1>
-          <span className="title-ornament mt-5 [--ornament-width:88px]" aria-hidden="true" />
+          {/* עטיפה ברוחב הכותרת — הקישוט נמתח לכל רוחב המילה, כמו בבלוק הכותרת של המתקין */}
+          <div className="mt-5 flex w-fit flex-col short:mt-3">
+            <h1 className="text-5xl font-bold leading-none text-on-surface sm:text-6xl lg:text-7xl short:lg:text-6xl">
+              אוצריא
+            </h1>
+            <span className="title-ornament mt-5 [--ornament-ratio:100%] short:mt-3" aria-hidden="true" />
+          </div>
 
-          <p className="mt-5 text-balance text-xl font-medium leading-snug text-on-surface sm:text-2xl lg:text-[1.75rem]">
+          <p className="mt-5 text-balance text-xl font-medium leading-snug text-on-surface sm:text-2xl lg:text-[1.75rem] short:mt-3 short:lg:text-2xl">
             מאגר תורני רחב עם ממשק מודרני ומהיר
           </p>
 
-          <p className="mt-4 max-w-xl text-base leading-relaxed text-on-surface-variant lg:text-lg">
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-on-surface-variant lg:text-lg short:mt-3 short:lg:text-base">
             אוצריא היא תוכנה חופשית ובקוד פתוח לקריאה וללימוד של ספרי קודש, לשולחן העבודה
             (Windows, macOS, Linux) ולנייד (Android, iOS). התוכנה כוללת ספרייה תורנית רחבה,
             חיפוש בכל הספרים, מפרשים והפניות, הערות אישיות וסימניות, ולוח שנה עברי עם זמני
             היום.
           </p>
 
-          <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row short:mt-5">
             {/* עוגן באותו דף — <a> רגיל. כ-Link, Next התייחס אליו כמסלול
                 ופתח בקשות RSC ספקולטיביות לדף הנוכחי. */}
             <a href="#download" className={`${BUTTON_BASE} bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-pressed`}>
@@ -81,7 +87,7 @@ export default function HeroSection() {
               וה-JS של /library בכל טעינה של דף הבית (5 בקשות, כ-27KB) */}
           <IntentPrefetchLink
             href="/library"
-            className="mt-3 inline-flex min-h-12 items-center gap-1 rounded-lg px-2 text-sm font-medium text-primary hover:bg-card-selected"
+            className="mt-3 inline-flex min-h-12 items-center gap-1 rounded-lg px-2 text-sm font-medium text-primary hover:bg-card-selected short:mt-1"
           >
             לפרוייקט ספריית אוצריא
             <span className="material-symbols-outlined text-lg" aria-hidden="true">chevron_left</span>
@@ -90,7 +96,7 @@ export default function HeroSection() {
           {/* רשימה לטינית — כולה LTR, כדי שהסדר והמפרידים לא יתהפכו בתוך שורה עברית */}
           <ul
             dir="ltr"
-            className="mt-5 flex flex-wrap justify-center gap-x-2 gap-y-1 text-sm text-on-surface-variant md:justify-end"
+            className="mt-5 flex flex-wrap justify-center gap-x-2 gap-y-1 text-sm text-on-surface-variant md:justify-end short:mt-2"
             aria-label="מערכות נתמכות"
           >
             {PLATFORMS.map((platform, index) => (
