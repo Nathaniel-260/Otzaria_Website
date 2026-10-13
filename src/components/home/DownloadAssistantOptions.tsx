@@ -27,7 +27,7 @@ const ASSISTANT_LEAD_TITLE = 'זה מסייע ההורדה, לא תוכנת הה
 
 const ASSISTANT_CONFIG: Record<string, AssistantPlatformConfig> = {
   Windows: {
-    lead: 'הפעילו אותו, והוא יוריד את אוצריא ויכין התקנה00a0— למחשב הזה או למחשב בלי אינטרנט.',
+    lead: 'הפעילו אותו, והוא יוריד את אוצריא ויכין התקנה\u00a0— למחשב הזה או למחשב בלי אינטרנט.',
     buttons: [
       { key: 'assistant', icon: 'install_desktop', title: 'מסייע ההורדה של אוצריא', desc: <><bdi dir="ltr">Windows 10 / 11</bdi>, כולל מחשבי ARM</> }
     ]
