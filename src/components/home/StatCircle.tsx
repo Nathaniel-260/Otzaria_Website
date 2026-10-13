@@ -80,9 +80,11 @@ export default function StatCircle({ icon, label, value, index = 0 }: StatCircle
       </span>
       <div className="w-full min-w-0">
         {/* המספר המונפש מוסתר מקוראי מסך (שהיו מקריאים כל שלב בספירה);
-            להם מוגש הטקסט הסופי בנפרד. dir=ltr עם יישור לימין: המספר צמוד לצד הכרטיס שבו מתחיל הטקסט */}
+            להם מוגש הטקסט הסופי בנפרד. dir=ltr עם יישור לימין: המספר צמוד לצד הכרטיס שבו מתחיל הטקסט.
+            הגודל ביחידות cqi של ה-li (@container ב-StatsGrid): מספר בן 9 תווים (7,080,797) נשאר בשורה אחת
+            גם בכרטיס צר, בלי לחרוג ובלי לשבור */}
         <span
-          className="block whitespace-nowrap text-2xl font-bold leading-tight text-on-surface tabular-nums sm:text-[1.75rem] lg:text-2xl xl:text-[1.75rem]"
+          className="block whitespace-nowrap text-[clamp(1.125rem,13cqi,1.75rem)] font-bold leading-tight text-on-surface tabular-nums"
           dir="ltr"
           style={{ textAlign: 'right' }}
           aria-hidden="true"

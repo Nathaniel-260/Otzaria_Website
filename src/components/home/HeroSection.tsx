@@ -5,7 +5,8 @@ import GoldenBook from './GoldenBook'
 // גיבור דף הבית — כיוון "האפליקציה עצמה": שטוח ושקט. הספר המוזהב של אוצריא נפתח בתוך
 // הילה חמה (GoldenBook, כמו מסך הפתיחה של המתקין) כאלמנט עצמאי לצד הכותרת, עם קישוט הכותרת (קו +
 // נקודת זהב) וכפתור ראשי מלא + כפתור טונלי.
-// נייד: הספר מעל הטקסט, ממורכז. מ-md: שתי עמודות — הספר מימין והטקסט משמאלו; ספר גדל עם הרוחב.
+// נייד: הספר מעל הטקסט, ממורכז. מ-md: שתי עמודות — הספר מימין (עמודה ברוחב הספר בלבד, לא חצי
+// מסך) והטקסט משמאלו (עד 36rem); הזוג כולו ממורכז, כך שהספר לא נדחק לקצה המסך.
 const PLATFORMS = ['Windows', 'macOS', 'Linux', 'Android', 'iOS']
 
 const BUTTON_BASE =
@@ -17,10 +18,10 @@ export default function HeroSection() {
   // תיראה בלי גלילה.
   return (
     <section className="overflow-hidden px-4 pb-14 pt-8 sm:pt-12 md:flex md:min-h-[min(calc(100svh-61px),52rem)] md:items-center md:px-8 md:py-12 short:py-6">
-      <div className="container mx-auto grid w-full max-w-6xl items-center gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:gap-8 lg:gap-12">
+      <div className="container mx-auto grid w-full max-w-5xl items-center justify-center gap-6 md:grid-cols-[auto_minmax(0,36rem)] md:gap-10 lg:gap-16">
         {/* ראשון ב-DOM: בנייד מעל הטקסט, ומ-md (RTL) בעמודה הימנית — הטקסט משמאלו */}
         <div>
-          <GoldenBook className="w-36 sm:w-44 md:w-60 lg:w-72 xl:w-80 short:w-52 short:lg:w-60" />
+          <GoldenBook className="w-36 sm:w-44 md:w-48 lg:w-56 xl:w-64 short:w-44 short:lg:w-52" />
         </div>
 
         <div className="flex flex-col items-center text-center md:items-start md:text-start">
