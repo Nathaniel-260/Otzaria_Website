@@ -32,10 +32,11 @@ export default function DownloadOptionCard({ href, icon, title, desc, emphasis =
       </span>
       <span
         aria-hidden="true"
-        className={`inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 min-[420px]:px-3 text-sm font-semibold transition-colors ${actionClass}`}
+        className={`inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-lg px-2.5 text-sm font-semibold transition-colors min-[420px]:h-12 min-[420px]:min-w-28 min-[420px]:px-5 min-[420px]:text-[0.9375rem] ${actionClass}`}
       >
         <span className="material-symbols-outlined text-xl">{external ? 'open_in_new' : 'download'}</span>
-        {/* בנייד צר — אייקון בלבד, כדי שהתיאור לא יידחס; הכרטיס כולו הוא הקישור */}
+        {/* בנייד צר — אייקון בלבד, כדי שהתיאור לא יידחס; הכרטיס כולו הוא הקישור. מ-420px — כפתור
+            בגודל הכפתורים הראשיים של הדף (גובה 48, ריפוד נדיב), לא "מכווץ" */}
         <span className="hidden min-[420px]:inline">{external ? 'פתיחה' : 'הורדה'}</span>
       </span>
     </a>
