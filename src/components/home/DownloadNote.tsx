@@ -15,9 +15,11 @@ export default function DownloadNote({ icon = 'info', variant = 'quiet', title, 
 }) {
   if (variant === 'lead') {
     return (
-      <div role="note" className="flex gap-3 rounded-lg bg-tile/40 p-3 text-sm leading-relaxed text-on-surface sm:p-4 sm:text-[0.9375rem]">
-        <span aria-hidden="true" className="material-symbols-outlined mt-px shrink-0 text-[22px] text-on-tile">{icon}</span>
-        <div className="min-w-0">
+      // ממורכזת: האייקון מעל הטקסט ולא בצדו — אייקון צדדי ליד טקסט ממורכז נראה עקום.
+      // text-balance מאזן את השורות, כדי שלא תישאר מילה יתומה בשורה האחרונה.
+      <div role="note" className="flex flex-col items-center gap-1.5 rounded-lg bg-tile/40 p-3 text-center text-sm leading-relaxed text-on-surface sm:p-4 sm:text-[0.9375rem]">
+        <span aria-hidden="true" className="material-symbols-outlined text-[22px] text-on-tile">{icon}</span>
+        <div className="min-w-0 text-balance">
           {title && <p className="font-bold">{title}</p>}
           <p className={title ? 'mt-1 text-on-surface-variant' : undefined}>{children}</p>
         </div>
