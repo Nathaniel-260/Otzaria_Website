@@ -23,10 +23,11 @@ export const HANDOFF_SWAP_DISTANCE = 16
 /** החלק האחרון של המעבר שבו שם האתר שליד הלוגו מופיע. */
 export const WORDMARK_START = 0.8
 
-const clamp01 = (value) => Math.min(1, Math.max(0, value))
 /** היחס בין שולי תמונת הספר (golden-book.webp, הציור ממלא כ-81% מהרוחב) לשולי הלוגו
  *  הרגיל (logo.webp, כ-93%) — המעופף נעצר גדול מהמשבצת ביחס הזה, כדי שייראה בגודל הלוגו. */
 export const FLYER_TO_LOGO_SCALE = 1.15
+
+const clamp01 = (value) => Math.min(1, Math.max(0, value))
 
 const round = (value) => Math.round(value * 100) / 100
 
@@ -69,7 +70,7 @@ const lerp = (from, to, t) => from + (to - from) * t
 
 /**
  * מצב פריים בודד — ל-fallback ב-JS (דפדפן בלי animation-timeline). אותן נוסחאות בדיוק
- * כמו ה-keyframes ב-effects.css (אינטרפולציה לינארית), כדי ששני המסלולים ייראו זהים.
+ * כמו ה-keyframes ב-animations.css (אינטרפולציה לינארית), כדי ששני המסלולים ייראו זהים.
  * @param {ReturnType<typeof computeHandoffGeometry>} geometry
  * @param {number} scrollY
  * @param {{ reducedMotion?: boolean }} [options]

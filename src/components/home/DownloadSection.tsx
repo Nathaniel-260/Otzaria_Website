@@ -1,5 +1,5 @@
 // Shared GitHub loader preserves the 600s cache without calling the live website.
-// השליפה עצמה משותפת למסך הפתיחה (HeroVersion) — ראו stableDownloads.ts.
+// השליפה עצמה משותפת לשורת המספרים שבמסך הפתיחה (HeroStatsLoader) — ראו stableDownloads.ts.
 import DownloadSectionClient from './DownloadSectionClient'
 import { getStableDownloads } from './stableDownloads'
 

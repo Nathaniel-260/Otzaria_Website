@@ -1,6 +1,6 @@
 // נתוני ה-release היציב של האפליקציה (קישורי הורדה + גרסה), למסך הפתיחה ולאזור ההורדה.
 //
-// cache של React: בתוך רינדור אחד של הדף (HeroVersion ו-DownloadSection) השליפה רצה פעם
+// cache של React: בתוך רינדור אחד של הדף (HeroStatsLoader ו-DownloadSection) השליפה רצה פעם
 // אחת בלבד, גם בלי לסמוך על ה-memoization של fetch. מעבר לרינדור — ה-Data Cache של
 // fetch (600 שניות, ראו src/lib/githubReleases.js) — כך ש-GitHub לא נקרא בכל ביקור.
 import { cache } from 'react'
