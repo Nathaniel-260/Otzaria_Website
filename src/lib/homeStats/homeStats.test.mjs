@@ -7,7 +7,8 @@ import {
   extractAppDownloads,
   formatExactNumber,
   buildStatItems,
-  formatStatParts
+  formatStatParts,
+  withTimeout
 } from './homeStats.js'
 
 // עוזר: release בצורת תשובת ה-API של GitHub
@@ -131,4 +132,36 @@ test('formatStatParts: מדויק עד 100,000, ומעליו קיצור עברי
 test('buildStatItems: הכל חסר → רשימה ריקה', () => {
   assert.deepEqual(buildStatItems({}), [])
   assert.deepEqual(buildStatItems(null), [])
+})
+
+const delay = (ms, value, reject = false) =>
+  new Promise((resolve, rejectFn) => setTimeout(() => (reject ? rejectFn(value) : resolve(value)), ms))
+
+test('withTimeout: הבטחה מהירה — הערך שלה', async () => {
+  assert.equal(await withTimeout(delay(5, 42), 200, null), 42)
+})
+
+test('withTimeout: הבטחה איטית — fallback אחרי הזמן, ו-onTimeout פעם אחת', async () => {
+  let calls = 0
+  const started = Date.now()
+  assert.equal(await withTimeout(delay(500, 42), 30, null, () => { calls++ }), null)
+  assert.ok(Date.now() - started < 300)
+  assert.equal(calls, 1)
+})
+
+test('withTimeout: דחייה לפני הזמן עוברת הלאה', async () => {
+  await assert.rejects(withTimeout(delay(5, new Error('boom'), true), 200, null), /boom/)
+})
+
+test('withTimeout: דחייה אחרי הזמן — בלי unhandled rejection', async () => {
+  const unhandled = []
+  const onUnhandled = (reason) => unhandled.push(reason)
+  process.on('unhandledRejection', onUnhandled)
+  try {
+    assert.equal(await withTimeout(delay(40, new Error('late'), true), 10, 'fallback'), 'fallback')
+    await delay(80)
+    assert.deepEqual(unhandled, [])
+  } finally {
+    process.off('unhandledRejection', onUnhandled)
+  }
 })

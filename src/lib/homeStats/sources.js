@@ -13,10 +13,22 @@ import dbConnect from '@/lib/db'
 import Plugin from '@/models/Plugin'
 import { PUBLIC_PLUGIN_FILTER } from '@/lib/pluginStore'
 import { CACHE_TAGS, REVALIDATE_SECONDS } from '@/lib/cacheTags'
-import { pickLibraryStatsAssetUrl, parseLibraryStats, extractAppDownloads } from './homeStats.js'
+import { pickLibraryStatsAssetUrl, parseLibraryStats, extractAppDownloads, withTimeout } from './homeStats.js'
 
 // רענון כל ~10 דקות (דרישת המשתמש) — זהה לחלון של DownloadSection
 export const HOME_STATS_REVALIDATE_SECONDS = 600
+
+// כמה לחכות לכל מקור לפני שמוותרים עליו (null — הנתון שלו פשוט לא מוצג). שורת המספרים
+// מוצגת בבת אחת כשכל המקורות הוכרעו, ולכן המקור האיטי ביותר קובע מתי היא מופיעה: בלי
+// הגבלה, MongoDB לא זמין עיכב אותה ב-30 שניות (serverSelectionTimeoutMS של db.js, שבכוונה
+// לא שונה — הוא משרת את כל האתר). 3 שניות: הרבה מעל זמן תגובה רגיל (מטמון/GitHub/DB
+// תקינים עונים בעשרות-מאות מילישניות), ומתחת לסף שבו המשתמש מרגיש "שהשורה לא נטענת".
+export const HOME_STATS_SOURCE_TIMEOUT_MS = 3000
+
+const limit = (promise, name, fallback) =>
+  withTimeout(promise, HOME_STATS_SOURCE_TIMEOUT_MS, fallback, () => {
+    console.warn(`Home stats: ${name} timed out after ${HOME_STATS_SOURCE_TIMEOUT_MS}ms`)
+  })
 
 const SEFORIM_RELEASES_URL = 'https://api.github.com/repos/Otzaria/SeforimLibrary/releases?per_page=100'
 const DOWNLOAD_TRACKER_OVERVIEW_URL =
@@ -32,7 +44,11 @@ async function fetchJson(url, headers) {
 }
 
 /** ספרים/קישורים מתוך library_stats.json של ה-release היציב האחרון. */
-export async function getLibraryStats() {
+export function getLibraryStats() {
+  return limit(loadLibraryStats(), 'library stats', parseLibraryStats(null))
+}
+
+async function loadLibraryStats() {
   try {
     const releases = await fetchJson(SEFORIM_RELEASES_URL, {
       Accept: 'application/vnd.github.v3+json',
@@ -48,7 +64,11 @@ export async function getLibraryStats() {
 }
 
 /** מספר הורדות האפליקציה ממעקב ההורדות (otzaria-download-tracker). */
-export async function getAppDownloads() {
+export function getAppDownloads() {
+  return limit(loadAppDownloads(), 'app downloads', null)
+}
+
+async function loadAppDownloads() {
   try {
     return extractAppDownloads(await fetchJson(DOWNLOAD_TRACKER_OVERVIEW_URL))
   } catch (error) {
@@ -73,7 +93,11 @@ const countPublicPlugins = nextCache(
 )
 
 /** מספר התוספים הגלויים למשתמשים בחנות. */
-export async function getPublicPluginsCount() {
+export function getPublicPluginsCount() {
+  return limit(loadPublicPluginsCount(), 'public plugins count', null)
+}
+
+async function loadPublicPluginsCount() {
   try {
     const count = await countPublicPlugins()
     return Number.isSafeInteger(count) && count > 0 ? count : null

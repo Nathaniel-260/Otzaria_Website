@@ -128,3 +128,32 @@ export function buildStatItems(values) {
     .filter((def) => isPositiveInteger(source[def.key]))
     .map((def) => ({ ...def, value: source[def.key] }))
 }
+
+/**
+ * מחכה להבטחה לכל היותר ms מילישניות. אם היא לא הוכרעה עד אז — מחזיר fallback (ולא זורק).
+ *
+ * כך מקור איטי אחד (למשל MongoDB שמחכה ל-serverSelectionTimeoutMS של 30 שניות) לא מעכב את
+ * שורת המספרים כולה. חשוב: זה לא מבטל את הפעולה עצמה (החיבור ל-DB ממשיך ברקע ומשרת את
+ * הבקשה הבאה) — רק מפסיק לחכות לה. דחייה מאוחרת של ההבטחה המקורית נבלעת כאן, כדי שלא
+ * תהפוך ל-unhandled rejection. הטיימר מנוקה ברגע שההבטחה מוכרעת, כדי שלא יחזיק את התהליך.
+ *
+ * @template T, F
+ * @param {Promise<T>} promise
+ * @param {number} ms
+ * @param {F} fallback
+ * @param {(() => void)} [onTimeout] — נקרא פעם אחת אם הזמן עבר (לרישום בלוג)
+ * @returns {Promise<T | F>}
+ */
+export function withTimeout(promise, ms, fallback, onTimeout) {
+  let timer
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      onTimeout?.()
+      resolve(fallback)
+    }, ms)
+  })
+  const settled = Promise.resolve(promise).finally(() => clearTimeout(timer))
+  // הדחייה עצמה עוברת הלאה ל-race (אם הגיעה בזמן); כאן רק מונעים unhandled rejection
+  settled.catch(() => {})
+  return Promise.race([settled, timeout])
+}
