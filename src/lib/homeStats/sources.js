@@ -1,8 +1,8 @@
-// sources — שליפת הנתונים לאזור "אוצריא במספרים" בדף הבית (שרת בלבד).
+// sources — שליפת הנתונים לשורת המספרים שבמסך הפתיחה של דף הבית (שרת בלבד).
 //
 // כל פונקציה כאן עמידה לתקלות באופן עצמאי: כישלון (רשת, rate limit של GitHub,
 // DB לא זמין, JSON לא צפוי) מחזיר null לאותו נתון בלבד ולא זורק לעולם — כך
-// שתקלה במקור אחד מסתירה רק את העיגול שלו ולא מפילה את דף הבית.
+// שתקלה במקור אחד מסתירה רק את הנתון שלו ולא מפילה את דף הבית.
 //
 // מטמון: אף מקור לא נקרא בכל ביקור. קריאות ה-HTTP החיצוניות עוברות דרך ה-Data
 // Cache של Next (fetch עם next.revalidate — אותו דפוס כמו DownloadSection.tsx),
@@ -31,7 +31,7 @@ async function fetchJson(url, headers) {
   return response.json()
 }
 
-/** ספרים/קישורים/פסקאות מתוך library_stats.json של ה-release היציב האחרון. */
+/** ספרים/קישורים מתוך library_stats.json של ה-release היציב האחרון. */
 export async function getLibraryStats() {
   try {
     const releases = await fetchJson(SEFORIM_RELEASES_URL, {

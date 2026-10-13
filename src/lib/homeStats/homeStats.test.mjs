@@ -6,7 +6,8 @@ import {
   parseLibraryStats,
   extractAppDownloads,
   formatExactNumber,
-  buildStatItems
+  buildStatItems,
+  formatStatParts
 } from './homeStats.js'
 
 // עוזר: release בצורת תשובת ה-API של GitHub
@@ -66,17 +67,18 @@ test('pickLibraryStatsAssetUrl: קלט לא תקין/ריק → null', () => {
 
 test('parseLibraryStats: קובץ תקין', () => {
   const json = { schema_version: 1, db_version: 28, books: 7367, links: 5812829, lines: 6031484 }
-  assert.deepEqual(parseLibraryStats(json), { books: 7367, links: 5812829, lines: 6031484 })
+  // lines (פסקאות) כבר אינו מוצג ואינו נקרא
+  assert.deepEqual(parseLibraryStats(json), { books: 7367, links: 5812829 })
 })
 
 test('parseLibraryStats: שדה לא תקין נפסל לבד', () => {
-  const json = { schema_version: 1, books: 7367, links: '5812829', lines: 0 }
-  assert.deepEqual(parseLibraryStats(json), { books: 7367, links: null, lines: null })
+  const json = { schema_version: 1, books: 7367, links: '5812829' }
+  assert.deepEqual(parseLibraryStats(json), { books: 7367, links: null })
 })
 
 test('parseLibraryStats: גרסת סכמה לא מוכרת / קלט ריק → הכל null', () => {
-  const empty = { books: null, links: null, lines: null }
-  assert.deepEqual(parseLibraryStats({ schema_version: 2, books: 1, links: 1, lines: 1 }), empty)
+  const empty = { books: null, links: null }
+  assert.deepEqual(parseLibraryStats({ schema_version: 2, books: 1, links: 1 }), empty)
   assert.deepEqual(parseLibraryStats(null), empty)
   assert.deepEqual(parseLibraryStats('oops'), empty)
 })
@@ -103,11 +105,27 @@ test('formatExactNumber: מספר מדויק עם מפריד אלפים, בלי 
 })
 
 test('buildStatItems: סדר קבוע והשמטת ערכים חסרים', () => {
-  const items = buildStatItems({ plugins: 42, books: 7367, links: null, lines: 6031484, downloads: 0 })
-  assert.deepEqual(items.map((item) => item.key), ['books', 'lines', 'plugins'])
+  const items = buildStatItems({ plugins: 42, books: 7367, links: null, downloads: 0 })
+  assert.deepEqual(items.map((item) => item.key), ['books', 'plugins'])
   assert.equal(items[0].value, 7367)
   assert.equal(items[0].label, 'ספרים')
-  assert.equal(items[0].icon, 'menu_book')
+})
+
+test('buildStatItems: פסקאות (lines) אינן מוצגות עוד, גם כשהערך קיים', () => {
+  const items = buildStatItems({ books: 7367, lines: 6031484 })
+  assert.deepEqual(items.map((item) => item.key), ['books'])
+})
+
+test('formatStatParts: מדויק עד 100,000, ומעליו קיצור עברי מעוגל כלפי מטה', () => {
+  assert.deepEqual(formatStatParts(42), { number: '42', unit: null })
+  assert.deepEqual(formatStatParts(7367), { number: '7,367', unit: null })
+  assert.deepEqual(formatStatParts(99999), { number: '99,999', unit: null })
+  assert.deepEqual(formatStatParts(122836), { number: '122', unit: 'אלף' })
+  assert.deepEqual(formatStatParts(999999), { number: '999', unit: 'אלף' })
+  assert.deepEqual(formatStatParts(1000000), { number: '1', unit: 'מיליון' })
+  assert.deepEqual(formatStatParts(5812829), { number: '5.8', unit: 'מיליון' })
+  assert.deepEqual(formatStatParts(5899999), { number: '5.8', unit: 'מיליון' })
+  assert.deepEqual(formatStatParts(NaN), { number: '', unit: null })
 })
 
 test('buildStatItems: הכל חסר → רשימה ריקה', () => {

@@ -1,12 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { getAvatarColor, getInitial } from '@/lib/avatar-colors'
 import { MAIN_NAV_LINKS } from '@/lib/navigation-constants'
+import HeaderLogo from './HeaderLogo'
 
 /**
  * קישור ניווט בכותרת.
@@ -99,22 +99,23 @@ function DonationButton({ link, className = '', onClick }) {
   )
 }
 
-export default function OtzariaSoftwareHeader({ showAuth = false }) {
+/**
+ * הכותרת העליונה הדביקה, משותפת לכל העמודים.
+ * logoHandoff — דף הבית בלבד: הלוגו "מגיע" מהספר הגדול שבמסך הפתיחה בגלילה (HeaderLogo).
+ */
+export default function OtzariaSoftwareHeader({ showAuth = false, logoHandoff = false }) {
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const donationLink = MAIN_NAV_LINKS.find(link => link.emphasis === 'donation')
   const navLinks = MAIN_NAV_LINKS.filter(link => link.emphasis !== 'donation')
 
-  // כותרת בסגנון ה-topBar של האפליקציה: רקע surfaceContainerHigh אטום, קו הפרדה דק,
-  // בלי זכוכית ובלי צל.
+  // כותרת בסגנון ה-topBar של האפליקציה: רקע surfaceContainerHigh אטום, בלי זכוכית ובלי קו
+  // תחתון — הרקע השונה מהדף מספיק כדי להפריד. כשהדף נגלל מתחתיה מופיע צל רך (.site-header
+  // ב-animations.css, מקושר לגלילה בלי JS), כדי שהתוכן ייראה עובר מתחת לה ולא נחתך בה.
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-surface-variant bg-top-bar">
+    <header className="site-header sticky top-0 z-50 w-full bg-top-bar">
       <div className="container mx-auto flex h-16 max-w-[76rem] 2xl:max-w-[84rem] items-center justify-between gap-4 px-4 md:px-8">
-        {/* קישור הלוגו מופיע בכל דף ואינו מצדיק prefetch */}
-        <Link href="/" prefetch={false} className="flex min-h-12 shrink-0 items-center gap-2.5 rounded-lg transition-opacity hover:opacity-80">
-          <Image src="/logo.webp" alt="לוגו אוצריא" width={32} height={32} />
-          <span className="text-xl font-bold text-on-surface">אוצריא</span>
-        </Link>
+        <HeaderLogo handoff={logoHandoff} />
 
         {/* Desktop Nav */}
         <nav className="hidden lg:flex items-center gap-1">
@@ -161,7 +162,7 @@ export default function OtzariaSoftwareHeader({ showAuth = false }) {
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="lg:hidden absolute top-16 left-0 w-full border-b border-surface-variant bg-top-bar p-3 flex flex-col gap-0.5">
+        <div className="lg:hidden absolute top-16 left-0 w-full bg-top-bar p-3 flex flex-col gap-0.5 shadow-[0_12px_24px_-12px_rgb(46_28_8/0.22)]">
           {navLinks.map(link => (
             <NavLink
               key={link.label}

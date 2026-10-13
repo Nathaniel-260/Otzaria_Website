@@ -6,18 +6,10 @@ import SectionHeading from './SectionHeading'
 import IconTile from './IconTile'
 import DownloadDialog from './DownloadDialog'
 import DownloadOptionCard from './DownloadOptionCard'
+// ייבוא טיפוס בלבד (נמחק בקומפילציה) — הקוד של stableDownloads.ts נשאר בשרת
+import type { Downloads } from './stableDownloads'
 
-// מבנה נתוני ההורדות המוחזר מ-/api/github-releases
 type PlatformLinks = Record<string, string | undefined>
-type Downloads = {
-  version?: string
-  versions?: Record<string, string>
-  windows?: PlatformLinks
-  linux?: PlatformLinks
-  android?: PlatformLinks
-  ios?: PlatformLinks
-  macos?: PlatformLinks
-}
 
 type PlatformButtonConfig = {
   icon: string

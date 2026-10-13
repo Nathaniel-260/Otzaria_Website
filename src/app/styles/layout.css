@@ -37,8 +37,8 @@
    בנייד (מתחת ל-md) הדף ממילא נגלל, והכלל לא חל. */
 @custom-variant short (@media (min-width: 48rem) and (max-height: 820px));
 
-/* גובה הכותרת העליונה הדביקה של האתר (OtzariaSoftwareHeader: h-16 + גבול תחתון של 1px).
+/* גובה הכותרת העליונה הדביקה של האתר (OtzariaSoftwareHeader: h-16, בלי גבול תחתון).
    משמש את .anchor-section ואת אזור הפתיחה של דף הבית. */
 :root {
-  --site-header-height: calc(var(--spacing) * 16 + 1px);
+  --site-header-height: calc(var(--spacing) * 16);
 }
