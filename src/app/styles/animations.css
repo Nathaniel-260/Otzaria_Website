@@ -248,6 +248,24 @@
     to { opacity: 0; }
   }
 
+  /* המלווה ("חינם לנצח!") — אותה סחיפה אופקית ואותו קנה מידה כמו המעופף, ביחס למקומו בדף
+     (אנכית הוא נגלל עם הדף, כמו המעופף; ההפרש end-dy שונה מ-0 רק במעבר המינימלי).
+     אותן נוסחאות כמו followTransform ב-src/lib/logoHandoff.js */
+  @keyframes logo-handoff-follow {
+    from { transform: translate(0px, 0px) scale(1); }
+    to {
+      transform: translate(calc(var(--logo-handoff-dx, 0px) * -1), calc(var(--logo-handoff-end, 0px) - var(--logo-handoff-dy, 0px)))
+        scale(var(--logo-handoff-rest, 1));
+    }
+  }
+
+  /* מתכווץ סביב מרכז הספר (נמדד ב-JS) — בשני המסלולים, css ו-js */
+  :root[data-logo-handoff='css'] [data-logo-handoff-follow],
+  :root[data-logo-handoff='js'] [data-logo-handoff-follow] {
+    transform-origin: 50% var(--logo-handoff-follow-oy, 0px);
+    will-change: transform, opacity;
+  }
+
   @supports (animation-timeline: scroll()) {
     /* לפני המדידה: הופעה במקום, אחרי גלילה קצרה. רק בלי data-logo-handoff — אחרת
        האנימציה הייתה גוברת על הערכים שה-hook כותב במסלול ה-js */
@@ -263,7 +281,7 @@
     :root[data-logo-handoff='css'] .logo-handoff-flyer {
       animation: logo-handoff-fly linear both, logo-handoff-show linear both;
       animation-timeline: scroll(root block), scroll(root block);
-      animation-range: 0 var(--logo-handoff-end), 0 16px;
+      animation-range: 0 var(--logo-handoff-end), 0 2px; /* HANDOFF_SWAP_DISTANCE */
     }
 
     /* שם האתר נכנס בחמישית האחרונה, כשהספר כבר קטן וקרוב למשבצת (מוקדם יותר — בנייד הספר עוד מכסה אותו) */
@@ -273,17 +291,25 @@
       animation-range: calc(var(--logo-handoff-end) * 0.8) var(--logo-handoff-end);
     }
 
-    /* הספר שבגיבור מפנה את מקומו למעופף (תמונה זהה באותו מקום), וההילה והשורה שמתחתיו דועכות */
+    /* הספר שבגיבור מפנה את מקומו למעופף (תמונה זהה באותו מקום), וההילה שמאחוריו דועכת */
     :root[data-logo-handoff='css'] [data-logo-handoff-source] {
       animation: logo-handoff-hide linear both;
       animation-timeline: scroll(root block);
-      animation-range: 0 16px;
+      animation-range: 0 2px; /* HANDOFF_SWAP_DISTANCE */
     }
 
+    /* FADE_END ו-FOLLOW_FADE_END ב-src/lib/logoHandoff.js */
     :root[data-logo-handoff='css'] [data-logo-handoff-fade] {
       animation: logo-handoff-hide linear both;
       animation-timeline: scroll(root block);
       animation-range: 0 calc(var(--logo-handoff-end) * 0.6);
+    }
+
+    /* "חינם לנצח!" עולה עם הספר לכל אורך המעבר, ודועך ב-35% הראשונים שלו */
+    :root[data-logo-handoff='css'] [data-logo-handoff-follow] {
+      animation: logo-handoff-follow linear both, logo-handoff-hide linear both;
+      animation-timeline: scroll(root block), scroll(root block);
+      animation-range: 0 var(--logo-handoff-end), 0 calc(var(--logo-handoff-end) * 0.35);
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -296,7 +322,8 @@
       }
 
       :root[data-logo-handoff='css'] [data-logo-handoff-source],
-      :root[data-logo-handoff='css'] [data-logo-handoff-fade] {
+      :root[data-logo-handoff='css'] [data-logo-handoff-fade],
+      :root[data-logo-handoff='css'] [data-logo-handoff-follow] {
         animation: none;
       }
     }

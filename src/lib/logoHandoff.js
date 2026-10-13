@@ -13,15 +13,26 @@
 // - אורך המעבר בפיקסלי גלילה (end) שווה למרחק האנכי בין שני המרכזים. כך התנועה האנכית
 //   צמודה לגלילה 1:1 — הספר "נגלל עם הדף" כרגיל, ורק בדרך נסחף הצידה ומתכווץ עד שהוא
 //   נוחת במשבצת. אין רגע שבו הוא נע מהר או לאט מהדף שמתחתיו.
+// - "המלווה" (follow — השורה "חינם לנצח!" שמתחת לספר) נשאר בדף, אבל מקבל transform שמצמיד
+//   אותו למעופף: אותה הזזה ביחס למקומו ואותו קנה מידה סביב מרכז הספר (transform-origin),
+//   כך שהם נעים כיחידה אחת — והוא דועך בדרך ונעלם ב-FOLLOW_FADE_END הראשונים של המעבר.
 
 /** אורך מינימלי למעבר, כדי שגם במסך שבו הספר כמעט צמוד לכותרת לא תהיה "קפיצה". */
 export const MIN_HANDOFF_DISTANCE = 120
 
-/** חלון ההחלפה בין הספר שבגיבור למעופף (פיקסלי גלילה) — שתי תמונות זהות באותו מקום. */
-export const HANDOFF_SWAP_DISTANCE = 16
+/** חלון ההחלפה בין הספר שבגיבור למעופף (פיקסלי גלילה) — שתי תמונות זהות באותו מקום.
+ *  קצר בכוונה: המעופף מתחיל לזוז הצידה מהפיקסל הראשון, ובהצלבה ארוכה (16px) נראו בנייד
+ *  שני ספרים חופפים בהיסט. כאן ההחלפה מסתיימת לפני שיש ביניהם הפרש נראה. */
+export const HANDOFF_SWAP_DISTANCE = 2
 
 /** החלק האחרון של המעבר שבו שם האתר שליד הלוגו מופיע. */
 export const WORDMARK_START = 0.8
+
+/** עד איזה חלק של המעבר ההילה שמאחורי הספר דועכת במקומה. */
+export const FADE_END = 0.6
+
+/** עד איזה חלק של המעבר השורה שמתחת לספר ("חינם לנצח!") דועכת — הספר מגיע לכותרת לבד. */
+export const FOLLOW_FADE_END = 0.35
 
 /** היחס בין שולי תמונת הספר (golden-book.webp, הציור ממלא כ-81% מהרוחב) לשולי הלוגו
  *  הרגיל (logo.webp, כ-93%) — המעופף נעצר גדול מהמשבצת ביחס הזה, כדי שייראה בגודל הלוגו. */
@@ -76,12 +87,12 @@ const lerp = (from, to, t) => from + (to - from) * t
  * @param {{ reducedMotion?: boolean }} [options]
  */
 export function handoffFrame(geometry, scrollY, { reducedMotion = false } = {}) {
-  if (!geometry) return { transform: 'none', flyerOpacity: 1, sourceOpacity: 1, fadeOpacity: 1, wordmarkOpacity: 1 }
+  if (!geometry) return { transform: 'none', flyerOpacity: 1, sourceOpacity: 1, fadeOpacity: 1, wordmarkOpacity: 1, followTransform: 'none', followOpacity: 1 }
 
   // בלי תנועה: הלוגו פשוט מופיע במקומו כשהספר הגדול כבר יצא מהמסך
   if (reducedMotion) {
     const shown = scrollY >= geometry.exit ? 1 : 0
-    return { transform: `scale(${geometry.restScale})`, flyerOpacity: shown, sourceOpacity: 1, fadeOpacity: 1, wordmarkOpacity: shown }
+    return { transform: `scale(${geometry.restScale})`, flyerOpacity: shown, sourceOpacity: 1, fadeOpacity: 1, wordmarkOpacity: shown, followTransform: 'none', followOpacity: 1 }
   }
 
   const t = handoffProgress(scrollY, geometry.end)
@@ -89,11 +100,17 @@ export function handoffFrame(geometry, scrollY, { reducedMotion = false } = {}) 
   const x = round(lerp(geometry.dx, 0, t))
   const y = round(lerp(geometry.dy, 0, t))
   const scale = Math.round(lerp(1, geometry.restScale, t) * 1000) / 1000
+  // המלווה זז בדף, ולכן ההזזה שלו היא ההפרש בין המעופף לבין המקום שהספר היה נגלל אליו:
+  // אופקית — הסחיפה אל המשבצת; אנכית — רק כש-end ארוך מהמרחק (MIN_HANDOFF_DISTANCE)
+  const followX = round(-geometry.dx * t)
+  const followY = round((geometry.end - geometry.dy) * t)
   return {
     transform: `translate(${x}px, ${y}px) scale(${scale})`,
     flyerOpacity: swap,
     sourceOpacity: 1 - swap,
-    fadeOpacity: round(1 - clamp01(t / 0.6)),
-    wordmarkOpacity: round(clamp01((t - WORDMARK_START) / (1 - WORDMARK_START)))
+    fadeOpacity: round(1 - clamp01(t / FADE_END)),
+    wordmarkOpacity: round(clamp01((t - WORDMARK_START) / (1 - WORDMARK_START))),
+    followTransform: `translate(${followX}px, ${followY}px) scale(${scale})`,
+    followOpacity: round(1 - clamp01(t / FOLLOW_FADE_END))
   }
 }

@@ -5,7 +5,8 @@ import {
   handoffProgress,
   handoffFrame,
   MIN_HANDOFF_DISTANCE,
-  HANDOFF_SWAP_DISTANCE
+  HANDOFF_SWAP_DISTANCE,
+  FOLLOW_FADE_END
 } from './logoHandoff.js'
 
 // ספר 256px שמרכזו ב-(1000, 300) במסך בגלילה 0; משבצת לוגו 32px שמרכזה ב-(1300, 32)
@@ -89,6 +90,37 @@ test('handoffFrame: reduced-motion — בלי תנועה, הופעה רק אחר
   assert.equal(before.sourceOpacity, 1)
   assert.equal(after.flyerOpacity, 1)
   assert.equal(after.wordmarkOpacity, 1)
+})
+
+test('handoffFrame: המלווה ("חינם לנצח!") צמוד למעופף — אותה סחיפה ואותו קנה מידה', () => {
+  const g = computeHandoffGeometry({ source, target })
+  const start = handoffFrame(g, 0)
+  assert.equal(start.followTransform, 'translate(0px, 0px) scale(1)')
+  assert.equal(start.followOpacity, 1)
+  // באמצע: מרכז המעופף זז אופקית ב-dx/2 מהמקום שבו הספר שבדף נמצא — וכך גם המלווה
+  const mid = handoffFrame(g, g.end / 2)
+  assert.equal(mid.followTransform, 'translate(150px, 0px) scale(0.563)')
+  assert.equal(mid.transform.split(' scale')[1], mid.followTransform.split(' scale')[1])
+  assert.equal(mid.followOpacity, 0)
+})
+
+test('handoffFrame: המלווה דועך בהדרגה ונעלם ב-FOLLOW_FADE_END', () => {
+  const g = computeHandoffGeometry({ source, target })
+  assert.equal(handoffFrame(g, g.end * FOLLOW_FADE_END / 2).followOpacity, 0.5)
+  assert.equal(handoffFrame(g, g.end * FOLLOW_FADE_END).followOpacity, 0)
+})
+
+test('handoffFrame: מלווה כש-end ארוך מהמרחק — מפצה אנכית', () => {
+  const near = computeHandoffGeometry({ source: { left: 872, top: 0, width: 64, height: 64 }, target })
+  const f = handoffFrame(near, near.end)
+  assert.equal(f.followTransform, `translate(${-near.dx}px, ${near.end - near.dy}px) scale(${near.restScale})`)
+})
+
+test('handoffFrame: reduced-motion — המלווה לא זז ולא דועך', () => {
+  const g = computeHandoffGeometry({ source, target })
+  const f = handoffFrame(g, 100, { reducedMotion: true })
+  assert.equal(f.followTransform, 'none')
+  assert.equal(f.followOpacity, 1)
 })
 
 test('handoffFrame: בלי גיאומטריה — לוגו רגיל, גלוי', () => {

@@ -17,7 +17,9 @@ import ForeverTagline from './ForeverTagline'
 //   - ראש ה-ל' של OT Vilna בולט כ-0.06em מעל תיבת השורה (leading-none), ולכן מוסיפים
 //     0.06em — ב-em של השורה עצמה, כי היא בגודל גופן אחר;
 //   - נשאר מרווח קטן ויחסי: 3% מרוחב הספר + 2px (כ-6px בנייד, כ-12px ב-2xl).
-// כשהספר עף לכותרת השורה דועכת במקומה יחד עם ההילה (data-logo-handoff-fade), ולא נעה איתו.
+// כשהספר עף לכותרת השורה עולה איתו כיחידה אחת — אותה תנועה ואותו קנה מידה סביב מרכז הספר —
+// ודועכת בדרך, כך שהספר מגיע לכותרת לבד (data-logo-handoff-follow; ראו useLogoHandoff).
+// העטיפה היא שזזה, והאנימציה של "חינם לנצח!" רצה על הילדים שלה — שתיהן לא מתנגשות.
 const TAGLINE_OFFSET = 'mt-[calc(var(--book-w)*-0.125+0.06em+2px)]'
 
 export default function HeroEmblem({ className = '' }: { className?: string }) {
@@ -26,7 +28,7 @@ export default function HeroEmblem({ className = '' }: { className?: string }) {
   return (
     <div className={`flex flex-col items-center ${className}`}>
       <GoldenBook className="w-(--book-w)" handoffSource onOpened={() => setOpened(true)} />
-      <div data-logo-handoff-fade="" className="relative">
+      <div data-logo-handoff-follow="" className="relative">
         <ForeverTagline play={opened} className={TAGLINE_OFFSET} />
       </div>
     </div>

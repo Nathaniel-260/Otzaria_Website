@@ -25,6 +25,8 @@ const CSS_VARS = {
   end: '--logo-handoff-end',
   exit: '--logo-handoff-exit'
 }
+// מרכז הספר ביחס לראש המלווה — ה-transform-origin שלו, כדי שיתכווץ סביב אותה נקודה כמו המעופף
+const FOLLOW_ORIGIN_VAR = '--logo-handoff-follow-oy'
 
 function supportsScrollTimeline() {
   return typeof CSS !== 'undefined' && typeof CSS.supports === 'function' &&
@@ -57,8 +59,12 @@ export default function useLogoHandoff({ enabled, slotRef, flyerRef, wordmarkRef
       return () => root.removeAttribute('data-logo-handoff')
     }
 
-    // ההילה והשורה שמתחת לספר — דועכות בזמן שהספר עוזב
+    // ההילה — דועכת במקומה בזמן שהספר עוזב
     const companions = Array.from(document.querySelectorAll('[data-logo-handoff-fade]'))
+    // השורה שמתחת לספר ("חינם לנצח!") — עולה איתו כיחידה אחת ודועכת בדרך
+    const followers = Array.from(document.querySelectorAll('[data-logo-handoff-follow]'))
+    // הספר עצמו (GoldenBook) — המקור הוא העטיפה שבתוכו; offsetTop של שניהם יחסי לאותו הורה
+    const bookBox = source.parentElement
     const useCss = supportsScrollTimeline()
     const reducedQuery = typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -74,6 +80,10 @@ export default function useLogoHandoff({ enabled, slotRef, flyerRef, wordmarkRef
       flyer.style.opacity = String(f.flyerOpacity)
       source.style.opacity = String(f.sourceOpacity)
       for (const el of companions) el.style.opacity = String(f.fadeOpacity)
+      for (const el of followers) {
+        el.style.transform = f.followTransform
+        el.style.opacity = String(f.followOpacity)
+      }
       if (wordmark) wordmark.style.opacity = String(f.wordmarkOpacity)
     }
     const schedule = () => { if (!frame) frame = requestAnimationFrame(paint) }
@@ -88,6 +98,12 @@ export default function useLogoHandoff({ enabled, slotRef, flyerRef, wordmarkRef
       if (!geometry) return
       for (const [key, name] of Object.entries(CSS_VARS)) {
         root.style.setProperty(name, key === 'restScale' ? String(geometry[key]) : `${geometry[key]}px`)
+      }
+      // offsetTop ולא getBoundingClientRect: הוא מתעלם מה-transform שהמלווה כבר מקבל באמצע גלילה
+      const follower = followers[0]
+      if (follower && bookBox && follower.offsetParent === bookBox.offsetParent) {
+        const originY = bookBox.offsetTop + bookBox.offsetHeight / 2 - follower.offsetTop
+        root.style.setProperty(FOLLOW_ORIGIN_VAR, `${originY}px`)
       }
       root.setAttribute('data-logo-handoff', useCss ? 'css' : 'js')
       schedule()
@@ -117,8 +133,8 @@ export default function useLogoHandoff({ enabled, slotRef, flyerRef, wordmarkRef
       resizeObserver?.disconnect()
       if (frame) cancelAnimationFrame(frame)
       root.removeAttribute('data-logo-handoff')
-      for (const name of Object.values(CSS_VARS)) root.style.removeProperty(name)
-      for (const el of [flyer, source, wordmark, ...companions]) {
+      for (const name of [...Object.values(CSS_VARS), FOLLOW_ORIGIN_VAR]) root.style.removeProperty(name)
+      for (const el of [flyer, source, wordmark, ...companions, ...followers]) {
         if (el) { el.style.removeProperty('transform'); el.style.removeProperty('opacity') }
       }
     }
