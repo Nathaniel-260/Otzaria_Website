@@ -176,8 +176,8 @@ describe('DownloadSectionClient — נוסח החלונות', () => {
   it.each(['Windows', 'macOS', 'Linux'])('%s: שורת ההסבר — רווח לא-נשבר אמיתי לפני הקו, בלי "00a0" גלוי', (name) => {
     render(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
     const text = within(openPlatform(name)).getByRole('note').textContent ?? ''
-    expect(text).not.toMatch(/00a0|\u/i)
-    expect(text).toContain(' —')
+    expect(text).not.toMatch(/00a0|\\u/i)
+    expect(text).toContain('\u00a0—')
   })
 
   it.each(['Windows', 'macOS', 'Linux', 'Android', 'iOS'])('%s: בלי שורת גרסה בחלון (הגרסה במסך הפתיחה)', (name) => {
