@@ -11,7 +11,7 @@ const FOOTER_LINKS = [
 export default function OtzariaSoftwareFooter() {
   return (
     <footer className="mt-20 border-t border-surface-variant bg-top-bar px-4 py-10">
-      <div className="container mx-auto flex max-w-6xl flex-col items-center gap-5 text-center">
+      <div className="container mx-auto flex max-w-6xl 2xl:max-w-7xl flex-col items-center gap-5 text-center">
         <div className="flex items-center gap-2.5">
           <img src="/logo.webp" alt="" width={28} height={28} loading="lazy" />
           <span className="text-lg font-bold text-on-surface">אוצריא</span>

@@ -6,7 +6,7 @@ import IconTile from './IconTile'
 export default function OfflineToolCard() {
   return (
     <section aria-labelledby="offline-heading" className="px-4 md:px-8">
-      <div className="container mx-auto flex max-w-6xl flex-col gap-5 rounded-lg bg-card p-6 sm:p-8 md:flex-row md:items-center md:gap-8">
+      <div className="container mx-auto flex max-w-6xl 2xl:max-w-7xl flex-col gap-5 rounded-lg bg-card p-6 sm:p-8 md:flex-row md:items-center md:gap-8">
         <IconTile icon="cloud_off" size="lg" />
         <div className="min-w-0 flex-1">
           <h2 id="offline-heading" className="text-2xl font-bold text-on-surface">המחשב שלכם לא מחובר לאינטרנט?</h2>

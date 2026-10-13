@@ -6,7 +6,8 @@ import GoldenBook from './GoldenBook'
 // הילה חמה (GoldenBook, כמו מסך הפתיחה של המתקין) כאלמנט עצמאי לצד הכותרת, עם קישוט הכותרת (קו +
 // נקודת זהב) וכפתור ראשי מלא + כפתור טונלי.
 // נייד: הספר מעל הטקסט, ממורכז. מ-md: שתי עמודות — הספר מימין (עמודה ברוחב הספר בלבד, לא חצי
-// מסך) והטקסט משמאלו (עד 36rem); הזוג כולו ממורכז, כך שהספר לא נדחק לקצה המסך.
+// מסך) והטקסט משמאלו (עד 36rem); הזוג כולו ממורכז, כך שהספר לא נדחק לקצה המסך. מ-2xl (1536px)
+// כל האזור גדל (ספר, כותרת, טקסט עד 44rem), יחד עם הרחבת כל מכלי הדף ל-max-w-7xl.
 const PLATFORMS = ['Windows', 'macOS', 'Linux', 'Android', 'iOS']
 
 const BUTTON_BASE =
@@ -18,10 +19,10 @@ export default function HeroSection() {
   // תיראה בלי גלילה.
   return (
     <section className="overflow-hidden px-4 pb-14 pt-8 sm:pt-12 md:flex md:min-h-[min(calc(100svh-var(--site-header-height)),52rem)] md:items-center md:px-8 md:py-12 short:py-6">
-      <div className="container mx-auto grid w-full max-w-5xl items-center justify-center gap-6 md:grid-cols-[auto_minmax(0,36rem)] md:gap-10 lg:gap-16">
+      <div className="container mx-auto grid w-full max-w-5xl items-center justify-center gap-6 md:grid-cols-[auto_minmax(0,36rem)] md:gap-10 lg:gap-16 2xl:max-w-7xl 2xl:grid-cols-[auto_minmax(0,44rem)] 2xl:gap-24">
         {/* ראשון ב-DOM: בנייד מעל הטקסט, ומ-md (RTL) בעמודה הימנית — הטקסט משמאלו */}
         <div>
-          <GoldenBook className="w-36 sm:w-44 md:w-48 lg:w-56 xl:w-64 short:w-44 short:lg:w-52" />
+          <GoldenBook className="w-36 sm:w-44 md:w-48 lg:w-56 xl:w-64 2xl:w-80 short:w-44 short:lg:w-52" />
         </div>
 
         <div className="flex flex-col items-center text-center md:items-start md:text-start">
@@ -32,17 +33,17 @@ export default function HeroSection() {
 
           {/* עטיפה ברוחב הכותרת — הקישוט נמתח לכל רוחב המילה, כמו בבלוק הכותרת של המתקין */}
           <div className="mt-5 flex w-fit flex-col short:mt-3">
-            <h1 className="text-5xl font-bold leading-none text-on-surface sm:text-6xl lg:text-7xl short:lg:text-6xl">
+            <h1 className="text-5xl font-bold leading-none text-on-surface sm:text-6xl lg:text-7xl 2xl:text-8xl short:lg:text-6xl">
               אוצריא
             </h1>
             <span className="title-ornament mt-5 [--ornament-ratio:100%] short:mt-3" aria-hidden="true" />
           </div>
 
-          <p className="mt-5 text-balance text-xl font-medium leading-snug text-on-surface sm:text-2xl lg:text-[1.75rem] short:mt-3 short:lg:text-2xl">
+          <p className="mt-5 text-balance text-xl font-medium leading-snug text-on-surface sm:text-2xl lg:text-[1.75rem] 2xl:text-[2.125rem] short:mt-3 short:lg:text-2xl">
             מאגר תורני רחב עם ממשק מודרני ומהיר
           </p>
 
-          <p className="mt-4 max-w-xl text-base leading-relaxed text-on-surface-variant lg:text-lg short:mt-3 short:lg:text-base">
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-on-surface-variant lg:text-lg 2xl:max-w-2xl 2xl:text-xl short:mt-3 short:lg:text-base">
             אוצריא היא תוכנה חופשית ובקוד פתוח לקריאה וללימוד של ספרי קודש, לשולחן העבודה
             (Windows, macOS, Linux) ולנייד (Android, iOS). התוכנה כוללת ספרייה תורנית רחבה,
             חיפוש בכל הספרים, מפרשים והפניות, הערות אישיות וסימניות, ולוח שנה עברי עם זמני

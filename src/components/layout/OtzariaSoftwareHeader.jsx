@@ -109,7 +109,7 @@ export default function OtzariaSoftwareHeader({ showAuth = false }) {
   // בלי זכוכית ובלי צל.
   return (
     <header className="sticky top-0 z-50 w-full border-b border-surface-variant bg-top-bar">
-      <div className="container mx-auto flex h-16 max-w-[76rem] items-center justify-between gap-4 px-4 md:px-8">
+      <div className="container mx-auto flex h-16 max-w-[76rem] 2xl:max-w-[84rem] items-center justify-between gap-4 px-4 md:px-8">
         {/* קישור הלוגו מופיע בכל דף ואינו מצדיק prefetch */}
         <Link href="/" prefetch={false} className="flex min-h-12 shrink-0 items-center gap-2.5 rounded-lg transition-opacity hover:opacity-80">
           <Image src="/logo.webp" alt="לוגו אוצריא" width={32} height={32} />
