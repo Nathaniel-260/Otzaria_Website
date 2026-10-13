@@ -166,6 +166,21 @@
     animation: pan 5s linear infinite;
   }
 
+  /* הספר המוזהב נפתח (GoldenBook): רצועה אופקית של 24 פריימים
+     (public/home/golden-book-sprite.webp). background-size 2400% = פריים אחד ברוחב
+     האלמנט; steps(23) עובר 0%→100% ב-23 קפיצות = 24 פריימים, 24fps כמו במתקין. */
+  @keyframes golden-book-open {
+    from { background-position: 0% 0; }
+    to { background-position: 100% 0; }
+  }
+
+  .golden-book-sprite {
+    background-image: url('/home/golden-book-sprite.webp');
+    background-size: 2400% 100%;
+    background-repeat: no-repeat;
+    animation: golden-book-open 1s steps(23) forwards;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-enter-up,
     .animate-enter-down,
@@ -179,6 +194,11 @@
     .animate-drift,
     .animate-pan {
       animation: none;
+    }
+
+    .golden-book-sprite {
+      animation: none;
+      background-position: 100% 0;
     }
   }
 }

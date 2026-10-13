@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import IntentPrefetchLink from '@/components/ui/IntentPrefetchLink'
+import GoldenBook from './GoldenBook'
 
-// גיבור דף הבית — כיוון "האפליקציה עצמה": שטוח ושקט. הספר המוזהב של אוצריא (הפריים
-// האחרון של אנימציית הפתיחה במתקין) כאלמנט עצמאי לצד הכותרת, עם קישוט הכותרת (קו +
+// גיבור דף הבית — כיוון "האפליקציה עצמה": שטוח ושקט. הספר המוזהב של אוצריא נפתח בתוך
+// הילה חמה (GoldenBook, כמו מסך הפתיחה של המתקין) כאלמנט עצמאי לצד הכותרת, עם קישוט הכותרת (קו +
 // נקודת זהב) וכפתור ראשי מלא + כפתור טונלי.
 // נייד: הספר מעל הטקסט, ממורכז. מ-md: שתי עמודות — הספר מימין והטקסט משמאלו; ספר גדל עם הרוחב.
 const PLATFORMS = ['Windows', 'macOS', 'Linux', 'Android', 'iOS']
@@ -10,35 +11,16 @@ const PLATFORMS = ['Windows', 'macOS', 'Linux', 'Android', 'iOS']
 const BUTTON_BASE =
   'inline-flex min-h-12 items-center justify-center gap-2 rounded-lg px-6 text-base font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
-function HeroBook() {
-  return (
-    <div className="relative flex items-center justify-center">
-      {/* הילה זהובה רכה מאחורי הספר (GLOW של המתקין) */}
-      <div className="absolute inset-[18%] rounded-full bg-glow/35 blur-3xl" aria-hidden="true" />
-      {/* תמונת הספר היא אלמנט ה-LCP של הדף, ולכן בלי אנימציית כניסה: אנימציה מ-opacity:0
-          דוחה את ה-LCP עד סופה. fetchPriority גבוה — כדי שלא תמתין מאחורי שאר המשאבים. */}
-      <img
-        src="/home/book-open.webp"
-        alt="לוגו אוצריא"
-        width={550}
-        height={550}
-        fetchPriority="high"
-        className="relative h-auto w-36 sm:w-44 md:w-60 lg:w-72 xl:w-80 short:w-52 short:lg:w-60"
-      />
-    </div>
-  )
-}
-
 export default function HeroSection() {
   // מ-md: האזור כולו נכנס במסך הראשון (100svh פחות הכותרת העליונה, h-16 = כ-61px; לכל היותר 52rem, כדי שבמסך גבוה לא ייווצר ריק), והתוכן ממורכז
   // בו אנכית. במסך נמוך (short, ראו layout.css) המרווחים והגדלים מתכווצים כדי שגם שורת המערכות
   // תיראה בלי גלילה.
   return (
-    <section className="px-4 pb-14 pt-8 sm:pt-12 md:flex md:min-h-[min(calc(100svh-61px),52rem)] md:items-center md:px-8 md:py-12 short:py-6">
+    <section className="overflow-hidden px-4 pb-14 pt-8 sm:pt-12 md:flex md:min-h-[min(calc(100svh-61px),52rem)] md:items-center md:px-8 md:py-12 short:py-6">
       <div className="container mx-auto grid w-full max-w-6xl items-center gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:gap-8 lg:gap-12">
         {/* ראשון ב-DOM: בנייד מעל הטקסט, ומ-md (RTL) בעמודה הימנית — הטקסט משמאלו */}
         <div>
-          <HeroBook />
+          <GoldenBook className="w-36 sm:w-44 md:w-60 lg:w-72 xl:w-80 short:w-52 short:lg:w-60" />
         </div>
 
         <div className="flex flex-col items-center text-center md:items-start md:text-start">
