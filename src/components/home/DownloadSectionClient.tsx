@@ -169,7 +169,7 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
               {/* הצגת כפתור הורדה לפלטפורמה שזוהתה */}
               {detectedPlatform && !showAllPlatforms ? (
                 <div className="mx-auto max-w-2xl">
-                  <p className="mb-6 text-center text-lg text-on-surface-variant">זיהינו שאתה משתמש ב-{getPlatformName(detectedPlatform)}</p>
+                  <p className="mb-6 text-center text-lg text-on-surface-variant">זיהינו שאתם משתמשים ב-{getPlatformName(detectedPlatform)}</p>
 
                   <div className="flex flex-col items-center gap-3">
                     {renderPlatformButton(detectedPlatform, true)}
@@ -179,7 +179,7 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
                       onClick={() => setShowAllPlatforms(true)}
                       className="flex min-h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-primary hover:bg-card-selected"
                     >
-                      <span>הורד למערכת אחרת</span>
+                      <span>הורדה למערכת אחרת</span>
                       <span className="material-symbols-outlined text-lg">expand_more</span>
                     </button>
                   </div>
@@ -187,7 +187,7 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
               ) : (
                 <>
                   <p className="mb-8 text-center text-lg text-on-surface-variant">
-                    {detectedPlatform ? 'בחר פלטפורמה' : 'לא הצלחנו לזהות את המערכת שלך - בחר פלטפורמה'}
+                    {detectedPlatform ? 'בחרו מערכת' : 'לא הצלחנו לזהות את המערכת שלכם — בחרו מערכת'}
                   </p>
 
                   {/* נייד: רשימה; טבלט: שתי עמודות; דסקטופ: חמישה כרטיסים אנכיים בשורה */}
