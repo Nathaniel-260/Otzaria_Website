@@ -27,8 +27,8 @@ export default function HeroSection() {
 
         <div className="flex flex-col items-center text-center md:items-start md:text-start">
           <span className="inline-flex items-center gap-1.5 rounded-lg bg-secondary-container px-3 py-1.5 text-sm font-medium text-on-secondary-container">
-            <span className="material-symbols-outlined text-lg" aria-hidden="true">code</span>
-            תוכנה חופשית ובקוד פתוח
+            <span className="material-symbols-outlined text-lg" aria-hidden="true">library_books</span>
+            מעל 7,000 ספרי קודש
           </span>
 
           {/* עטיפה ברוחב הכותרת — הקישוט נמתח לכל רוחב המילה, כמו בבלוק הכותרת של המתקין */}
@@ -40,14 +40,12 @@ export default function HeroSection() {
           </div>
 
           <p className="mt-5 text-balance text-xl font-medium leading-snug text-on-surface sm:text-2xl lg:text-[1.75rem] 2xl:text-[2.125rem] short:mt-3 short:lg:text-2xl">
-            מאגר תורני רחב עם ממשק מודרני ומהיר
+            תנ״ך, ש״ס ופוסקים בספרייה אחת
           </p>
 
           <p className="mt-4 max-w-xl text-base leading-relaxed text-on-surface-variant lg:text-lg 2xl:max-w-2xl 2xl:text-xl short:mt-3 short:lg:text-base">
-            אוצריא היא תוכנה חופשית ובקוד פתוח לקריאה וללימוד של ספרי קודש, לשולחן העבודה
-            (Windows, macOS, Linux) ולנייד (Android, iOS). התוכנה כוללת ספרייה תורנית רחבה,
-            חיפוש בכל הספרים, מפרשים והפניות, הערות אישיות וסימניות, ולוח שנה עברי עם זמני
-            היום.
+            הספרים נבחרו בקפידה. פתחו גמרא בצורת הדף, עיינו במפרשים לצד הטקסט וחפשו בכל
+            הספרים במהירות ובקלות, במחשב ובנייד.
           </p>
 
           <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row short:mt-5">
@@ -55,7 +53,7 @@ export default function HeroSection() {
                 ופתח בקשות RSC ספקולטיביות לדף הנוכחי. */}
             <a href="#download" className={`${BUTTON_BASE} bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-pressed`}>
               <span className="material-symbols-outlined text-[22px]" aria-hidden="true">download</span>
-              הורד עכשיו
+              הורידו בחינם
             </a>
             <Link
               href="/about"
