@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 
 /**
  * הערה בחלון ההורדה.
- * - "lead": שורת ההסבר הראשית של החלון — תיבה טונלית שקטה, role="note": כותרת מודגשת (title)
- *   ומתחתיה, בשורה נפרדת, מה עושים בקובץ.
+ * - "lead": שורת ההסבר הראשית של החלון — תיבה טונלית שקטה וממורכזת, role="note", בלי אייקון
+ *   (icon לא בשימוש בה): כותרת מודגשת (title) ומתחתיה, בשורה נפרדת, מה עושים בקובץ.
  * - "quiet": הערה משנית שאין לה מקום אחר (uname -m, Gatekeeper) — טקסט קטן עם אייקון.
  */
 export default function DownloadNote({ icon = 'info', variant = 'quiet', title, children }: {
@@ -15,14 +15,11 @@ export default function DownloadNote({ icon = 'info', variant = 'quiet', title, 
 }) {
   if (variant === 'lead') {
     return (
-      // ממורכזת: האייקון מעל הטקסט ולא בצדו — אייקון צדדי ליד טקסט ממורכז נראה עקום.
+      // ממורכזת, בלי אייקון — הכותרת המודגשת היא העוגן, וריפוד שווה מכל הצדדים.
       // text-balance מאזן את השורות, כדי שלא תישאר מילה יתומה בשורה האחרונה.
-      <div role="note" className="flex flex-col items-center gap-1.5 rounded-lg bg-tile/40 p-3 text-center text-sm leading-relaxed text-on-surface sm:p-4 sm:text-[0.9375rem]">
-        <span aria-hidden="true" className="material-symbols-outlined text-[22px] text-on-tile">{icon}</span>
-        <div className="min-w-0 text-balance">
-          {title && <p className="font-bold">{title}</p>}
-          <p className={title ? 'mt-1 text-on-surface-variant' : undefined}>{children}</p>
-        </div>
+      <div role="note" className="rounded-lg bg-tile/40 px-3 py-3.5 text-center text-sm leading-relaxed text-balance text-on-surface sm:px-4 sm:py-4 sm:text-[0.9375rem]">
+        {title && <p className="font-bold">{title}</p>}
+        <p className={title ? 'mt-1 text-on-surface-variant' : undefined}>{children}</p>
       </div>
     )
   }
