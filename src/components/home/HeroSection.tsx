@@ -1,6 +1,5 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
-import IntentPrefetchLink from '@/components/ui/IntentPrefetchLink'
 import HeroEmblem from './HeroEmblem'
 import HeroStatsLoader from './HeroStatsLoader'
 import { HeroStatsPlaceholder } from './HeroStats'
@@ -13,7 +12,7 @@ import { HeroStatsPlaceholder } from './HeroStats'
 //   הטקסט, ולכן מרכז הספר עולה בחצי גובה השורה (כ-5% מגובה הגיבור) — אל המרכז האופטי, מעט
 //   מעל המרכז הגאומטרי. הספר הוא גם מקור "מעבר הלוגו" לכותרת העליונה (HeaderLogo).
 // - שמאל: הכותרת עם קישוט (קו + נקודת זהב), כותרת משנה, פסקה, כפתור ראשי מלא + כפתור
-//   טונלי, וקישור לספריית אוצריא.
+//   טונלי.
 // - למטה: "אוצריא במספרים" — שורה נקייה של מספרים גדולים, ובסופה הגרסה האחרונה (HeroStats).
 // הנתונים (גרסה, מספרים) נשלפים בשרת בתוך Suspense עם שומר מקום באותו גובה: הגיבור עצמו —
 // והתמונה שהיא ה-LCP — לעולם לא מחכים להם. הדף הוא ISR, כך שבפועל הכל נבנה מראש.
@@ -49,7 +48,8 @@ export default function HeroSection() {
           </div>
 
           <p className="mt-5 text-balance text-xl font-medium leading-snug text-on-surface sm:text-2xl lg:text-[1.75rem] 2xl:text-[2.125rem] short:mt-3 short:lg:text-2xl tall:text-[calc(2.125*var(--hero-tall-rem))]">
-            אוצר הספרים היהודי אצלך
+            {/* רווח לא-שביר לפני המקף — "– אצלך." לא נשבר לשורה משלו */}
+            ארון הספרים היהודי{'\u00A0'}– אצלך.
           </p>
 
           <p className="mt-4 max-w-xl text-base leading-relaxed text-on-surface-variant lg:text-lg 2xl:max-w-2xl 2xl:text-xl short:mt-3 short:lg:text-base tall:max-w-[calc(42*var(--hero-tall-rem))] tall:text-[calc(1.25*var(--hero-tall-rem))]">
@@ -73,21 +73,11 @@ export default function HeroSection() {
               אודות הספרייה
             </Link>
           </div>
-
-          {/* prefetch רק בכוונה (ריחוף/פוקוס/נגיעה): ברירת המחדל הורידה את ה-RSC
-              וה-JS של /library בכל טעינה של דף הבית (5 בקשות, כ-27KB) */}
-          <IntentPrefetchLink
-            href="/library"
-            className="mt-3 inline-flex min-h-12 items-center gap-1 rounded-lg px-2 text-sm font-medium text-primary hover:bg-card-selected short:mt-1 tall:text-[calc(0.875*var(--hero-tall-rem))]"
-          >
-            לפרוייקט ספריית אוצריא
-            <span className="material-symbols-outlined text-lg" aria-hidden="true">chevron_left</span>
-          </IntentPrefetchLink>
         </div>
       </div>
 
-      {/* מרווח ברור מהכפתורים — השורה היא אזור נפרד ולא המשך של קישור "לפרוייקט..." שמעליה;
-          במסך נמוך (short) מתון יותר, כדי שהכל עדיין ייכנס במסך הראשון */}
+      {/* מרווח ברור מהכפתורים — השורה היא אזור נפרד ולא המשך שלהם; במסך נמוך (short) מתון
+          יותר, כדי שהכל עדיין ייכנס במסך הראשון */}
       <div className="container mx-auto mt-12 w-full max-w-4xl md:mt-20 2xl:mt-24 2xl:max-w-5xl short:mt-14 tall:mt-[calc(5.7*var(--hero-tall-rem))] tall:max-w-[calc(64*var(--hero-tall-rem))]">
         <Suspense fallback={<HeroStatsPlaceholder />}>
           <HeroStatsLoader />
