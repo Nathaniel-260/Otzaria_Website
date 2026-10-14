@@ -7,6 +7,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { getAvatarColor, getInitial } from '@/lib/avatar-colors'
 import { MAIN_NAV_LINKS } from '@/lib/navigation-constants'
 import HeaderLogo from './HeaderLogo'
+import NavDropdown from './NavDropdown'
 
 /**
  * קישור ניווט בכותרת.
@@ -32,6 +33,21 @@ function NavLink({ link, className, onClick, children }) {
     <Link href={link.href} prefetch={false} className={className} onClick={onClick}>
       {children}
     </Link>
+  )
+}
+
+/** קישור בתפריט הנייד */
+function MobileNavLink({ link, pathname, onNavigate }) {
+  return (
+    <NavLink
+      link={link}
+      onClick={onNavigate}
+      className={`rounded-lg px-3 py-3 text-base font-medium hover:bg-card-selected ${
+        pathname === link.href ? 'text-primary' : 'text-on-surface'
+      }`}
+    >
+      {link.label}
+    </NavLink>
   )
 }
 
@@ -121,6 +137,7 @@ export default function OtzariaSoftwareHeader({ showAuth = false, wordmarkHandof
         {/* Desktop Nav */}
         <nav className="hidden lg:flex items-center gap-1">
           {navLinks.map(link => {
+            if (link.children) return <NavDropdown key={link.label} label={link.label} items={link.children} />
             const isActive = pathname === link.href
             return (
               <NavLink
@@ -163,18 +180,20 @@ export default function OtzariaSoftwareHeader({ showAuth = false, wordmarkHandof
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="lg:hidden absolute top-16 left-0 w-full bg-top-bar p-3 flex flex-col gap-0.5 shadow-[0_12px_24px_-12px_rgb(46_28_8/0.22)]">
-          {navLinks.map(link => (
-            <NavLink
-              key={link.label}
-              link={link}
-              onClick={() => setIsMenuOpen(false)}
-              className={`rounded-lg px-3 py-3 text-base font-medium hover:bg-card-selected ${
-                pathname === link.href ? 'text-primary' : 'text-on-surface'
-              }`}
-            >
-              {link.label}
-            </NavLink>
+        // גבוה מהמסך בנייד נמוך (הקבוצה המקוננת) — נגלל בתוך עצמו, לא דרך הדף
+        <div className="lg:hidden absolute top-16 left-0 w-full max-h-[calc(100svh-var(--site-header-height))] overflow-y-auto overscroll-contain bg-top-bar p-3 flex flex-col gap-0.5 shadow-[0_12px_24px_-12px_rgb(46_28_8/0.22)]">
+          {navLinks.map(link => link.children ? (
+            // פריט נפתח (NavDropdown בדסקטופ) — כאן קבוצה פתוחה: כותרת, ומתחתיה הקישורים
+            <div key={link.label} role="group" aria-labelledby={`mobile-nav-${link.href}`}>
+              <div id={`mobile-nav-${link.href}`} className="mobile-nav-group-label">{link.label}</div>
+              <div className="mobile-nav-group-list flex flex-col gap-0.5">
+                {link.children.map(child => (
+                  <MobileNavLink key={child.href + child.label} link={child} pathname={pathname} onNavigate={() => setIsMenuOpen(false)} />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <MobileNavLink key={link.label} link={link} pathname={pathname} onNavigate={() => setIsMenuOpen(false)} />
           ))}
           {showAuth && <AuthActions pathname={pathname} compact onNavigate={() => setIsMenuOpen(false)} />}
         </div>

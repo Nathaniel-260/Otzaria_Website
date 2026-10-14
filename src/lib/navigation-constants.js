@@ -14,8 +14,23 @@ export const LIBRARY_NAV_LINKS = [
   { href: '/library/editingtools', label: 'כלי עריכה', icon: 'construction' }
 ]
 
+/**
+ * תפריט הכותרת העליונה. פריט עם children נפתח לרשימה (NavDropdown; בנייד — קבוצה מקוננת).
+ * children[].more — "עוד...": מופרד בקו, והוא הקישור לדף הפריט עצמו.
+ */
 export const MAIN_NAV_LINKS = [
-  { href: '/library', label: 'ספריית אוצריא', highlight: true },
+  {
+    href: '/library',
+    label: 'עזרו לספרייה',
+    highlight: true,
+    children: [
+      { href: '/library/upload', label: 'העלו ספר חדש', icon: 'upload_file' },
+      { href: '/library/acronyms', label: 'הוסיפו כינויים וראשי תיבות', icon: 'short_text' },
+      { href: '/library/info', label: 'הוסיפו מידע על ספרים', icon: 'info' },
+      { href: '/library/page-proof/books', label: 'הגיהו עמודים', icon: 'fact_check' },
+      { href: '/library', label: 'עוד דרכים לעזור', more: true }
+    ]
+  },
   { href: '/#download', label: 'הורדה', highlight: false },
   { href: '/offline', label: 'עדכון לא-מקוון', highlight: false },
   { href: '/plugins', label: 'תוספים', highlight: false },
