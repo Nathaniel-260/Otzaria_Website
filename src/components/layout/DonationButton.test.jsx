@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import DonationButton, { DonationNote } from './DonationButton'
 
-const LINK = { href: '/donate', label: 'תרומות', icon: 'volunteer_activism', hint: 'אין לאוצריא גוף מממן: אתם הכוח המניע שלה' }
+const LINK = { href: '/donate', label: 'תרומות', icon: 'volunteer_activism', hint: 'אין לאוצריא גוף מממן: אתה הכוח המניע שלה' }
 
 describe('DonationButton', () => {
   it('הרמז מחובר לקישור כתיאור נגיש (aria-describedby → role="tooltip")', () => {

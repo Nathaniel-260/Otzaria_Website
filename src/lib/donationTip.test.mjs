@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { splitHint, clampShift } from './donationTip.js'
 
 test('splitHint: פתיח עם נקודתיים והדגשה', () => {
-  assert.deepEqual(splitHint('אין לאוצריא גוף מממן: אתם הכוח המניע שלה'), { lead: 'אין לאוצריא גוף מממן:', punch: 'אתם הכוח המניע שלה' })
+  assert.deepEqual(splitHint('אין לאוצריא גוף מממן: אתה הכוח המניע שלה'), { lead: 'אין לאוצריא גוף מממן:', punch: 'אתה הכוח המניע שלה' })
 })
 
 test('splitHint: בלי נקודתיים / ריק — הכל הדגשה', () => {

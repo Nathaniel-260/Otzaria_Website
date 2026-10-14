@@ -5,7 +5,7 @@ import NavDropdown from './NavDropdown'
 const ITEMS = [
   { href: '/library/upload', label: 'העלו ספר חדש', icon: 'upload_file' },
   { href: '/library/info', label: 'הוסיפו מידע על ספרים', icon: 'info' },
-  { href: '/library', label: 'עוד דרכים לעזור', more: true }
+  { href: '/library', label: 'דרכים נוספות לסיוע', more: true }
 ]
 
 function setup() {
@@ -20,7 +20,7 @@ describe('NavDropdown', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     const panel = document.getElementById(trigger.getAttribute('aria-controls'))
     expect(panel).toContainElement(screen.getByRole('link', { name: 'העלו ספר חדש' }))
-    expect(screen.getByRole('link', { name: 'עוד דרכים לעזור' })).toHaveAttribute('href', '/library')
+    expect(screen.getByRole('link', { name: 'דרכים נוספות לסיוע' })).toHaveAttribute('href', '/library')
   })
 
   it('לחיצה פותחת, לחיצה נוספת סוגרת', () => {
@@ -57,7 +57,7 @@ describe('NavDropdown', () => {
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
     expect(screen.getByRole('link', { name: 'העלו ספר חדש' })).toHaveFocus()
     fireEvent.keyDown(document.activeElement, { key: 'ArrowUp' })
-    expect(screen.getByRole('link', { name: 'עוד דרכים לעזור' })).toHaveFocus()
+    expect(screen.getByRole('link', { name: 'דרכים נוספות לסיוע' })).toHaveFocus()
     expect(trigger).toHaveAttribute('aria-expanded', 'true')
   })
 
