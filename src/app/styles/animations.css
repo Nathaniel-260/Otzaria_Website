@@ -266,6 +266,13 @@
     will-change: transform, opacity;
   }
 
+  /* ההילה — אותה תנועה בדיוק; השכבה שלה בגודל הספר, ולכן מרכזה (ברירת המחדל של
+     transform-origin) הוא כבר מרכז הספר */
+  :root[data-logo-handoff='css'] [data-logo-handoff-glow],
+  :root[data-logo-handoff='js'] [data-logo-handoff-glow] {
+    will-change: transform, opacity;
+  }
+
   @supports (animation-timeline: scroll()) {
     /* לפני המדידה: הופעה במקום, אחרי גלילה קצרה. רק בלי data-logo-handoff — אחרת
        האנימציה הייתה גוברת על הערכים שה-hook כותב במסלול ה-js */
@@ -291,18 +298,20 @@
       animation-range: calc(var(--logo-handoff-end) * 0.8) var(--logo-handoff-end);
     }
 
-    /* הספר שבגיבור מפנה את מקומו למעופף (תמונה זהה באותו מקום), וההילה שמאחוריו דועכת */
+    /* הספר שבגיבור מפנה את מקומו למעופף (תמונה זהה באותו מקום) */
     :root[data-logo-handoff='css'] [data-logo-handoff-source] {
       animation: logo-handoff-hide linear both;
       animation-timeline: scroll(root block);
       animation-range: 0 2px; /* HANDOFF_SWAP_DISTANCE */
     }
 
-    /* FADE_END ו-FOLLOW_FADE_END ב-src/lib/logoHandoff.js */
-    :root[data-logo-handoff='css'] [data-logo-handoff-fade] {
-      animation: logo-handoff-hide linear both;
-      animation-timeline: scroll(root block);
-      animation-range: 0 calc(var(--logo-handoff-end) * 0.6);
+    /* GLOW_FADE_END ו-FOLLOW_FADE_END ב-src/lib/logoHandoff.js.
+       ההילה עולה ומתכווצת עם הספר לכל אורך המעבר (כמו "חינם לנצח!"), ודועכת ב-60% הראשונים —
+       כך שהיא כבר איננה כשהספר נוחת בכותרת */
+    :root[data-logo-handoff='css'] [data-logo-handoff-glow] {
+      animation: logo-handoff-follow linear both, logo-handoff-hide linear both;
+      animation-timeline: scroll(root block), scroll(root block);
+      animation-range: 0 var(--logo-handoff-end), 0 calc(var(--logo-handoff-end) * 0.6);
     }
 
     /* "חינם לנצח!" עולה עם הספר לכל אורך המעבר, ודועך ב-35% הראשונים שלו */
@@ -322,7 +331,7 @@
       }
 
       :root[data-logo-handoff='css'] [data-logo-handoff-source],
-      :root[data-logo-handoff='css'] [data-logo-handoff-fade],
+      :root[data-logo-handoff='css'] [data-logo-handoff-glow],
       :root[data-logo-handoff='css'] [data-logo-handoff-follow] {
         animation: none;
       }

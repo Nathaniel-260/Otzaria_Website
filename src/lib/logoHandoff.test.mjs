@@ -6,7 +6,8 @@ import {
   handoffFrame,
   MIN_HANDOFF_DISTANCE,
   HANDOFF_SWAP_DISTANCE,
-  FOLLOW_FADE_END
+  FOLLOW_FADE_END,
+  GLOW_FADE_END
 } from './logoHandoff.js'
 
 // ספר 256px שמרכזו ב-(1000, 300) במסך בגלילה 0; משבצת לוגו 32px שמרכזה ב-(1300, 32)
@@ -78,7 +79,7 @@ test('handoffFrame: סוף — במשבצת, מוקטן, שם האתר מוצג'
   const f = handoffFrame(g, 1000)
   assert.equal(f.transform, 'translate(0px, 0px) scale(0.125)')
   assert.equal(f.wordmarkOpacity, 1)
-  assert.equal(f.fadeOpacity, 0)
+  assert.equal(f.glowOpacity, 0)
 })
 
 test('handoffFrame: reduced-motion — בלי תנועה, הופעה רק אחרי שהספר יצא מהמסך', () => {
@@ -110,6 +111,14 @@ test('handoffFrame: המלווה דועך בהדרגה ונעלם ב-FOLLOW_FADE
   assert.equal(handoffFrame(g, g.end * FOLLOW_FADE_END).followOpacity, 0)
 })
 
+test('handoffFrame: ההילה דועכת לאט מהשורה ונעלמת ב-GLOW_FADE_END — לפני הנחיתה בכותרת', () => {
+  const g = computeHandoffGeometry({ source, target })
+  assert.ok(GLOW_FADE_END > FOLLOW_FADE_END && GLOW_FADE_END < 1)
+  assert.equal(handoffFrame(g, 0).glowOpacity, 1)
+  assert.equal(handoffFrame(g, g.end * GLOW_FADE_END / 2).glowOpacity, 0.5)
+  assert.equal(handoffFrame(g, g.end * GLOW_FADE_END).glowOpacity, 0)
+})
+
 test('handoffFrame: מלווה כש-end ארוך מהמרחק — מפצה אנכית', () => {
   const near = computeHandoffGeometry({ source: { left: 872, top: 0, width: 64, height: 64 }, target })
   const f = handoffFrame(near, near.end)
@@ -121,6 +130,7 @@ test('handoffFrame: reduced-motion — המלווה לא זז ולא דועך', 
   const f = handoffFrame(g, 100, { reducedMotion: true })
   assert.equal(f.followTransform, 'none')
   assert.equal(f.followOpacity, 1)
+  assert.equal(f.glowOpacity, 1)
 })
 
 test('handoffFrame: בלי גיאומטריה — לוגו רגיל, גלוי', () => {

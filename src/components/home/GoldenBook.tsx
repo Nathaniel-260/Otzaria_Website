@@ -20,8 +20,10 @@ import { preload } from 'react-dom'
 // onOpened — נקרא פעם אחת כשהספר פתוח (סוף הרצועה, או מיד במסלולי הגיבוי), כדי שמה
 // שבא אחריו (ForeverTagline) יתחיל בדיוק כשהפתיחה נגמרת.
 // handoffSource — הספר הוא "מקור" מעבר הלוגו לכותרת (useLogoHandoff): התמונה עטופה
-// באלמנט שהכותרת מודדת ומעמעמת, וההילה מסומנת בנפרד (data-logo-handoff-fade) כדי לדעוך בגלילה. רק opacity —
-// לא transform — כדי שהמדידה (getBoundingClientRect) תישאר נכונה.
+// באלמנט שהכותרת מודדת ומעמעמת (רק opacity — לא transform — כדי שהמדידה, getBoundingClientRect,
+// תישאר נכונה). ההילה עטופה בשכבה נפרדת בגודל הספר (data-logo-handoff-glow) שעולה ומתכווצת
+// איתו בגלילה סביב מרכזו, ודועכת בדרך; ההילה עצמה ממורכזת בתוכה ב-translate משלה, כך ששני
+// ה-transform לא מתנגשים.
 
 const SPRITE_SRC = '/home/golden-book-sprite.webp'
 const CLOSED_SRC = '/home/golden-book-closed.webp'
@@ -90,13 +92,17 @@ export default function GoldenBook({ className = '', onOpened, handoffSource = f
           (overflow-hidden) כדי שלא תיצור גלילה אופקית בנייד */}
       <div
         aria-hidden="true"
-        data-logo-handoff-fade={handoffSource ? '' : undefined}
-        className="pointer-events-none absolute left-1/2 top-1/2 size-[190%] -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          background:
-            'radial-gradient(closest-side, rgb(233 185 106 / 0.68), rgb(233 185 106 / 0.26) 45%, rgb(233 185 106 / 0.06) 75%, transparent)'
-        }}
-      />
+        data-logo-handoff-glow={handoffSource ? '' : undefined}
+        className="pointer-events-none absolute inset-0"
+      >
+        <div
+          className="absolute left-1/2 top-1/2 size-[190%] -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            background:
+              'radial-gradient(closest-side, rgb(233 185 106 / 0.68), rgb(233 185 106 / 0.26) 45%, rgb(233 185 106 / 0.06) 75%, transparent)'
+          }}
+        />
+      </div>
       <div className="relative size-full" data-logo-handoff-source={handoffSource ? '' : undefined}>
         <img
           src={phase === 'open' ? OPEN_SRC : CLOSED_SRC}

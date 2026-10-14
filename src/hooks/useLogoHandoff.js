@@ -59,8 +59,8 @@ export default function useLogoHandoff({ enabled, slotRef, flyerRef, wordmarkRef
       return () => root.removeAttribute('data-logo-handoff')
     }
 
-    // ההילה — דועכת במקומה בזמן שהספר עוזב
-    const companions = Array.from(document.querySelectorAll('[data-logo-handoff-fade]'))
+    // ההילה שמאחורי הספר — עולה ומתכווצת איתו (כמו השורה), ודועכת לפני שהוא נוחת בכותרת
+    const glows = Array.from(document.querySelectorAll('[data-logo-handoff-glow]'))
     // השורה שמתחת לספר ("חינם לנצח!") — עולה איתו כיחידה אחת ודועכת בדרך
     const followers = Array.from(document.querySelectorAll('[data-logo-handoff-follow]'))
     // הספר עצמו (GoldenBook) — המקור הוא העטיפה שבתוכו; offsetTop של שניהם יחסי לאותו הורה
@@ -79,7 +79,10 @@ export default function useLogoHandoff({ enabled, slotRef, flyerRef, wordmarkRef
       flyer.style.transform = f.transform
       flyer.style.opacity = String(f.flyerOpacity)
       source.style.opacity = String(f.sourceOpacity)
-      for (const el of companions) el.style.opacity = String(f.fadeOpacity)
+      for (const el of glows) {
+        el.style.transform = f.followTransform
+        el.style.opacity = String(f.glowOpacity)
+      }
       for (const el of followers) {
         el.style.transform = f.followTransform
         el.style.opacity = String(f.followOpacity)
@@ -134,7 +137,7 @@ export default function useLogoHandoff({ enabled, slotRef, flyerRef, wordmarkRef
       if (frame) cancelAnimationFrame(frame)
       root.removeAttribute('data-logo-handoff')
       for (const name of [...Object.values(CSS_VARS), FOLLOW_ORIGIN_VAR]) root.style.removeProperty(name)
-      for (const el of [flyer, source, wordmark, ...companions, ...followers]) {
+      for (const el of [flyer, source, wordmark, ...glows, ...followers]) {
         if (el) { el.style.removeProperty('transform'); el.style.removeProperty('opacity') }
       }
     }
