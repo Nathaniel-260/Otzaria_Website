@@ -72,7 +72,7 @@ test('driftEase: t² — מתחיל לאט, מסתיים ב-1', () => {
 
 test('handoffFrame: התנועה האנכית צמודה לגלילה 1:1, והסחיפה האופקית מואצת', () => {
   const f = handoffFrame(computeHandoffGeometry({ source, target }), 134)
-  // באמצע: אנכית חצי הדרך (268→134), אופקית רק רבע (‎-300 → ‎-225)
+  // באמצע: אנכית חצי הדרך (268→134), אופקית רק רבע (מ-300- ל-225-)
   assert.equal(f.transform, 'translate(-225px, 134px) scale(0.6)')
   assert.equal(f.flyerOpacity, 1)
   assert.equal(f.sourceOpacity, 0)
