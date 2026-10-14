@@ -10,8 +10,8 @@ export default function DonateCallout() {
       <div className="container mx-auto flex max-w-3xl flex-col items-center text-center">
         <SectionHeading
           id="donate-heading"
-          title="אוצריא חינמית — בזכותכם"
-          subtitle="הפרויקט מתוחזק בהתנדבות, והתוכנה חינמית לחלוטין ותישאר כזו לעד. תרומתכם עוזרת לנו לשלם על שרתים ולהמשיך לפתח את התוכנה."
+          title="אוצריא חינמית — בזכותך"
+          subtitle="הפרויקט מתוחזק בהתנדבות, והתוכנה חינמית לחלוטין ותישאר כזו לעד. תרומתך עוזרת לנו לשלם על שרתים ולהמשיך לפתח את התוכנה."
           className="mb-6!"
         />
         <Link

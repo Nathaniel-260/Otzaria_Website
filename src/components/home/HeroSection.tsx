@@ -57,7 +57,7 @@ export default function HeroSection() {
           </p>
 
           <p className="mt-4 max-w-xl text-base leading-relaxed text-on-surface-variant lg:text-lg 2xl:max-w-2xl 2xl:text-xl short:mt-3 short:lg:text-base tall:max-w-[calc(42*var(--hero-tall-rem))] tall:text-[calc(1.25*var(--hero-tall-rem))]">
-            הספרים נבחרו בקפידה. פתחו גמרא בצורת הדף, עיינו במפרשים לצד הטקסט וחפשו בכל
+            הספרים נבחרו בקפידה. פתח גמרא בצורת הדף, עיין במפרשים לצד הטקסט וחפש בכל
             הספרים במהירות ובקלות, במחשב ובנייד.
           </p>
 
@@ -66,7 +66,7 @@ export default function HeroSection() {
                 ופתח בקשות RSC ספקולטיביות לדף הנוכחי. */}
             <a href="#download" className={`${BUTTON_BASE} bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-pressed`}>
               <span className={BUTTON_ICON} aria-hidden="true">download</span>
-              הורידו בחינם
+              הורד בחינם
             </a>
             <Link
               href="/about"

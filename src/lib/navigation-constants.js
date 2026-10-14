@@ -21,14 +21,14 @@ export const LIBRARY_NAV_LINKS = [
 export const MAIN_NAV_LINKS = [
   {
     href: '/library',
-    label: 'עזרו לספרייה',
+    label: 'עזור לספרייה',
     highlight: true,
     children: [
-      { href: '/donate', label: 'תרמו לאוצריא', icon: 'volunteer_activism' },
-      { href: '/library/upload', label: 'העלו ספר חדש', icon: 'upload_file' },
-      { href: '/library/acronyms', label: 'הוסיפו כינויים וראשי תיבות', icon: 'short_text' },
-      { href: '/library/info', label: 'הוסיפו מידע על ספרים', icon: 'info' },
-      { href: '/library/page-proof/books', label: 'הגיהו עמודים', icon: 'fact_check' },
+      { href: '/donate', label: 'תרום לאוצריא', icon: 'volunteer_activism' },
+      { href: '/library/upload', label: 'העלה ספר חדש', icon: 'upload_file' },
+      { href: '/library/acronyms', label: 'הוסף כינויים וראשי תיבות', icon: 'short_text' },
+      { href: '/library/info', label: 'הוסף מידע על ספרים', icon: 'info' },
+      { href: '/library/page-proof/books', label: 'השתתף בהגהת עמודים', icon: 'fact_check' },
       { href: '/library', label: 'דרכים נוספות לסיוע', more: true }
     ]
   },

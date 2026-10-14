@@ -18,7 +18,7 @@ const features = [
   {
     icon: 'search',
     title: 'חיפוש מתקדם',
-    description: 'מצאו כל פסוק, מאמר או מושג בקלות'
+    description: 'מצא כל פסוק, מאמר או מושג בקלות'
   },
   {
     icon: 'edit_note',

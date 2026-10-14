@@ -27,24 +27,24 @@ const ASSISTANT_LEAD_TITLE = 'זה מסייע ההורדה, לא תוכנת הה
 
 const ASSISTANT_CONFIG: Record<string, AssistantPlatformConfig> = {
   Windows: {
-    lead: 'הפעילו אותו, והוא יוריד את אוצריא ויכין התקנה\u00a0— למחשב הזה או למחשב בלי אינטרנט.',
+    lead: 'הפעל אותו, והוא יוריד את אוצריא ויכין התקנה\u00a0— למחשב הזה או למחשב בלי אינטרנט.',
     buttons: [
       { key: 'assistant', icon: 'install_desktop', title: 'מסייע ההורדה של אוצריא', desc: <><bdi dir="ltr">Windows 10 / 11</bdi>, כולל מחשבי ARM</> }
     ]
   },
   macOS: {
-    lead: <>פתחו את <Nowrap>ה-<Ltr>ZIP</Ltr></Nowrap> שהורד והפעילו את המסייע שבתוכו&nbsp;— משם הוא ינחה אתכם.</>,
+    lead: <>פתח את <Nowrap>ה-<Ltr>ZIP</Ltr></Nowrap> שהורד והפעל את המסייע שבתוכו&nbsp;— משם הוא ינחה אותך.</>,
     buttons: [
       { key: 'assistant', icon: 'laptop_mac', title: 'מסייע ההורדה של אוצריא', desc: 'macOS 12 ומעלה, Intel ו-Apple Silicon' }
     ],
     // החסימה מופיעה לפני שהמסייע נפתח — רק האתר יכול להסביר אותה
     note: {
       icon: 'shield',
-      text: 'בפתיחה הראשונה macOS יחסום את המסייע, כי אינו חתום אצל Apple. אשרו "פתח בכל זאת" בהגדרות המערכת.'
+      text: 'בפתיחה הראשונה macOS יחסום את המסייע, כי אינו חתום אצל Apple. לחץ על "פתח בכל זאת" בהגדרות המערכת.'
     }
   },
   Linux: {
-    lead: <>חלצו את <Nowrap>ה-<Ltr>tar.gz</Ltr></Nowrap> שהורד והפעילו את <Ltr>Otzaria-Download-Assistant</Ltr> שבתיקייה&nbsp;— משם הוא ינחה אתכם.</>,
+    lead: <>חלץ את <Nowrap>ה-<Ltr>tar.gz</Ltr></Nowrap> שהורד והפעל את <Ltr>Otzaria-Download-Assistant</Ltr> שבתיקייה&nbsp;— משם הוא ינחה אותך.</>,
     buttons: [
       { key: 'assistantX64', icon: 'computer', title: 'מסייע ההורדה (x64)', desc: 'מעבד Intel או AMD — רוב המחשבים' },
       { key: 'assistantArm64', icon: 'memory', title: 'מסייע ההורדה (ARM64)', desc: 'מעבד ARM' }
@@ -53,7 +53,7 @@ const ASSISTANT_CONFIG: Record<string, AssistantPlatformConfig> = {
     note: {
       icon: 'terminal',
       onlyWithMultipleButtons: true,
-      text: <>לא בטוחים? הריצו בטרמינל <Ltr>uname -m</Ltr>: <Ltr>x86_64</Ltr> פירושו x64, ו-<Ltr>aarch64</Ltr> פירושו ARM64.</>
+      text: <>לא בטוח? הרץ בטרמינל <Ltr>uname -m</Ltr>: <Ltr>x86_64</Ltr> פירושו x64, ו-<Ltr>aarch64</Ltr> פירושו ARM64.</>
     }
   }
 }
@@ -99,7 +99,7 @@ export function AndroidAssistantNotice({ href }: { href: string }) {
       <div className="min-w-0 flex-1">
         <p className="font-bold">אין אינטרנט במכשיר?</p>
         <p className="mt-1 text-sm leading-relaxed">
-          אפשר להכין התקנה במחשב Windows בעזרת מסייע ההורדה: בחרו בו &quot;סוג מחשב אחר&quot; ואז Android.
+          אפשר להכין התקנה במחשב Windows בעזרת מסייע ההורדה: בחר בו &quot;סוג מחשב אחר&quot; ואז Android.
         </p>
         <a
           href={href}
