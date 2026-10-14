@@ -347,8 +347,8 @@
    *              רוחב "לנצח!" + חצי הרווח; ה-JS מודד רק את המספר הזה)
    *   1.5–2.2s   "חינם" מחליק ימינה (RTL: "לנצח!" בא אחריו) למקומו בצירוף
    *   1.75s+     "לנצח!" נכנס למקום שהתפנה, אות אחר אות (60ms ביניהן) — fade, עלייה
-   *              קצרה וטשטוש שמתבהר, כך שהוא "נכנס למקום" ולא "קופץ"
-   *   2.3–3.0s   קו זהב דק נמתח מתחתיו — ו"חינם לנצח!" נשאר ממורכז.
+   *              קצרה וטשטוש שמתבהר, כך שהוא "נכנס למקום" ולא "קופץ" — ו"חינם לנצח!"
+   *              נשאר ממורכז.
    * מתחיל ב-data-state="play" — אחרי שהספר סיים להיפתח (HeroEmblem).
    * ============================================================ */
   @keyframes forever-enter {
@@ -366,14 +366,8 @@
     to { opacity: 1; transform: none; filter: blur(0); }
   }
 
-  @keyframes forever-underline {
-    from { transform: scaleX(0); opacity: 0; }
-    to { transform: scaleX(1); opacity: 1; }
-  }
-
   .forever-line,
-  .forever-letter,
-  .forever-underline {
+  .forever-letter {
     opacity: 0;
   }
 
@@ -383,10 +377,6 @@
 
   .forever-letter {
     display: inline-block;
-  }
-
-  .forever-underline {
-    transform-origin: right;
   }
 
   [data-state='play'] .forever-line {
@@ -403,16 +393,11 @@
     animation-delay: calc(1.75s + var(--i, 0) * 60ms);
   }
 
-  [data-state='play'] .forever-underline {
-    animation: forever-underline 700ms cubic-bezier(0.65, 0, 0.35, 1) 2.3s forwards;
-  }
-
   /* בלי תנועה: "חינם לנצח!" סטטי, ממורכז, מיד */
   @media (prefers-reduced-motion: reduce) {
     .forever-line,
     .forever-first,
-    .forever-letter,
-    .forever-underline {
+    .forever-letter {
       opacity: 1;
       transform: none;
       animation: none !important;

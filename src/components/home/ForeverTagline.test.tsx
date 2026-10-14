@@ -25,6 +25,15 @@ describe('ForeverTagline', () => {
     expect(line.style.getPropertyValue('--forever-shift')).toMatch(/px$/)
   })
 
+  it('שתי המילים ב-OT Vilna: "חינם" Regular כהה, "לנצח!" Bold בצבע הראשי — בלי קו תחתון', () => {
+    const { container } = render(<ForeverTagline play={false} />)
+    const first = container.querySelector('.forever-first') as HTMLElement
+    const final = screen.getByTestId('forever-final')
+    expect(first).toHaveClass('font-display', 'font-normal', 'text-on-surface')
+    expect(final).toHaveClass('font-display', 'font-bold', 'text-primary')
+    expect(container.querySelector('.forever-underline')).toBeNull()
+  })
+
   it('הרצף מתחיל רק כש-play מופעל', () => {
     const { container, rerender } = render(<ForeverTagline play={false} />)
     expect(container.firstChild).toHaveAttribute('data-state', 'idle')

@@ -18,6 +18,10 @@ import { foreverShift } from './foreverTaglineLogic'
 
 const FIRST = 'חינם'
 const FINAL = 'לנצח!'
+// שתי המילים בגופן התצוגה (OT Vilna): "חינם" ב-Regular ובצבע הטקסט הכהה, ו"לנצח!" ב-Bold
+// ובצבע הראשי — הוא ההדגשה של הצירוף
+const FIRST_CLASS = 'inline-block font-display font-normal text-on-surface'
+const FINAL_CLASS = 'inline-block font-display font-bold text-primary'
 
 function useForeverShift(lineRef: React.RefObject<HTMLSpanElement | null>, finalRef: React.RefObject<HTMLSpanElement | null>) {
   useEffect(() => {
@@ -46,13 +50,11 @@ export default function ForeverTagline({ play, className = '' }: { play: boolean
       <span className="sr-only">{FIRST} {FINAL.replace('!', '')}</span>
       {/* השורה המלאה, ממורכזת — "חינם" ראשון ב-DOM, ולכן ב-RTL מימין ל"לנצח!" */}
       <span ref={lineRef} aria-hidden="true" className="forever-line inline-flex items-baseline gap-x-[0.28em] whitespace-nowrap">
-        <span className="forever-first inline-block font-medium text-on-surface-variant">{FIRST}</span>
-        <span ref={finalRef} className="relative inline-block pb-2 font-display font-bold text-primary" data-testid="forever-final">
+        <span className={`forever-first ${FIRST_CLASS}`}>{FIRST}</span>
+        <span ref={finalRef} className={FINAL_CLASS} data-testid="forever-final">
           {Array.from(FINAL).map((letter, index) => (
             <span key={index} className="forever-letter" style={{ '--i': index } as CSSProperties}>{letter}</span>
           ))}
-          {/* קו זהב דק, ברוח קישוט הכותרת (.title-ornament) */}
-          <span className="forever-underline absolute inset-x-[4%] bottom-0 h-[2px] rounded-full bg-[linear-gradient(90deg,transparent,var(--color-glow)_25%,var(--color-glow)_75%,transparent)]" />
         </span>
       </span>
     </p>
