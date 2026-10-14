@@ -29,7 +29,6 @@
    * מטרת מגע 44px ומעלה (בכותרת — דרך ::before, ראו .donation-nav-link).
    * ============================================================ */
   .donation-button {
-    --donation-beat-duration: 4.8s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -61,8 +60,6 @@
     font-size: 1.15rem;
     line-height: 1;
     color: var(--color-donation);
-    transform-origin: 50% 60%;
-    animation: donation-heartbeat var(--donation-beat-duration) var(--ease-in-out) infinite;
   }
 
   .donation-button:hover .donation-button-icon,
@@ -71,7 +68,13 @@
     transition: translate var(--default-transition-duration) var(--ease-out);
   }
 
-  /* פעימה כפולה ("לב") בתחילת המחזור, ואחריה מנוחה ארוכה — תנועה חיה ולא מטרידה */
+  /* ---- אנימציית ההמתנה של הלב — מבודדת כאן (מחלקה אחת + keyframes אחד), להחלפה בקלות.
+     פעימה כפולה ("לב") בתחילת המחזור, ואחריה מנוחה ארוכה — תנועה חיה ולא מטרידה. ---- */
+  .donation-button-icon {
+    transform-origin: 50% 60%;
+    animation: donation-heartbeat var(--donation-beat-duration, 4.8s) var(--ease-in-out) infinite;
+  }
+
   @keyframes donation-heartbeat {
     0%, 22%, 100% { scale: 1; }
     5% { scale: 1.2; }
