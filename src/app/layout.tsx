@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { Assistant } from "next/font/google";
 import "./globals.css"; 
 import SessionProvider from "@/components/providers/SessionProvider";
 import ErrorBoundary from "@/components/providers/ErrorBoundary";
@@ -17,10 +18,10 @@ const frankRuehl = localFont({
 });
 
 // OT Vilna — Levi Chyrek / Otzar Fonts; התקבל אישור שימוש באתר.
-// Bold בלבד (700), לטקסט התצוגה המודגש (font-display: הכותרת וכותרות האזורים, שם האתר
-// בכותרת העליונה). אין בו אותיות לטיניות — הן נופלות ל---font-hebrew (typography.css).
+// שני משקלים: Bold (700) לטקסט התצוגה המודגש (font-display: כותרות האזורים), ו-Regular (400)
+// למילה "אוצריא" כשם המותג (הכותרת הראשית בגיבור ושם האתר בכותרת העליונה). אין בו אותיות לטיניות — הן נופלות ל---font-hebrew (typography.css).
 // preload (ברירת המחדל) נשאר: שם האתר בכותרת העליונה משתמש בו בכל עמוד, ובדף הבית הוא
-// גם הכותרת הראשית. ~17KB. adjustFontFallback (ברירת המחדל, Arial מותאם-מידות) מצמצם
+// גם הכותרת הראשית. כ-17KB לכל משקל. adjustFontFallback (ברירת המחדל, Arial מותאם-מידות) מצמצם
 // את קפיצת ה-layout ברגע ההחלפה (display: swap).
 const vilna = localFont({
   src: [
@@ -28,6 +29,16 @@ const vilna = localFont({
     { path: "./fonts/OTVilna-Bold.woff2", weight: "700" },
   ],
   variable: "--font-vilna",
+  display: "swap",
+});
+
+// Assistant — גופן הגוף והממשק בכל האתר (--font-sans / --font-hebrew ב-typography.css).
+// גופן משתנה (200–800) — קובץ אחד לכל המשקלים. next/font מוריד אותו בזמן ה-build ומגיש
+// אותו מהאתר עצמו (בלי בקשה ל-Google בזמן ריצה). Assistant נראה קטן מגופן המערכת באותו
+// גודל — הפיצוי ב---font-body-size-adjust (typography.css), לא בגדלים עצמם.
+const assistant = Assistant({
+  subsets: ["hebrew", "latin"],
+  variable: "--font-assistant",
   display: "swap",
 });
 
@@ -43,8 +54,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // --font-assistant על <html> ולא על <body>: --font-sans/--font-hebrew (typography.css) הם
+  // טוקני @theme רגילים שמחושבים ב-:root, ושם המשתנה חייב כבר להיות מוגדר
   return (
-    <html lang="he" dir="rtl">
+    <html lang="he" dir="rtl" className={assistant.variable}>
       <head>
         {/* גופן האייקונים מוגש מקומית כ-subset (scripts/build-icon-font.mjs) ומוצהר
             ב-styles/icon-font.css. ה-preload מקדים את הבקשה לפרסור ה-CSS. */}

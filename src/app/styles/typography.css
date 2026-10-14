@@ -13,10 +13,13 @@
   --font-display: var(--font-vilna), var(--font-hebrew);
 }
 
+/* גופן הגוף והממשק: Assistant (next/font/google ב-layout.tsx; --font-assistant מוגדר על <html>).
+   --font-sans ו---font-hebrew זהים בכוונה — שני השמות בשימוש באתר (body, font-sans, נפילת
+   הלטינית של font-display). גופני המערכת נשארים כנפילה בלבד. */
 @theme {
   --font-frank: var(--font-frank-ruehl), serif;
-  --font-sans: system-ui, -apple-system, sans-serif;
-  --font-hebrew: 'Segoe UI', Tahoma, Arial, sans-serif;
+  --font-sans: var(--font-assistant), 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-hebrew: var(--font-assistant), 'Segoe UI', Tahoma, Arial, sans-serif;
 
   --text-xs: 0.72rem;
   --text-xs--line-height: calc(1 / 0.72);
@@ -67,4 +70,32 @@
   --leading-normal: 1.5;
   --leading-relaxed: 1.625;
   --leading-loose: 2;
+}
+
+/* ------------------------------------------------------------
+ * פיצוי הגודל של Assistant.
+ * באותו font-size האותיות העבריות של Assistant נמוכות בכ-10% מאלה של Segoe UI, הגופן
+ * שהאתר תוכנן מולו (נמדד: גובה ב/ה/מ 0.5625em מול 0.625em). במקום להגדיל כל טוקן --text-*
+ * וכל גודל שרירותי בקומפוננטות — font-size-adjust אחד: הדפדפן מגדיל את הגופן כך שגובה
+ * ה-x שלו יהיה ‎--font-body-size-adjust‎ מהגודל המבוקש. ל-Assistant יחס x של 0.5, ולכן
+ * 0.55 = פי 1.10. הגודל המחושב (em, line-height) לא משתנה — רק הגליפים.
+ * הוא חל רק על Assistant: גופן שנבחר במפורש (התצוגה, האייקונים, Frank Ruehl, גופן שהמשתמש
+ * בחר בעורך — style מוטבע) מקבל none, אחרת היה "מתוקן" לפי גובה ה-x שלו עצמו.
+ * ------------------------------------------------------------ */
+:root {
+  --font-body-size-adjust: 0.55;
+}
+
+@layer base {
+  body {
+    font-size-adjust: var(--font-body-size-adjust);
+  }
+
+  .font-display,
+  .font-frank,
+  .font-mono,
+  .material-symbols-outlined,
+  [style*='font-family'] {
+    font-size-adjust: none;
+  }
 }
