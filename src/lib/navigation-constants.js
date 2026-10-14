@@ -36,7 +36,8 @@ export const MAIN_NAV_LINKS = [
   { href: '/plugins', label: 'תוספים', highlight: false },
   { href: '/docs', label: 'מדריכים', highlight: false },
   { href: '/faq', label: 'שאלות נפוצות', highlight: false },
-  { href: '/donate', label: 'תרומות', icon: 'volunteer_activism', emphasis: 'donation' },
+  // hint — רמז התרומה: בועה בריחוף/פוקוס על הכפתור שבכותרת, ושורה בתפריט הנייד (DonationButton)
+  { href: '/donate', label: 'תרומות', icon: 'volunteer_activism', emphasis: 'donation', hint: 'אין לאוצריא גוף מממן: אתם הכוח המניע שלה' },
   { href: '/forum', label: 'פורום', external: true, highlight: false }
 ]
 

@@ -8,6 +8,7 @@ import { getAvatarColor, getInitial } from '@/lib/avatar-colors'
 import { MAIN_NAV_LINKS } from '@/lib/navigation-constants'
 import HeaderLogo from './HeaderLogo'
 import NavDropdown from './NavDropdown'
+import DonationButton, { DonationNote } from './DonationButton'
 
 /**
  * קישור ניווט בכותרת.
@@ -102,19 +103,6 @@ function AuthActions({ pathname, compact = false, onNavigate }) {
   )
 }
 
-/** קישור התרומה — כפתור מלא בצבע התרומה, מחוץ לרשימת הניווט כדי שיבלוט בכל עמוד
- *  (גם בנייד, ליד כפתור התפריט). ראו .donation-button ב-styles/effects.css. */
-function DonationButton({ link, className = '', onClick }) {
-  return (
-    <NavLink link={link} onClick={onClick} className={`donation-button donation-nav-link text-sm ${className}`}>
-      <span className="material-symbols-outlined donation-button-icon" aria-hidden="true">
-        {link.icon}
-      </span>
-      {link.label}
-    </NavLink>
-  )
-}
-
 /**
  * הכותרת העליונה הדביקה, משותפת לכל העמודים.
  * wordmarkHandoff — דף הבית בלבד: הלוגו קבוע, ושם האתר "מגיע" בגלילה מהמילה "אוצריא"
@@ -195,6 +183,7 @@ export default function OtzariaSoftwareHeader({ showAuth = false, wordmarkHandof
           ) : (
             <MobileNavLink key={link.label} link={link} pathname={pathname} onNavigate={() => setIsMenuOpen(false)} />
           ))}
+          {donationLink && <DonationNote link={donationLink} onNavigate={() => setIsMenuOpen(false)} />}
           {showAuth && <AuthActions pathname={pathname} compact onNavigate={() => setIsMenuOpen(false)} />}
         </div>
       )}
