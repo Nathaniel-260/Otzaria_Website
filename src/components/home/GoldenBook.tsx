@@ -19,11 +19,6 @@ import { preload } from 'react-dom'
 //
 // onOpened — נקרא פעם אחת כשהספר פתוח (סוף הרצועה, או מיד במסלולי הגיבוי), כדי שמה
 // שבא אחריו (ForeverTagline) יתחיל בדיוק כשהפתיחה נגמרת.
-// handoffSource — הספר הוא "מקור" מעבר הלוגו לכותרת (useLogoHandoff): התמונה עטופה
-// באלמנט שהכותרת מודדת ומעמעמת (רק opacity — לא transform — כדי שהמדידה, getBoundingClientRect,
-// תישאר נכונה). ההילה עטופה בשכבה נפרדת בגודל הספר (data-logo-handoff-glow) שעולה ומתכווצת
-// איתו בגלילה סביב מרכזו, ודועכת בדרך; ההילה עצמה ממורכזת בתוכה ב-translate משלה, כך ששני
-// ה-transform לא מתנגשים.
 
 const SPRITE_SRC = '/home/golden-book-sprite.webp'
 const CLOSED_SRC = '/home/golden-book-closed.webp'
@@ -37,10 +32,9 @@ function prefersReducedMotion() {
 
 type Phase = 'closed' | 'opening' | 'open'
 
-export default function GoldenBook({ className = '', onOpened, handoffSource = false }: {
+export default function GoldenBook({ className = '', onOpened }: {
   className?: string
   onOpened?: () => void
-  handoffSource?: boolean
 }) {
   preload(SPRITE_SRC, { as: 'image' })
   // לגיבוי (רשת איטית / reduced-motion): ~36KB, כדי שההחלפה לספר הפתוח לא תהבהב
@@ -92,7 +86,6 @@ export default function GoldenBook({ className = '', onOpened, handoffSource = f
           (overflow-hidden) כדי שלא תיצור גלילה אופקית בנייד */}
       <div
         aria-hidden="true"
-        data-logo-handoff-glow={handoffSource ? '' : undefined}
         className="pointer-events-none absolute inset-0"
       >
         <div
@@ -103,7 +96,7 @@ export default function GoldenBook({ className = '', onOpened, handoffSource = f
           }}
         />
       </div>
-      <div className="relative size-full" data-logo-handoff-source={handoffSource ? '' : undefined}>
+      <div className="relative size-full">
         <img
           src={phase === 'open' ? OPEN_SRC : CLOSED_SRC}
           alt="לוגו אוצריא"

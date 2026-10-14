@@ -10,9 +10,9 @@ import { HeroStatsPlaceholder } from './HeroStats'
 // - ימין (ראשון ב-DOM; בנייד מעל הטקסט): הספר המוזהב שנפתח בתוך הילה חמה, ומתחתיו "חינם ←
 //   לנצח!" (HeroEmblem). השורה שמתחת לספר היא גם מה שמרים אותו: העמודה ממורכזת אנכית מול
 //   הטקסט, ולכן מרכז הספר עולה בחצי גובה השורה (כ-5% מגובה הגיבור) — אל המרכז האופטי, מעט
-//   מעל המרכז הגאומטרי. הספר הוא גם מקור "מעבר הלוגו" לכותרת העליונה (HeaderLogo).
+//   מעל המרכז הגאומטרי. הספר, ההילה והשורה נגללים עם הדף כרגיל.
 // - שמאל: הכותרת עם קישוט (קו + נקודת זהב), כותרת משנה, פסקה, כפתור ראשי מלא + כפתור
-//   טונלי.
+//   טונלי. המילה "אוצריא" שבכותרת היא מקור "מעבר שם האתר" לכותרת העליונה (HeaderLogo).
 // - למטה: "אוצריא במספרים" — שורה נקייה של מספרים גדולים, ובסופה הגרסה האחרונה (HeroStats).
 // הנתונים (גרסה, מספרים) נשלפים בשרת בתוך Suspense עם שומר מקום באותו גובה: הגיבור עצמו —
 // והתמונה שהיא ה-LCP — לעולם לא מחכים להם. הדף הוא ISR, כך שבפועל הכל נבנה מראש.
@@ -41,8 +41,12 @@ export default function HeroSection() {
         <div className="flex flex-col items-center text-center md:items-start md:text-start">
           {/* עטיפה ברוחב הכותרת — הקישוט נמתח לכל רוחב המילה, כמו בבלוק הכותרת של המתקין */}
           <div className="flex w-fit flex-col">
-            <h1 className="font-display text-5xl font-bold leading-none text-on-surface sm:text-6xl lg:text-7xl 2xl:text-8xl short:lg:text-6xl tall:text-[calc(6*var(--hero-tall-rem))]">
-              אוצריא
+            {/* "אוצריא" — OT Vilna Regular, כשם המותג. המילה (ה-span) היא מקור "מעבר שם האתר":
+                בגלילה היא עולה ומתכווצת אל מקום שם האתר בכותרת העליונה (HeaderLogo).
+                --wordmark-handoff-rise: בנייד הספר מעליה — נגללת עם הדף (1); בשתי עמודות הספר
+                לצדה, בדרך לכותרת — עולה מהר מהדף (0.6), כדי לעבור מעליו ולא דרכו */}
+            <h1 className="font-display text-5xl font-normal leading-none text-on-surface sm:text-6xl lg:text-7xl 2xl:text-8xl short:lg:text-6xl tall:text-[calc(6*var(--hero-tall-rem))]">
+              <span data-wordmark-handoff-source="" className="[--wordmark-handoff-rise:1] md:[--wordmark-handoff-rise:0.6]">אוצריא</span>
             </h1>
             <span className="title-ornament mt-5 [--ornament-ratio:100%] short:mt-3" aria-hidden="true" />
           </div>

@@ -101,9 +101,10 @@ function DonationButton({ link, className = '', onClick }) {
 
 /**
  * הכותרת העליונה הדביקה, משותפת לכל העמודים.
- * logoHandoff — דף הבית בלבד: הלוגו "מגיע" מהספר הגדול שבמסך הפתיחה בגלילה (HeaderLogo).
+ * wordmarkHandoff — דף הבית בלבד: הלוגו קבוע, ושם האתר "מגיע" בגלילה מהמילה "אוצריא"
+ * שבכותרת הראשית של הגיבור (HeaderLogo).
  */
-export default function OtzariaSoftwareHeader({ showAuth = false, logoHandoff = false }) {
+export default function OtzariaSoftwareHeader({ showAuth = false, wordmarkHandoff = false }) {
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const donationLink = MAIN_NAV_LINKS.find(link => link.emphasis === 'donation')
@@ -115,7 +116,7 @@ export default function OtzariaSoftwareHeader({ showAuth = false, logoHandoff = 
   return (
     <header className="site-header sticky top-0 z-50 w-full bg-top-bar">
       <div className="container mx-auto flex h-16 max-w-[76rem] 2xl:max-w-[84rem] items-center justify-between gap-4 px-4 md:px-8">
-        <HeaderLogo handoff={logoHandoff} />
+        <HeaderLogo handoff={wordmarkHandoff} />
 
         {/* Desktop Nav */}
         <nav className="hidden lg:flex items-center gap-1">

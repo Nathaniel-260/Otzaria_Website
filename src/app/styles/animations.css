@@ -199,145 +199,114 @@
   }
 
   /* ============================================================
-   * מעבר הלוגו (דף הבית): הספר הגדול שבמסך הפתיחה "עף" אל משבצת הלוגו שבכותרת.
-   * הגיאומטריה נמדדת ב-JS (src/hooks/useLogoHandoff.js + src/lib/logoHandoff.js) ונשמרת
-   * כמשתנים על <html>; התנועה עצמה כאן — transform ו-opacity בלבד, מקושרים לגלילה.
+   * מעבר שם האתר (דף הבית): המילה "אוצריא" שבכותרת הראשית עולה ומתכווצת אל מקום שם האתר
+   * בכותרת העליונה, לצד הלוגו הקבוע. הגיאומטריה נמדדת ב-JS (src/hooks/useWordmarkHandoff.js
+   * + src/lib/wordmarkHandoff.js) ונשמרת כמשתנים על <html>; התנועה עצמה כאן — transform
+   * ו-opacity בלבד, מקושרים לגלילה.
    *
-   * data-logo-handoff על <html>:
-   *   (אין)  — לפני ה-hydration: הלוגו מוסתר בראש הדף ומופיע במקומו אחרי 16px גלילה.
+   * data-wordmark-handoff על <html>:
+   *   (אין)  — לפני ה-hydration: שם האתר מוסתר בראש הדף ומופיע במקומו אחרי 16px גלילה.
    *   css    — נמדד, ויש animation-timeline: התנועה המלאה.
    *   js     — נמדד, בלי animation-timeline: ה-hook כותב את הערכים בכל פריים.
-   *   off    — אין ספר בדף: לוגו רגיל.
+   *   off    — אין כותרת ראשית בדף: שם אתר רגיל.
+   * reduced-motion: אין מעבר — המילה נשארת בגיבור, ושם האתר פשוט מוצג בכותרת.
    * חשוב: animation (shorthand) מאפס את animation-timeline, ולכן הוא תמיד נכתב לפניו.
    * ============================================================ */
-  .logo-handoff-flyer {
-    width: var(--logo-handoff-size, 32px);
-    height: var(--logo-handoff-size, 32px);
-    margin: calc(var(--logo-handoff-size, 32px) / -2) 0 0 calc(var(--logo-handoff-size, 32px) / -2);
-    transform: scale(var(--logo-handoff-rest, 1));
+  .wordmark-handoff-flyer {
+    font-size: var(--wordmark-handoff-font-size, 1em);
+    transform: scale(var(--wordmark-handoff-rest, 1));
     opacity: 0;
     will-change: transform, opacity;
   }
 
-  .logo-handoff-wordmark {
+  /* הסטטי מוסתר כשהמעופף פעיל, ומוצג כשאין מעבר */
+  .wordmark-handoff-target {
     opacity: 0;
   }
 
-  :root[data-logo-handoff='off'] .logo-handoff-flyer,
-  :root[data-logo-handoff='off'] .logo-handoff-wordmark {
+  :root[data-wordmark-handoff='off'] .wordmark-handoff-target {
     opacity: 1;
   }
 
-  /* קישור הלוגו בפוקוס מקלדת — מוצג גם כשהוא עוד "בדרך", כדי שטבעת הפוקוס לא תקיף ריק */
-  .logo-handoff-link:focus-visible .logo-handoff-wordmark {
-    opacity: 1 !important;
+  /* אנכית + קנה מידה (המעופף, לינארי) והסחיפה האופקית (העטיפה שלו, מואצת) — בנפרד, כי
+     ל-easing יש ערך אחד לכל אנימציה. יחד: translate(x, y) scale(s) של handoffFrame */
+  @keyframes wordmark-handoff-fly {
+    from { transform: translateY(var(--wordmark-handoff-dy, 0px)) scale(1); }
+    to { transform: translateY(0px) scale(var(--wordmark-handoff-rest, 1)); }
   }
 
-  @keyframes logo-handoff-fly {
-    from { transform: translate(var(--logo-handoff-dx, 0px), var(--logo-handoff-dy, 0px)) scale(1); }
-    to { transform: translate(0px, 0px) scale(var(--logo-handoff-rest, 1)); }
+  @keyframes wordmark-handoff-drift {
+    from { transform: translateX(var(--wordmark-handoff-dx, 0px)); }
+    to { transform: translateX(0px); }
   }
 
-  @keyframes logo-handoff-show {
+  @keyframes wordmark-handoff-show {
     from { opacity: 0; }
     to { opacity: 1; }
   }
 
-  @keyframes logo-handoff-hide {
+  @keyframes wordmark-handoff-hide {
     from { opacity: 1; }
     to { opacity: 0; }
   }
 
-  /* המלווה ("חינם לנצח!") — אותה סחיפה אופקית ואותו קנה מידה כמו המעופף, ביחס למקומו בדף
-     (אנכית הוא נגלל עם הדף, כמו המעופף; ההפרש end-dy שונה מ-0 רק במעבר המינימלי).
-     אותן נוסחאות כמו followTransform ב-src/lib/logoHandoff.js */
-  @keyframes logo-handoff-follow {
-    from { transform: translate(0px, 0px) scale(1); }
-    to {
-      transform: translate(calc(var(--logo-handoff-dx, 0px) * -1), calc(var(--logo-handoff-end, 0px) - var(--logo-handoff-dy, 0px)))
-        scale(var(--logo-handoff-rest, 1));
-    }
-  }
-
-  /* מתכווץ סביב מרכז הספר (נמדד ב-JS) — בשני המסלולים, css ו-js */
-  :root[data-logo-handoff='css'] [data-logo-handoff-follow],
-  :root[data-logo-handoff='js'] [data-logo-handoff-follow] {
-    transform-origin: 50% var(--logo-handoff-follow-oy, 0px);
-    will-change: transform, opacity;
-  }
-
-  /* ההילה — אותה תנועה בדיוק; השכבה שלה בגודל הספר, ולכן מרכזה (ברירת המחדל של
-     transform-origin) הוא כבר מרכז הספר */
-  :root[data-logo-handoff='css'] [data-logo-handoff-glow],
-  :root[data-logo-handoff='js'] [data-logo-handoff-glow] {
-    will-change: transform, opacity;
-  }
-
   @supports (animation-timeline: scroll()) {
-    /* לפני המדידה: הופעה במקום, אחרי גלילה קצרה. רק בלי data-logo-handoff — אחרת
-       האנימציה הייתה גוברת על הערכים שה-hook כותב במסלול ה-js */
-    :root:not([data-logo-handoff]) .logo-handoff-flyer,
-    :root:not([data-logo-handoff]) .logo-handoff-wordmark {
-      animation: logo-handoff-show linear both;
+    /* לפני המדידה: הסטטי מופיע במקומו אחרי גלילה קצרה. רק בלי data-wordmark-handoff —
+       אחרת האנימציה הייתה גוברת על הערכים שה-hook כותב במסלול ה-js */
+    :root:not([data-wordmark-handoff]) .wordmark-handoff-target {
+      animation: wordmark-handoff-show linear both;
       animation-timeline: scroll(root block);
       animation-range: 0 16px;
     }
 
-    /* התנועה המלאה. אינטרפולציה לינארית בכוונה: אורך המעבר (--logo-handoff-end) שווה
-       למרחק האנכי, כך שהספר צמוד לגלילה 1:1 ורק נסחף הצידה ומתכווץ בדרך */
-    :root[data-logo-handoff='css'] .logo-handoff-flyer {
-      animation: logo-handoff-fly linear both, logo-handoff-show linear both;
-      animation-timeline: scroll(root block), scroll(root block);
-      animation-range: 0 var(--logo-handoff-end), 0 2px; /* HANDOFF_SWAP_DISTANCE */
+    /* התנועה המלאה. אינטרפולציה לינארית בכוונה: אורך המעבר (--wordmark-handoff-end) שווה
+       למרחק האנכי (כפול --wordmark-handoff-rise), כך שהמילה עולה בקצב קבוע ביחס לגלילה.
+       2px = HANDOFF_SWAP_DISTANCE: המילה שבגיבור והמעופף מתחלפים בבת אחת (steps) — אף פעם
+       לא שתי מילים, ולא שני עותקים חצי-שקופים.
+       0.85 = CROSSFADE_START: בקטע האחרון המעופף (Regular, מוקטן) דועך ושם האתר הסטטי (Bold,
+       בגודל אמיתי — חד) עולה במקומו. ה-hide ב-forwards בלבד: לפני הטווח שלו אין לו השפעה,
+       ואחרת היה דורס את ה-show */
+    :root[data-wordmark-handoff='css'] .wordmark-handoff-flyer {
+      animation: wordmark-handoff-fly linear both, wordmark-handoff-show steps(1, end) both, wordmark-handoff-hide linear forwards;
+      animation-timeline: scroll(root block), scroll(root block), scroll(root block);
+      animation-range: 0 var(--wordmark-handoff-end), 0 2px, calc(var(--wordmark-handoff-end) * 0.85) var(--wordmark-handoff-end);
     }
 
-    /* שם האתר נכנס בחמישית האחרונה, כשהספר כבר קטן וקרוב למשבצת (מוקדם יותר — בנייד הספר עוד מכסה אותו) */
-    :root[data-logo-handoff='css'] .logo-handoff-wordmark {
-      animation: logo-handoff-show linear both;
+    /* t² = cubic-bezier(1/3, 0, 2/3, 1/3) בדיוק (driftEase ב-src/lib/wordmarkHandoff.js) */
+    :root[data-wordmark-handoff='css'] .wordmark-handoff-drift {
+      animation: wordmark-handoff-drift cubic-bezier(0.3333, 0, 0.6667, 0.3333) both;
       animation-timeline: scroll(root block);
-      animation-range: calc(var(--logo-handoff-end) * 0.8) var(--logo-handoff-end);
+      animation-range: 0 var(--wordmark-handoff-end);
     }
 
-    /* הספר שבגיבור מפנה את מקומו למעופף (תמונה זהה באותו מקום) */
-    :root[data-logo-handoff='css'] [data-logo-handoff-source] {
-      animation: logo-handoff-hide linear both;
+    :root[data-wordmark-handoff='css'] .wordmark-handoff-target {
+      animation: wordmark-handoff-show linear both;
       animation-timeline: scroll(root block);
-      animation-range: 0 2px; /* HANDOFF_SWAP_DISTANCE */
+      animation-range: calc(var(--wordmark-handoff-end) * 0.85) var(--wordmark-handoff-end);
     }
 
-    /* GLOW_FADE_END ו-FOLLOW_FADE_END ב-src/lib/logoHandoff.js.
-       ההילה עולה ומתכווצת עם הספר לכל אורך המעבר (כמו "חינם לנצח!"), ודועכת ב-60% הראשונים —
-       כך שהיא כבר איננה כשהספר נוחת בכותרת */
-    :root[data-logo-handoff='css'] [data-logo-handoff-glow] {
-      animation: logo-handoff-follow linear both, logo-handoff-hide linear both;
-      animation-timeline: scroll(root block), scroll(root block);
-      animation-range: 0 var(--logo-handoff-end), 0 calc(var(--logo-handoff-end) * 0.6);
-    }
-
-    /* "חינם לנצח!" עולה עם הספר לכל אורך המעבר, ודועך ב-35% הראשונים שלו */
-    :root[data-logo-handoff='css'] [data-logo-handoff-follow] {
-      animation: logo-handoff-follow linear both, logo-handoff-hide linear both;
-      animation-timeline: scroll(root block), scroll(root block);
-      animation-range: 0 var(--logo-handoff-end), 0 calc(var(--logo-handoff-end) * 0.35);
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      /* בלי תנועה: הספר נגלל כרגיל, והלוגו מופיע במקומו כשהספר כבר יצא מהמסך */
-      :root[data-logo-handoff='css'] .logo-handoff-flyer,
-      :root[data-logo-handoff='css'] .logo-handoff-wordmark {
-        animation: logo-handoff-show linear both;
-        animation-timeline: scroll(root block);
-        animation-range: calc(var(--logo-handoff-exit) - 1px) var(--logo-handoff-exit);
-      }
-
-      :root[data-logo-handoff='css'] [data-logo-handoff-source],
-      :root[data-logo-handoff='css'] [data-logo-handoff-glow],
-      :root[data-logo-handoff='css'] [data-logo-handoff-follow] {
-        animation: none;
-      }
+    :root[data-wordmark-handoff='css'] [data-wordmark-handoff-source] {
+      animation: wordmark-handoff-hide steps(1, end) both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 2px;
     }
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .wordmark-handoff-target {
+      opacity: 1;
+      animation: none !important;
+    }
+
+    .wordmark-handoff-drift {
+      display: none;
+    }
+
+    [data-wordmark-handoff-source] {
+      opacity: 1 !important;
+      animation: none !important;
+    }
+  }
   /* ============================================================
    * "חינם" → "חינם לנצח!" מתחת לספר בגיבור (ForeverTagline) — פעם אחת, ונעצר.
    *

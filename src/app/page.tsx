@@ -17,8 +17,8 @@ export const revalidate = 600
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col overflow-x-clip bg-background text-on-surface">
-      {/* logoHandoff: בראש הדף אין לוגו בכותרת — הספר הגדול שבגיבור "עובר" אליה בגלילה */}
-      <OtzariaSoftwareHeader logoHandoff />
+      {/* wordmarkHandoff: בראש הדף שם האתר אינו בכותרת — המילה "אוצריא" שבגיבור עולה אליה בגלילה */}
+      <OtzariaSoftwareHeader wordmarkHandoff />
 
       <main className="flex-1">
         <HeroSection />
