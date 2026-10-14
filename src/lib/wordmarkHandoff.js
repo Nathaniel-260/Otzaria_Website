@@ -38,6 +38,10 @@ export const HANDOFF_SWAP_DISTANCE = 2
  *  אותו מספר ב-animations.css. */
 export const CROSSFADE_START = 0.85
 
+/** עד איזה חלק של המעבר הקישוט שמתחת לכותרת (הקו ונקודת הזהב — "מלווה") דועך: בלעדיו הוא
+ *  נשאר תלוי לבד מעל מקום ריק כשהמילה כבר עלתה. אותו מספר ב-animations.css. */
+export const COMPANION_FADE_END = 0.5
+
 /** הסחיפה האופקית כפונקציה של ההתקדמות: t². ב-CSS — cubic-bezier(1/3, 0, 2/3, 1/3), שהוא
  *  בדיוק t² (ראו animations.css). */
 export const driftEase = (t) => t * t
@@ -92,7 +96,7 @@ const lerp = (from, to, t) => from + (to - from) * t
  * @param {{ reducedMotion?: boolean }} [options]
  */
 export function handoffFrame(geometry, scrollY, { reducedMotion = false } = {}) {
-  if (!geometry || reducedMotion) return { transform: 'none', flyerOpacity: 0, sourceOpacity: 1, targetOpacity: 1 }
+  if (!geometry || reducedMotion) return { transform: 'none', flyerOpacity: 0, sourceOpacity: 1, targetOpacity: 1, companionOpacity: 1 }
 
   const t = handoffProgress(scrollY, geometry.end)
   const swap = scrollY >= HANDOFF_SWAP_DISTANCE ? 1 : 0
@@ -104,6 +108,7 @@ export function handoffFrame(geometry, scrollY, { reducedMotion = false } = {}) 
     transform: `translate(${x}px, ${y}px) scale(${scale})`,
     flyerOpacity: round(Math.min(swap, 1 - settle)),
     sourceOpacity: 1 - swap,
-    targetOpacity: settle
+    targetOpacity: settle,
+    companionOpacity: round(1 - clamp01(t / COMPANION_FADE_END))
   }
 }

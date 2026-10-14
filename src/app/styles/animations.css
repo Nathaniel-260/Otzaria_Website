@@ -290,6 +290,14 @@
       animation-timeline: scroll(root block);
       animation-range: 0 2px;
     }
+
+    /* הקישוט שמתחת לכותרת דועך במחצית הראשונה של המעבר (COMPANION_FADE_END) — לא נשאר
+       תלוי לבד מעל המקום שהמילה פינתה */
+    :root[data-wordmark-handoff='css'] [data-wordmark-handoff-companion] {
+      animation: wordmark-handoff-hide linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 calc(var(--wordmark-handoff-end) * 0.5);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -302,7 +310,8 @@
       display: none;
     }
 
-    [data-wordmark-handoff-source] {
+    [data-wordmark-handoff-source],
+    [data-wordmark-handoff-companion] {
       opacity: 1 !important;
       animation: none !important;
     }

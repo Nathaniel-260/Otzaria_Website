@@ -58,6 +58,8 @@ export default function useWordmarkHandoff({ enabled, targetRef, flyerRef }) {
       return () => root.removeAttribute('data-wordmark-handoff')
     }
 
+    // הקישוט שמתחת לכותרת — דועך עם עליית המילה (COMPANION_FADE_END)
+    const companions = Array.from(document.querySelectorAll('[data-wordmark-handoff-companion]'))
     const useCss = supportsScrollTimeline()
     const reducedQuery = typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -73,6 +75,7 @@ export default function useWordmarkHandoff({ enabled, targetRef, flyerRef }) {
       flyer.style.opacity = String(f.flyerOpacity)
       source.style.opacity = String(f.sourceOpacity)
       target.style.opacity = String(f.targetOpacity)
+      for (const el of companions) el.style.opacity = String(f.companionOpacity)
     }
     const schedule = () => { if (!frame) frame = requestAnimationFrame(paint) }
 
@@ -122,7 +125,7 @@ export default function useWordmarkHandoff({ enabled, targetRef, flyerRef }) {
       if (frame) cancelAnimationFrame(frame)
       root.removeAttribute('data-wordmark-handoff')
       for (const name of [...Object.values(CSS_VARS), FONT_SIZE_VAR]) root.style.removeProperty(name)
-      for (const el of [flyer, source, target]) {
+      for (const el of [flyer, source, target, ...companions]) {
         el.style.removeProperty('transform')
         el.style.removeProperty('opacity')
       }

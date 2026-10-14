@@ -48,7 +48,7 @@ export default function HeroSection() {
             <h1 className="font-display text-5xl font-normal leading-none text-on-surface sm:text-6xl lg:text-7xl 2xl:text-8xl short:lg:text-6xl tall:text-[calc(6*var(--hero-tall-rem))]">
               <span data-wordmark-handoff-source="" className="[--wordmark-handoff-rise:1] md:[--wordmark-handoff-rise:0.6]">אוצריא</span>
             </h1>
-            <span className="title-ornament mt-5 [--ornament-ratio:100%] short:mt-3" aria-hidden="true" />
+            <span className="title-ornament mt-5 [--ornament-ratio:100%] short:mt-3" aria-hidden="true" data-wordmark-handoff-companion="" />
           </div>
 
           <p className="mt-5 text-balance text-xl font-medium leading-snug text-on-surface sm:text-2xl lg:text-[1.75rem] 2xl:text-[2.125rem] short:mt-3 short:lg:text-2xl tall:text-[calc(2.125*var(--hero-tall-rem))]">

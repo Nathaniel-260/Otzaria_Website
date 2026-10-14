@@ -7,6 +7,7 @@ import {
   MIN_HANDOFF_DISTANCE,
   HANDOFF_SWAP_DISTANCE,
   CROSSFADE_START,
+  COMPANION_FADE_END,
   driftEase
 } from './wordmarkHandoff.js'
 
@@ -106,13 +107,20 @@ test('handoffFrame: ההצלבה לשם האתר הסטטי — רק בקטע ה
   assert.equal(mid.targetOpacity, 0.5)
 })
 
+test('handoffFrame: הקישוט שמתחת לכותרת דועך עם עליית המילה ונעלם ב-COMPANION_FADE_END', () => {
+  const g = computeHandoffGeometry({ source, target })
+  assert.equal(handoffFrame(g, 0).companionOpacity, 1)
+  assert.equal(handoffFrame(g, g.end * COMPANION_FADE_END / 2).companionOpacity, 0.5)
+  assert.equal(handoffFrame(g, g.end * COMPANION_FADE_END).companionOpacity, 0)
+})
+
 test('handoffFrame: reduced-motion — בלי מעבר: המילה נשארת בגיבור, המעופף מוסתר', () => {
   const g = computeHandoffGeometry({ source, target })
   for (const y of [0, 100, 1000]) {
-    assert.deepEqual(handoffFrame(g, y, { reducedMotion: true }), { transform: 'none', flyerOpacity: 0, sourceOpacity: 1, targetOpacity: 1 })
+    assert.deepEqual(handoffFrame(g, y, { reducedMotion: true }), { transform: 'none', flyerOpacity: 0, sourceOpacity: 1, targetOpacity: 1, companionOpacity: 1 })
   }
 })
 
 test('handoffFrame: בלי גיאומטריה — המילה בגיבור ושם האתר גלויים, המעופף מוסתר', () => {
-  assert.deepEqual(handoffFrame(null, 0), { transform: 'none', flyerOpacity: 0, sourceOpacity: 1, targetOpacity: 1 })
+  assert.deepEqual(handoffFrame(null, 0), { transform: 'none', flyerOpacity: 0, sourceOpacity: 1, targetOpacity: 1, companionOpacity: 1 })
 })

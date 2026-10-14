@@ -35,7 +35,7 @@ export default function HeaderLogo({ handoff = false }) {
       href="/"
       prefetch={false}
       aria-label={handoff ? `${WORDMARK} — דף הבית` : undefined}
-      className="flex min-h-12 shrink-0 items-center gap-2.5 rounded-lg transition-opacity hover:opacity-80"
+      className="flex min-h-12 shrink-0 items-center gap-2 rounded-lg transition-opacity hover:opacity-80"
     >
       <Image src="/logo.webp" alt={handoff ? '' : 'לוגו אוצריא'} width={32} height={32} className="size-[32px] shrink-0" />
       <span className="relative flex items-center">
