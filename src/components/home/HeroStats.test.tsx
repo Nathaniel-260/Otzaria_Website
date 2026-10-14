@@ -42,4 +42,12 @@ describe('HeroStats', () => {
     const { container } = render(<HeroStats items={buildStatItems({})} />)
     expect(container).toBeEmptyDOMElement()
   })
+
+  it('מסך צר: חמישה פריטים — 3 בשורה, ובלי קו הפרדה בראש כל שורה', () => {
+    const items = buildStatItems({ books: 7367, links: 5812829, downloads: 73152, plugins: 40 })
+    const { container } = render(<HeroStats items={items} version="0.9.98" />)
+    expect(container.querySelector('dl')?.style.getPropertyValue('--stat-cols')).toBe('3')
+    const rowStarts = Array.from(container.querySelectorAll('dl > div'), (el) => el.classList.contains('narrow:border-s-0'))
+    expect(rowStarts).toEqual([true, false, false, true, false])
+  })
 })

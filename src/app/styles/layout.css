@@ -37,6 +37,9 @@
    בנייד (מתחת ל-md) הדף ממילא נגלל, והכלל לא חל. */
 @custom-variant short (@media (min-width: 48rem) and (max-height: 820px));
 
+/* נייד צר (360–399px): שורת המספרים שבגיבור נשברת לשתי שורות (heroStatsLayout.ts) */
+@custom-variant narrow (@media (width < 25rem));
+
 /* גובה הכותרת העליונה הדביקה של האתר (OtzariaSoftwareHeader: h-16, בלי גבול תחתון).
    משמש את .anchor-section ואת אזור הפתיחה של דף הבית. */
 :root {
