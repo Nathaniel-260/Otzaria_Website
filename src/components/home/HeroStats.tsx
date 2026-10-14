@@ -14,6 +14,8 @@ import { narrowColumns, startsNarrowRow } from './heroStatsLayout'
 // במסך צר (narrow, מתחת ל-400px) — מארבעה פריטים שתי שורות מאוזנות (5 → 3+2, השורה התחתונה
 // ממורכזת), כל פריט ברוחב 1/--stat-cols, ובלי קו הפרדה בראש כל שורה (heroStatsLayout.ts).
 //
+// במסך גבוה (tall) — כל המידות של 2xl כפול --hero-tall-rem, כמו שאר הגיבור (HeroSection).
+//
 // הגרסה האחרונה (version) — פריט אחרון בשורה, זהה לשאר בצבע, במשקל ובמבנה (ערך גדול,
 // "גרסה" מתחת), כך שהיא משתלבת בשורה ולא בולטת ממנה. בסוף השורה — כדי לא לקטוע את רצף
 // הנתונים הכמותיים. בלי גרסה (GitHub לא זמין) — הפריט פשוט לא מוצג, כמו כל נתון שנכשל.
@@ -28,7 +30,7 @@ export type StatItem = {
  *  במסך צר — שתי שורות (המקרה הרגיל: ארבעה נתונים וגרסה), כל אחת נמוכה יותר (התוויות
  *  בשורה אחת ברוחב שליש), ועוד הרווח ביניהן. */
 export const HERO_STATS_MIN_HEIGHT =
-  'min-h-[4.25rem] narrow:min-h-[calc(2.75rem*2+var(--stats-row-gap))] sm:min-h-[4.75rem] 2xl:min-h-[5.5rem]'
+  'min-h-[4.25rem] narrow:min-h-[calc(2.75rem*2+var(--stats-row-gap))] sm:min-h-[4.75rem] 2xl:min-h-[5.5rem] tall:min-h-[calc(5.5*var(--hero-tall-rem))]'
 
 /** הרווח בין שתי השורות במסך צר. */
 const ROW_GAP = '[--stats-row-gap:--spacing(5)]'
@@ -37,9 +39,9 @@ const ITEM_CLASS =
   '@container flex min-w-0 flex-1 flex-col-reverse items-center justify-end gap-1 border-s border-outline-variant px-2 text-center first:border-s-0 narrow:flex-none narrow:basis-[calc(100%/var(--stat-cols))] sm:px-4'
 /** פריט שפותח שורה במסך צר — בלי קו הפרדה */
 const ROW_START_CLASS = 'narrow:border-s-0'
-const LABEL_CLASS = 'text-balance text-xs leading-snug text-on-surface-variant sm:text-sm lg:text-base 2xl:text-lg'
+const LABEL_CLASS = 'text-balance text-xs leading-snug text-on-surface-variant sm:text-sm lg:text-base 2xl:text-lg tall:text-[calc(1.125*var(--hero-tall-rem))]'
 const VALUE_CLASS =
-  'whitespace-nowrap font-bold leading-none tabular-nums text-on-surface text-[clamp(1.25rem,18cqi,2.375rem)] 2xl:text-[clamp(1.25rem,18cqi,2.875rem)]'
+  'whitespace-nowrap font-bold leading-none tabular-nums text-on-surface text-[clamp(1.25rem,18cqi,2.375rem)] 2xl:text-[clamp(1.25rem,18cqi,2.875rem)] tall:text-[clamp(1.25rem,18cqi,calc(2.875*var(--hero-tall-rem)))]'
 
 export default function HeroStats({ items, version = null, className = '' }: {
   items: StatItem[]
@@ -54,7 +56,7 @@ export default function HeroStats({ items, version = null, className = '' }: {
     <dl
       aria-label="אוצריא במספרים"
       style={{ '--stat-count': count, '--stat-cols': narrowColumns(count) } as CSSProperties}
-      className={`animate-enter-fade mx-auto flex w-full max-w-[calc(var(--stat-count)*13rem)] items-start ${ROW_GAP} narrow:flex-wrap narrow:justify-center narrow:gap-y-(--stats-row-gap) ${HERO_STATS_MIN_HEIGHT} ${className}`}
+      className={`animate-enter-fade mx-auto flex w-full max-w-[calc(var(--stat-count)*13rem)] tall:max-w-[calc(var(--stat-count)*13*var(--hero-tall-rem))] items-start ${ROW_GAP} narrow:flex-wrap narrow:justify-center narrow:gap-y-(--stats-row-gap) ${HERO_STATS_MIN_HEIGHT} ${className}`}
     >
       {items.map((item, index) => {
         const parts = formatStatParts(item.value)
