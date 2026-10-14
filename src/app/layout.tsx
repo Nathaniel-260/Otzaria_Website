@@ -23,9 +23,11 @@ const frankRuehl = localFont({
 // גם הכותרת הראשית. ~17KB. adjustFontFallback (ברירת המחדל, Arial מותאם-מידות) מצמצם
 // את קפיצת ה-layout ברגע ההחלפה (display: swap).
 const vilna = localFont({
-  src: "./fonts/OTVilna-Bold.woff2",
+  src: [
+    { path: "./fonts/OTVilna-Regular.woff2", weight: "400" },
+    { path: "./fonts/OTVilna-Bold.woff2", weight: "700" },
+  ],
   variable: "--font-vilna",
-  weight: "700",
   display: "swap",
 });
 
