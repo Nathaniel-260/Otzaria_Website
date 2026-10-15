@@ -1,6 +1,7 @@
 // בדיקות ל-OfflineUpdateDownloadClient: מספר הגרסה שמגיע כבר טעון (releases prop, נשלף בשרת
 // ע"י OfflineUpdateDownload.jsx) מוצג; כש-releases הוא null מוצג מסר הנפילה והכרטיסים מובילים
-// לדף הגרסאות; המערכת שזוהתה בדפדפן מסומנת (בלי לשנות סדר); בטלפון — הערה שהכלי למחשב.
+// לדף הגרסאות; המערכת שזוהתה בדפדפן מסומנת (בלי לשנות סדר); בלי זיהוי מתאים — Windows ראשי בלי
+// התג "המחשב שלך"; בטלפון — הערה שהכלי למחשב.
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import OfflineUpdateDownloadClient from './OfflineUpdateDownloadClient'
@@ -19,6 +20,8 @@ function mockNavigator({ userAgent, platform }) {
 }
 
 const downloadLinks = () => screen.getAllByRole('link', { name: /^הורד ל-/ })
+// הכרטיס הראשי — "כפתור" ההורדה שבו מלא (filled); בשאר — tonal
+const isPrimary = (link) => link.querySelector('[id$="-action"]').className.includes('--button-filled-bg')
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -49,6 +52,18 @@ describe('OfflineUpdateDownloadClient', () => {
     expect(first).not.toHaveTextContent('המחשב שלך')
     expect(second).toHaveAccessibleName('הורד ל-macOS')
     expect(second).toHaveTextContent('המחשב שלך')
+    expect(isPrimary(first)).toBe(false)
+    expect(isPrimary(second)).toBe(true)
+  })
+
+  test('ב-Linux (מערכת שהכלי לא זמין לה) Windows ראשי, ובלי "המחשב שלך"', () => {
+    mockNavigator({ userAgent: 'Mozilla/5.0 (X11; Linux x86_64)', platform: 'Linux x86_64' })
+    render(<OfflineUpdateDownloadClient repoUrl={REPO} releases={RELEASES} />)
+
+    const [windows, macos] = downloadLinks()
+    expect(isPrimary(windows)).toBe(true)
+    expect(isPrimary(macos)).toBe(false)
+    expect(screen.queryByText('המחשב שלך')).not.toBeInTheDocument()
   })
 
   test('בטלפון מוצגת הערה שהכלי מיועד למחשב, ושני הכרטיסים נשארים זמינים', () => {
@@ -56,7 +71,9 @@ describe('OfflineUpdateDownloadClient', () => {
     render(<OfflineUpdateDownloadClient repoUrl={REPO} releases={RELEASES} />)
 
     expect(screen.getByRole('note')).toHaveTextContent(/מיועד למחשב/)
-    expect(downloadLinks()).toHaveLength(2)
+    const [windows, macos] = downloadLinks()
+    expect(isPrimary(windows)).toBe(true)
+    expect(isPrimary(macos)).toBe(false)
     expect(screen.queryByText('המחשב שלך')).not.toBeInTheDocument()
   })
 })

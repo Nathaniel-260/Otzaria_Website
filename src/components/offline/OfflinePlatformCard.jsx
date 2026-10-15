@@ -14,9 +14,11 @@ const GROUP_HOVER = {
  * כרטיס הורדה של מערכת אחת: אריח אייקון + שם המערכת בשורה אחת, שורת פרטים, ובתחתית "כפתור"
  * ההורדה לכל רוחב הכרטיס. הכרטיס כולו הוא הקישור (ui/Card href — מטרת מגע גדולה, בלי
  * אלמנט אינטראקטיבי מקונן). שם הקישור — טקסט הכפתור ("הורד ל-Windows", aria-labelledby), והפרטים
- * (דרישות, גודל) — תיאורו (aria-describedby); idPrefix — ייחודי לכרטיס. primary — המערכת שזוהתה: כרטיס מורם, תג "המחשב שלך" וכפתור מלא.
+ * (דרישות, גודל) — תיאורו (aria-describedby); idPrefix — ייחודי לכרטיס. primary — הכרטיס הראשי: מורם
+ * וכפתור מלא. matched — הוא גם המערכת שזוהתה אצל המבקר: תג "המחשב שלך" (בברירת המחדל — בלי תג,
+ * כי זה לא המחשב שלו). התג יושב בשורת הכותרת, שגובהה נקבע לפי אריח האייקון — הופעתו לא מזיזה דבר.
  */
-export default function OfflinePlatformCard({ href, icon, title, details, actionLabel, idPrefix, primary = false }) {
+export default function OfflinePlatformCard({ href, icon, title, details, actionLabel, idPrefix, primary = false, matched = false }) {
   const variant = primary ? 'filled' : 'tonal'
   return (
     <Card
@@ -30,7 +32,7 @@ export default function OfflinePlatformCard({ href, icon, title, details, action
       <span className="flex items-center gap-3">
         <IconTile icon={icon} size="md" />
         <span className="min-w-0 flex-1 text-title-lg text-on-surface">{title}</span>
-        {primary && <Badge tone="primary" icon="check">המחשב שלך</Badge>}
+        {primary && matched && <Badge tone="primary" icon="check">המחשב שלך</Badge>}
       </span>
       <span id={`${idPrefix}-details`} className="flex flex-col gap-0.5 text-body-sm text-on-surface-variant">
         {details.map((line, index) => <span key={index}>{line}</span>)}

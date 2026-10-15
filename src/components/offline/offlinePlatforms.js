@@ -1,7 +1,21 @@
-// לוגיקה טהורה של אזור ההורדה ב-/offline (בלי React/DOM) — נבדקת ב-offlinePlatforms.test.mjs.
+// לוגיקה טהורה של אזור ההורדה ב-/offline (בלי React/DOM) — נבדקת ב-offlinePlatforms.test.js.
 
 /** המערכות שהכלי זמין להן, בסדר התצוגה (קבוע — הזיהוי משנה רק את ההדגשה) */
 export const OFFLINE_PLATFORM_KEYS = ['windows', 'macos']
+
+/** הכרטיס הראשי כשהמערכת לא זוהתה כאחת מהנתמכות (טלפון, Linux, לא ידוע — וגם ברינדור השרת) */
+export const DEFAULT_OFFLINE_PLATFORM = 'windows'
+
+/**
+ * איזה כרטיס הורדה ראשי (מורם, כפתור מלא), והאם הוא באמת המחשב של המבקר.
+ * detected — הפלט של detectOfflinePlatform (או null לפני הזיהוי).
+ * matched=false — ברירת המחדל: הכרטיס ראשי, אבל בלי התג "המחשב שלך".
+ */
+export function resolvePrimaryPlatform(detected) {
+  return OFFLINE_PLATFORM_KEYS.includes(detected)
+    ? { key: detected, matched: true }
+    : { key: DEFAULT_OFFLINE_PLATFORM, matched: false }
+}
 
 /**
  * זיהוי המערכת של המבקר מתוך navigator.userAgent / navigator.platform.

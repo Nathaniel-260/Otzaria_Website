@@ -6,7 +6,7 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import OfflinePlatformCard from './OfflinePlatformCard'
-import { detectOfflinePlatform, formatReleaseDate, formatSize, OFFLINE_PLATFORM_KEYS } from './offlinePlatforms'
+import { detectOfflinePlatform, formatReleaseDate, formatSize, OFFLINE_PLATFORM_KEYS, resolvePrimaryPlatform } from './offlinePlatforms'
 
 // מונחים לועזיים בבידוד (bdi) — אחרת "10 / 11" והסוגריים מתהפכים בשורה עברית
 const PLATFORMS = {
@@ -27,15 +27,16 @@ const PLATFORMS = {
 /**
  * אזור ההורדה של "עדכוני אוצריא" — releases מגיע כבר טעון מהשרת (OfflineUpdateDownload.jsx,
  * ה-Server Component שעוטף את הרכיב הזה). כש-releases הוא null (השליפה נכשלה) כל כרטיס מוביל
- * לדף הגרסאות. כאן נשאר רק מה שדורש דפדפן: זיהוי המערכת — הכרטיס שלה בולט (מורם, כפתור מלא).
- * סדר הכרטיסים קבוע (Windows, macOS) גם אחרי הזיהוי, כדי שהעמוד לא יזוז אחרי ה-hydration; בלי
- * זיהוי מתאים (טלפון, Linux, לא ידוע) שני הכרטיסים שווים.
+ * לדף הגרסאות. כאן נשאר רק מה שדורש דפדפן: זיהוי המערכת — הכרטיס שלה בולט (מורם, כפתור מלא)
+ * ומסומן "המחשב שלך". בלי זיהוי מתאים (טלפון, Linux, לא ידוע — וגם ברינדור השרת) כרטיס Windows
+ * ראשי, בלי התג. סדר הכרטיסים קבוע (Windows, macOS) גם אחרי הזיהוי, וההדגשה משנה רק צבע וצל —
+ * העמוד לא זז אחרי ה-hydration.
  */
 export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
   const [detected, setDetected] = useState(null)
 
   useEffect(() => {
-    // navigator קיים רק בדפדפן; עד הזיהוי שני הכרטיסים שווים (כמו ברינדור השרת)
+    // navigator קיים רק בדפדפן; עד הזיהוי — ברירת המחדל (Windows ראשי, כמו ברינדור השרת)
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDetected(detectOfflinePlatform({
       userAgent: navigator.userAgent,
@@ -44,6 +45,7 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
     }))
   }, [])
 
+  const primary = resolvePrimaryPlatform(detected)
   const releasesPage = releases?.releaseUrl || `${repoUrl}/releases/latest`
   const date = formatReleaseDate(releases?.publishedAt)
 
@@ -70,7 +72,8 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
                 details={[platform.requirement, size ? <>{platform.kind} · <bdi dir="ltr" className="whitespace-nowrap">{size}</bdi></> : platform.kind]}
                 actionLabel={`הורד ל-${platform.title}`}
                 idPrefix={`offline-download-${key}`}
-                primary={key === detected}
+                primary={key === primary.key}
+                matched={key === primary.key && primary.matched}
               />
             </li>
           )
