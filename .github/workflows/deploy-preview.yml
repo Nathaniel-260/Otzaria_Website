@@ -1,0 +1,67 @@
+name: Deploy preview site
+
+# אתר תצוגה מקדימה (preview.otzaria.org) — עותק שני של האתר על אותו שרת ואותו מסד נתונים,
+# שמריץ את ענף העיצוב החדש לבדיקה מלאה לפני מיזוג ל-master. האתר הראשי (deploy.yml) לא
+# מושפע: תיקייה, תהליך pm2 ופורט נפרדים (scripts/deploy-web.sh, ארגומנטים 3–5).
+# עד שהשרת הוכן (התיקייה קיימת) — הפריסה מדלגת בהודעה, בלי להיכשל.
+
+on:
+  push:
+    branches:
+      - redesign
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-otzaria-preview
+  cancel-in-progress: true
+
+env:
+  PREVIEW_DIR: /var/www/otzaria-preview
+  PREVIEW_PM2: otzaria-preview
+  PREVIEW_PORT: '3001'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve the validator's v1 tag
+        id: v1
+        run: |
+          set -euo pipefail
+          url=https://github.com/Otzaria/otzaria-plugin-validator
+          refs="$(git ls-remote "$url" refs/tags/v1 'refs/tags/v1^{}')"
+          sha="$(printf '%s\n' "$refs" | awk '$2 == "refs/tags/v1^{}" { print $1 }')"
+          if [ -z "$sha" ]; then
+            sha="$(printf '%s\n' "$refs" | awk '$2 == "refs/tags/v1" { print $1 }')"
+          fi
+          if [ -z "$sha" ]; then
+            echo "לא נמצאה תגית v1 במאגר הוולידטור" >&2
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      # הבנייה והבדיקות רצות בשרת עצמו בתוך deploy-web.sh (כמו בפריסה הראשית), בתיקיית
+      # הכנה נפרדת — אם משהו נכשל, העותק הפעיל של אתר התצוגה נשאר כמו שהוא.
+      - name: Deploy the preview using SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.PORT }}
+          timeout: 5m
+          command_timeout: 30m
+          envs: PREVIEW_DIR,PREVIEW_PM2,PREVIEW_PORT
+          script: |
+            set -eu
+            if [ ! -d "$PREVIEW_DIR/.git" ]; then
+              echo "אתר התצוגה עוד לא הוכן בשרת ($PREVIEW_DIR) — מדלגים על הפריסה."
+              exit 0
+            fi
+            cd "$PREVIEW_DIR"
+            git fetch --depth 1 origin "${{ github.sha }}"
+            deploy_script="$(git show "${{ github.sha }}:scripts/deploy-web.sh")"
+            printf '%s\n' "$deploy_script" | bash -s -- "${{ github.sha }}" "${{ steps.v1.outputs.sha }}" "$PREVIEW_DIR" "$PREVIEW_PM2" "$PREVIEW_PORT"
