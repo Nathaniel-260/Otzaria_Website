@@ -32,15 +32,17 @@ export type BadgeSize = keyof typeof SIZES
  * עליה (מסנן) היא כפתור (ui/Button variant="tonal" size="sm"), לא Badge.
  * המשמעות חייבת להיות בטקסט — הצבע מחזק בלבד (WCAG 1.4.1).
  */
-export default function Badge({ children, tone = 'neutral', size = 'sm', icon, className }: {
+export default function Badge({ children, tone = 'neutral', size = 'sm', icon, id, className }: {
   children: ReactNode
+  /** למשל כדי שאלמנט אחר יפנה אליו ב-aria-describedby */
+  id?: string
   tone?: BadgeTone
   size?: BadgeSize
   icon?: string
   className?: string
 }) {
   return (
-    <span className={cx('inline-flex items-center gap-1 whitespace-nowrap rounded-(--badge-radius)', TONES[tone], SIZES[size], className)}>
+    <span id={id} className={cx('inline-flex items-center gap-1 whitespace-nowrap rounded-(--badge-radius)', TONES[tone], SIZES[size], className)}>
       {icon && <AppIcon name={icon} className="text-[1.15em]" />}
       {children}
     </span>

@@ -486,8 +486,8 @@ export default function BookPage() {
       </div>
     </header>
 
-    {/* Main Content Area */}
-    <div className="container mx-auto px-4 py-8 flex-grow">
+    {/* Main Content Area — יעד "דלג לתוכן" (אחרי שתי הכותרות) */}
+    <div id="main-content" className="container mx-auto px-4 py-8 flex-grow">
       <div className="max-w-7xl mx-auto">
         
         {/* Filters */}

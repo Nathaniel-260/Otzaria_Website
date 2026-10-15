@@ -27,12 +27,12 @@ export default function OfflinePlatformCard({ href, icon, title, details, action
       padding="md"
       className="flex h-full flex-col gap-4"
       aria-labelledby={`${idPrefix}-action`}
-      aria-describedby={`${idPrefix}-details`}
+      aria-describedby={primary && matched ? `${idPrefix}-badge ${idPrefix}-details` : `${idPrefix}-details`}
     >
       <span className="flex items-center gap-3">
         <IconTile icon={icon} size="md" />
         <span className="min-w-0 flex-1 text-title-lg text-on-surface">{title}</span>
-        {primary && matched && <Badge tone="primary" icon="check">המחשב שלך</Badge>}
+        {primary && matched && <Badge id={`${idPrefix}-badge`} tone="primary" icon="check">המחשב שלך</Badge>}
       </span>
       <span id={`${idPrefix}-details`} className="flex flex-col gap-0.5 text-body-sm text-on-surface-variant">
         {details.map((line, index) => <span key={index}>{line}</span>)}

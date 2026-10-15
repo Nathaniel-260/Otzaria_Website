@@ -52,6 +52,7 @@ describe('OfflineUpdateDownloadClient', () => {
     expect(first).not.toHaveTextContent('המחשב שלך')
     expect(second).toHaveAccessibleName('הורד ל-macOS')
     expect(second).toHaveTextContent('המחשב שלך')
+    expect(second).toHaveAccessibleDescription(/^המחשב שלך/)
     expect(isPrimary(first)).toBe(false)
     expect(isPrimary(second)).toBe(true)
   })
