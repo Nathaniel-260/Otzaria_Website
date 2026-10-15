@@ -56,9 +56,12 @@ export default function GoodToKnowSection({ repoUrl }) {
           ))}
         </ul>
       </Card>
-      <div className="mt-6 flex justify-center">
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Button href={`${repoUrl}/issues`} external variant="outlined" icon="bug_report">
           דיווח על תקלה בכלי<span className="sr-only"> ב-GitHub (נפתח בחלון חדש)</span>
+        </Button>
+        <Button href={repoUrl} external variant="outlined" icon="code">
+          קוד המקור ב-GitHub<span className="sr-only"> (נפתח בחלון חדש)</span>
         </Button>
       </div>
     </Section>
