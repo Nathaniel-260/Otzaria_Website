@@ -24,7 +24,7 @@ export default function OfflineUpdatePage() {
     <div className="flex min-h-screen flex-col overflow-x-clip bg-background text-on-surface">
       <OtzariaSoftwareHeader />
 
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         {/* בלי אנימציית כניסה: הכותרת היא אלמנט ה-LCP. בלי ריפוד תחתון — הרווח עד האזור הבא
             הוא הריפוד העליון שלו, כדי שההורדה ו"איך זה עובד" לא יתרחקו זה מזה */}
         <Section id="download" labelledBy="offline-title" anchor container="narrow" spacing="none" className="pt-10 md:pt-14 short:pt-8">

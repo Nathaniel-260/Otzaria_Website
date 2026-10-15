@@ -69,7 +69,7 @@ function LegacyTagRedirect() {
     <div className="fixed inset-0 z-50 overflow-y-auto bg-background">
       <div className="flex min-h-screen flex-col bg-background">
         <OtzariaSoftwareHeader showAuth />
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           <StoreHomeSkeleton />
         </main>
         <OtzariaSoftwareFooter />
@@ -100,7 +100,7 @@ export default function PluginsStoreHomeClient({ data, loadError }: PluginsStore
 
       <OtzariaSoftwareHeader showAuth />
 
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         {/* Hero קומפקטי: כותרת + חיפוש בולט + העלאת תוסף */}
         <section className="bg-white border-b border-neutral-100 py-12 px-4">
           <div className="container mx-auto max-w-6xl">

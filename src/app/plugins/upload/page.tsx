@@ -330,7 +330,7 @@ export default function UploadPluginPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <OtzariaSoftwareHeader showAuth />
       
-      <main className="flex-1 py-12 px-4">
+      <main id="main-content" className="flex-1 py-12 px-4">
         <div className="container mx-auto max-w-4xl">
           {/* Header */}
           <div className="mb-8">

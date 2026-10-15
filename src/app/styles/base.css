@@ -19,6 +19,17 @@
     min-height: 100vh;
   }
 
+  /* יעד "דלג לתוכן" (components/layout/SkipLink.jsx): הפוקוס עובר אליו מקוד, והוא אזור תוכן
+     שלם — בלי טבעת פוקוס סביב כל העמוד. scroll-margin — כדי שהכותרת הדביקה לא תסתיר את ראשו
+     כשהקישור עובד בלי JS (ניווט עוגן רגיל) */
+  [data-skip-target]:focus {
+    outline: none;
+  }
+
+  #main-content {
+    scroll-margin-top: var(--site-header-height);
+  }
+
   /* ה-@font-face עצמו ב-styles/icon-font.css (subset מקומי, נוצר אוטומטית) */
   .material-symbols-outlined {
     font-family: 'Material Symbols Outlined';

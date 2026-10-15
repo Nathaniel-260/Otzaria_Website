@@ -20,7 +20,7 @@ export default function Home() {
       {/* wordmarkHandoff: בראש הדף שם האתר אינו בכותרת — המילה "אוצריא" שבגיבור עולה אליה בגלילה */}
       <OtzariaSoftwareHeader wordmarkHandoff />
 
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <HeroSection />
 
         <FeaturesSection />

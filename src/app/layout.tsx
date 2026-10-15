@@ -9,6 +9,7 @@ import ReminderGuard from "@/components/notifications/ReminderGuard";
 import { DialogProvider } from '@/components/providers/DialogContext'
 import { LoadingProvider } from '@/components/providers/LoadingContext'
 import { ICON_FONT_URL } from '@/lib/icon-font'
+import SkipLink from '@/components/layout/SkipLink'
 
 
 const frankRuehl = localFont({
@@ -65,6 +66,8 @@ export default function RootLayout({
         {/* חסימת שבת/יום טוב מתבצעת כעת בצד שרת ב-src/proxy.js (כולל מעבר חופשי לבוטים) */}
       </head>
       <body className={`antialiased bg-background text-foreground font-sans ${frankRuehl.variable} ${vilna.variable}`}>
+        {/* הפריט הראשון בסדר ה-Tab בכל עמוד — מוסתר עד שמקבל פוקוס */}
+        <SkipLink />
         <ErrorBoundary>
           <SessionProvider>
             <DialogProvider>

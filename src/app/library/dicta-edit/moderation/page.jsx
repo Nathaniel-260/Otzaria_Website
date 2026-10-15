@@ -167,7 +167,7 @@ export default function ModerationPage() {
   return (
     <div className="min-h-screen bg-[#f8f9fa]">
       <Header />
-      <main className="container mx-auto px-4 py-10">
+      <main id="main-content" className="container mx-auto px-4 py-10">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
             <div>

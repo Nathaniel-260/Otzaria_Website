@@ -22,7 +22,7 @@ export default async function DocsIndexPage() {
     <div className="min-h-screen bg-background text-foreground">
       <OtzariaSoftwareHeader />
 
-      <main className="py-12 px-4">
+      <main id="main-content" className="py-12 px-4">
         <div className="container mx-auto max-w-6xl">
           {/* Hero */}
           <div className="text-center mb-12 glass-strong rounded-2xl p-12">

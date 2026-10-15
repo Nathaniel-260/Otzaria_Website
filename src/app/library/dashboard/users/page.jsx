@@ -98,7 +98,7 @@ export default function UsersManagementPage() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <div className="container mx-auto px-4 py-12">
+      <div id="main-content" className="container mx-auto px-4 py-12">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <div>

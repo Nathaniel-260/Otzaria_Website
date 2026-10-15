@@ -337,7 +337,7 @@ function DictaBooksContent() {
     <div className="min-h-screen bg-[#f8f9fa]">
       <Header />
       
-      <main className="container mx-auto px-4 py-12">
+      <main id="main-content" className="container mx-auto px-4 py-12">
         <div className="max-w-6xl mx-auto">
           
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">

@@ -331,7 +331,7 @@ export default function OcrTrainingEditor() {
           setImgLoaded(true)
         }}
       />
-      <main className="flex-1 w-full px-4 py-6">
+      <main id="main-content" className="flex-1 w-full px-4 py-6">
         <div className="max-w-7xl mx-auto">
           {/* סרגל עליון */}
           <div className="flex items-center justify-between flex-wrap gap-3 mb-4">

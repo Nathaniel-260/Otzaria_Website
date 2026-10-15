@@ -19,7 +19,7 @@ export default function DevelopmentTutorialPage() {
     <div className="min-h-screen">
       <OtzariaSoftwareHeader />
 
-      <main className="py-12 px-4">
+      <main id="main-content" className="py-12 px-4">
         <div className="container mx-auto max-w-6xl">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-on-surface/60 mb-6">

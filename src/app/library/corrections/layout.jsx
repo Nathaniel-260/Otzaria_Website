@@ -16,7 +16,7 @@ export default function CorrectionsLayout({ children }) {
   return (
     <div className="flex min-h-screen flex-col bg-background" dir="rtl">
       <Header />
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <div className="w-full px-4 md:px-6 py-8">
           <div className="w-full max-w-7xl mx-auto">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">

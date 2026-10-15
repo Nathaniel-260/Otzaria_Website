@@ -42,7 +42,7 @@ const FILTER_PENDING_STYLE_ID = 'plugins-filter-pending'
 const FILTER_PENDING_SCRIPT =
   `if(/[?&](q|tag|status)=/.test(location.search)){` +
   `var s=document.createElement('style');s.id='${FILTER_PENDING_STYLE_ID}';` +
-  `s.textContent='#all-plugins-main{display:none}#all-plugins-pending{display:flex}';` +
+  `s.textContent='#main-content{display:none}#all-plugins-pending{display:flex}';` +
   `document.head.appendChild(s)}`
 
 interface AllPluginsClientProps {
@@ -128,7 +128,7 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
         </div>
       </div>
 
-      <main id="all-plugins-main" className="flex-1">
+      <main id="main-content" className="flex-1">
         {/* Page Header + Filters Section */}
         <section className="py-6 px-4 bg-white border-b border-neutral-100">
           <div className="container mx-auto max-w-6xl">

@@ -6,7 +6,7 @@ export default function LibraryNotFound() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-surface via-background to-surface-variant">
       <Header />
 
-      <main className="flex-1 flex items-center justify-center px-4 py-20">
+      <main id="main-content" className="flex-1 flex items-center justify-center px-4 py-20">
         <div className="max-w-3xl mx-auto text-center">
           <div className="animate-enter-scale">
             {/* 404 Number with glow effect */}
