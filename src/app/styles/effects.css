@@ -90,6 +90,11 @@
     animation: donation-heartbeat var(--donation-beat-duration, 4.8s) var(--ease-in-out) infinite;
   }
 
+  /* האייקון המונפש (DonateAnimatedIcon) נושא אנימציה משלו — בלי פעימת ההמתנה מעליו */
+  .donation-button-icon.donation-animated-icon {
+    animation: none;
+  }
+
   @keyframes donation-heartbeat {
     0%, 22%, 100% { scale: 1; }
     5% { scale: 1.2; }

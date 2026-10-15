@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { clampShift, splitHint } from '@/lib/donationTip'
-import AppIcon from '@/components/ui/AppIcon'
+import DonateAnimatedIcon from '@/components/ui/icons/DonateAnimatedIcon'
 
 /**
  * קישור התרומה שבכותרת — כפתור טונלי בצבע התרומה, מחוץ לרשימת הניווט כדי שיבלוט בכל עמוד
@@ -63,13 +63,13 @@ export default function DonationButton({ link, className = '' }) {
         aria-describedby={link.hint ? tipId : undefined}
         className="donation-button donation-nav-link text-sm"
       >
-        <AppIcon name={link.icon} custom={link.customIcon} className="donation-button-icon" />
+        <DonateAnimatedIcon strokeWidth={1.8} className="donation-button-icon donation-animated-icon" />
         {link.label}
       </Link>
       {link.hint && (
         <span className="donation-tip" role="tooltip" id={tipId}>
           <span ref={bubbleRef} className="donation-tip-bubble">
-            <AppIcon name={link.icon} custom={link.customIcon} className="donation-tip-icon" />
+            <DonateAnimatedIcon strokeWidth={1.8} className="donation-tip-icon" />
             <span className="donation-tip-text">
               {lead && <span className="donation-tip-lead">{lead}</span>}
               {lead && ' '}
@@ -87,7 +87,7 @@ export function DonationNote({ link, onNavigate }) {
   if (!link.hint) return null
   return (
     <Link href={link.href} prefetch={false} onClick={onNavigate} className="donation-note">
-      <AppIcon name={link.icon} custom={link.customIcon} className="donation-button-icon" />
+      <DonateAnimatedIcon strokeWidth={1.8} className="donation-button-icon donation-animated-icon" />
       <span className="flex-1">{link.hint}</span>
       <span className="material-symbols-outlined text-lg" aria-hidden="true">chevron_left</span>
     </Link>
