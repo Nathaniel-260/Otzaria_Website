@@ -10,6 +10,10 @@ export const CUSTOM_ICONS = {
  * אותן מחלקות גודל/צבע/אנימציה חלות על שניהם. אייקון מותאם חדש = קובץ מסכה ב-public/icons
  * + מחלקה ב-styles/effects.css (.app-icon-*) + שורה ב-CUSTOM_ICONS.
  *
+ * משפחת האייקונים: AppIcon (גליף / מסכה סטטית) ואייקונים מונפשים ב-ui/icons/* (היום
+ * DonateAnimatedIcon — SVG ב-currentColor ובגודל 1em, כמו כאן). המונפשים מיובאים במפורש רק
+ * במקום שבו הם מוצגים, ולא דרך AppIcon, כדי שלא ייכנסו לכל חבילה שמשתמשת באייקון.
+ *
  * @param {{ name?: string, custom?: keyof typeof CUSTOM_ICONS, className?: string }} props
  */
 export default function AppIcon({ name, custom, className = '' }) {
