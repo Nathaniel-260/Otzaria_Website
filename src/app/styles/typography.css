@@ -70,6 +70,63 @@
   --leading-normal: 1.5;
   --leading-relaxed: 1.625;
   --leading-loose: 2;
+
+  /* --- סולם טיפוגרפי לפי תפקיד (Material 3: display / headline / title / body / label) ---
+   * רכיבים חדשים משתמשים רק בהם (text-headline-lg וכו'), לא בגודל מספרי (text-4xl) ולא
+   * בגודל שרירותי (text-[1.7rem]). כל תפקיד מגדיר גודל, גובה שורה ומשקל; leading-* או font-*
+   * מפורשים במחלקה עדיין גוברים עליהם. הערכים נלקחו מהגדלים שדף הבית החדש כבר משתמש בהם,
+   * כך שהמעבר אליהם אינו משנה דבר בדף הבית.
+   *   display  — שם המותג בגיבור בלבד (גופן התצוגה, משקל רגיל).
+   *   headline — כותרת עמוד (lg) וכותרת אזור (md בנייד → lg מ-md; ראו ui/SectionHeading).
+   *   title    — כותרת כרטיס / דיאלוג / פריט.
+   *   body     — טקסט רץ. lg לפסקת פתיחה, md ברירת המחדל, sm לתיאור משני.
+   *   label    — כפתור, תגית, תווית שדה. */
+  --text-display-lg: var(--text-8xl);
+  --text-display-lg--line-height: 1;
+  --text-display-lg--font-weight: 400;
+  --text-display-md: var(--text-7xl);
+  --text-display-md--line-height: 1;
+  --text-display-md--font-weight: 400;
+  --text-display-sm: var(--text-6xl);
+  --text-display-sm--line-height: 1;
+  --text-display-sm--font-weight: 400;
+
+  --text-headline-lg: var(--text-4xl);
+  --text-headline-lg--line-height: var(--leading-tight);
+  --text-headline-lg--font-weight: 700;
+  --text-headline-md: 1.7rem;
+  --text-headline-md--line-height: var(--leading-tight);
+  --text-headline-md--font-weight: 700;
+  --text-headline-sm: var(--text-2xl);
+  --text-headline-sm--line-height: var(--leading-tight);
+  --text-headline-sm--font-weight: 700;
+
+  --text-title-lg: var(--text-xl);
+  --text-title-lg--line-height: var(--leading-snug);
+  --text-title-lg--font-weight: 700;
+  --text-title-md: var(--text-lg);
+  --text-title-md--line-height: var(--leading-snug);
+  --text-title-md--font-weight: 700;
+  --text-title-sm: var(--text-base);
+  --text-title-sm--line-height: var(--leading-snug);
+  --text-title-sm--font-weight: 700;
+
+  --text-body-lg: var(--text-lg);
+  --text-body-lg--line-height: var(--leading-relaxed);
+  --text-body-md: var(--text-base);
+  --text-body-md--line-height: var(--leading-relaxed);
+  --text-body-sm: var(--text-sm);
+  --text-body-sm--line-height: var(--leading-relaxed);
+
+  --text-label-lg: var(--text-base);
+  --text-label-lg--line-height: var(--text-base--line-height);
+  --text-label-lg--font-weight: 600;
+  --text-label-md: var(--text-sm);
+  --text-label-md--line-height: var(--text-sm--line-height);
+  --text-label-md--font-weight: 600;
+  --text-label-sm: var(--text-xs);
+  --text-label-sm--line-height: var(--text-xs--line-height);
+  --text-label-sm--font-weight: 600;
 }
 
 /* ------------------------------------------------------------
