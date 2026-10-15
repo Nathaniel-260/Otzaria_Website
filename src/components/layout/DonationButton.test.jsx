@@ -16,7 +16,7 @@ describe('DonationButton', () => {
   it('Esc מסתיר את הבועה, ויציאת הפוקוס מחזירה אותה', () => {
     render(<DonationButton link={LINK} />)
     const link = screen.getByRole('link', { name: 'תרומות' })
-    const host = link.closest('.donation-tip-host')
+    const host = link.closest('.tooltip-host')
     fireEvent.keyDown(link, { key: 'Escape' })
     expect(host).toHaveAttribute('data-tip-dismissed', 'true')
     fireEvent.blur(link)

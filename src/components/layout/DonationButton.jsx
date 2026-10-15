@@ -1,84 +1,47 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { clampShift, splitHint } from '@/lib/donationTip'
+import { splitHint } from '@/lib/donationTip'
 import DonateAnimatedIcon from '@/components/ui/icons/DonateAnimatedIcon'
+import Tooltip from '@/components/ui/Tooltip'
 
 /**
  * קישור התרומה שבכותרת — כפתור טונלי בצבע התרומה, מחוץ לרשימת הניווט כדי שיבלוט בכל עמוד
  * (גם בנייד, ליד כפתור התפריט). ראו .donation-button ב-styles/effects.css.
  *
- * hint — כרטיס קטן מתחת לכפתור בריחוף ובפוקוס מקלדת (CSS, .donation-tip), מחובר לקישור
- * ב-aria-describedby כך שקורא מסך שומע אותו תמיד. Esc מסתיר אותו (WCAG 1.4.13) עד שהעכבר/
- * הפוקוס עוזבים. הכרטיס ממורכז מתחת לכפתור; כאן רק נמדד אם הוא חורג מקצה המסך, ואז הוא
- * מוזז פנימה (--donation-tip-shift) — החוד נשאר מול הכפתור. במגע אין ריחוף — המשפט מוצג
- * בתפריט הנייד (DonationNote).
+ * hint — כרטיס-רמז מתחת לכפתור בריחוף ובפוקוס מקלדת (ui/Tooltip): מחובר לקישור
+ * ב-aria-describedby כך שקורא מסך שומע אותו תמיד, ו-Esc מסתיר אותו (WCAG 1.4.13). במגע אין
+ * ריחוף — המשפט מוצג בתפריט הנייד (DonationNote).
  *
  * @param {{ link: { href: string, label: string, icon?: string, customIcon?: string, hint?: string }, className?: string }} props
  */
 export default function DonationButton({ link, className = '' }) {
-  const tipId = useId()
-  const hostRef = useRef(null)
-  const bubbleRef = useRef(null)
-  const [dismissed, setDismissed] = useState(false)
-  const reset = () => setDismissed(false)
+  const button = (
+    <Link href={link.href} prefetch={false} className="donation-button donation-nav-link text-sm">
+      <DonateAnimatedIcon strokeWidth={1.8} className="donation-button-icon donation-animated-icon" />
+      {link.label}
+    </Link>
+  )
 
-  const place = useCallback(() => {
-    const host = hostRef.current
-    const bubble = bubbleRef.current
-    if (!host || !bubble) return
-    const hostRect = host.getBoundingClientRect()
-    const shift = clampShift({
-      centerX: hostRect.left + hostRect.width / 2,
-      width: bubble.offsetWidth,
-      viewportWidth: document.documentElement.clientWidth
-    })
-    host.style.setProperty('--donation-tip-shift', `${shift}px`)
-  }, [])
-
-  useEffect(() => {
-    if (!link.hint) return
-    place()
-    window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
-  }, [link.hint, place])
+  if (!link.hint) return <span className={`inline-flex ${className}`}>{button}</span>
 
   const { lead, punch } = splitHint(link.hint)
-
   return (
-    <span
-      ref={hostRef}
-      className={`donation-tip-host ${className}`}
-      data-tip-dismissed={dismissed ? 'true' : undefined}
-      onPointerEnter={place}
-      onFocus={place}
-      onPointerLeave={reset}
-      onBlur={reset}
-      onKeyDown={(event) => { if (event.key === 'Escape' && link.hint) setDismissed(true) }}
-    >
-      <Link
-        href={link.href}
-        prefetch={false}
-        aria-describedby={link.hint ? tipId : undefined}
-        className="donation-button donation-nav-link text-sm"
-      >
-        <DonateAnimatedIcon strokeWidth={1.8} className="donation-button-icon donation-animated-icon" />
-        {link.label}
-      </Link>
-      {link.hint && (
-        <span className="donation-tip" role="tooltip" id={tipId}>
-          <span ref={bubbleRef} className="donation-tip-bubble">
-            <DonateAnimatedIcon strokeWidth={1.8} className="donation-tip-icon" />
-            <span className="donation-tip-text">
-              {lead && <span className="donation-tip-lead">{lead}</span>}
-              {lead && ' '}
-              <span className="donation-tip-punch">{punch}</span>
-            </span>
+    <Tooltip
+      className={className}
+      content={
+        <>
+          <DonateAnimatedIcon strokeWidth={1.8} className="donation-tip-icon" />
+          <span className="donation-tip-text">
+            {lead && <span className="donation-tip-lead">{lead}</span>}
+            {lead && ' '}
+            <span className="donation-tip-punch">{punch}</span>
           </span>
-        </span>
-      )}
-    </span>
+        </>
+      }
+    >
+      {button}
+    </Tooltip>
   )
 }
 
