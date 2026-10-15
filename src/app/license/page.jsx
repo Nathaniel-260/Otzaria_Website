@@ -5,7 +5,7 @@ import OtzariaSoftwareFooter from '@/components/layout/OtzariaSoftwareFooter'
 // בצד השרת כדי למנוע מסך טעינה ו-JavaScript מיותר בצד הלקוח.
 async function fetchLicenseText() {
   try {
-    const res = await fetch('https://raw.githubusercontent.com/Otzaria/otzaria/main/LICENSE', {
+    const res = await fetch('https://raw.githubusercontent.com/Otzaria/otzaria/dev/LICENSE', {
       next: { revalidate: 3600 } // רענון פעם בשעה
     })
 
@@ -57,7 +57,7 @@ export default async function LicensePage() {
                     <div className="text-danger-500 text-center py-4">
                       <p>לא ניתן היה לטעון את הרישיון.</p>
                       <a
-                        href="https://github.com/Otzaria/otzaria/blob/main/LICENSE"
+                        href="https://github.com/Otzaria/otzaria/blob/dev/LICENSE"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="underline"
@@ -77,7 +77,7 @@ export default async function LicensePage() {
                    <p>
                     לצפייה בקובץ הרישיון המקורי והעדכני ב-GitHub:{' '}
                     <a
-                      href="https://github.com/Otzaria/otzaria/blob/main/LICENSE"
+                      href="https://github.com/Otzaria/otzaria/blob/dev/LICENSE"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary font-bold hover:underline"
