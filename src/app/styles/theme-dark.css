@@ -81,5 +81,6 @@
   --color-info-container: var(--color-info-950);
   --color-on-info-container: var(--color-info-100);
 
+  --color-top-bar: var(--ref-neutral-17);
   --color-scrim: var(--ref-neutral-0);
 }

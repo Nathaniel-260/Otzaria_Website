@@ -39,6 +39,11 @@
   --color-surface-selected: var(--ref-parchment-96);
   --color-inverse-surface: var(--ref-neutral-20);
   --color-inverse-on-surface: var(--ref-neutral-95);
+  /* top-bar — הכותרת העליונה, הפוטר והתפריט הנייד: tone אחד מתחת לרקע הדף. באפליקציה
+     ‏topBarBackground = surfaceContainerHigh (tone 92) מול panelBackground (L* 94.2); באתר הדף
+     הובהר (L* 95.5), ולכן גם הכותרת עלתה ל-tone 93 — אותו מרווח בהירות (כ-2.4 L*), כך שהיא
+     עדיין נבדלת מהדף. טקסט הניווט עליה: on-surface-variant 6.6:1, on-surface 12.0:1, primary 5.4:1. */
+  --color-top-bar: var(--ref-neutral-93);
 
   /* ---------------- טקסט ואייקונים על משטח ----------------
    * חום-קפה כהה ממשפחת הפלטה, במקום onSurface הכמעט-שחור (#201b13) והאפרפר (#4f4539) של
@@ -115,7 +120,6 @@
   /* ---------------- כינויים [רכיב] ---------------- */
   --color-card: var(--color-surface);                          /* [רכיב] AppSurfaces.card */
   --color-card-selected: var(--color-surface-selected);        /* [רכיב] כרטיס בריחוף/בחירה */
-  --color-top-bar: var(--color-surface-container-high);        /* [רכיב] כותרת עליונה ותחתונה */
   --color-tile: var(--color-secondary-container);              /* [רכיב] אריח אייקון */
   --color-on-tile: var(--color-on-secondary-container);        /* [רכיב] גליף על האריח */
 
