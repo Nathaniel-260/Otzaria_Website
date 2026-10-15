@@ -181,7 +181,7 @@ const nextConfig = {
       // נכסי תמונה קבועים ב-public (נוצרים ב-scripts/optimize-assets.mjs). שמם אינו
       // ממוספר ב-hash — הם מוטמעים גם במיילים וב-HTML של דף השבת — ולכן חודש
       // במקום שנה, עם stale-while-revalidate כדי שהחלפה תתפוס בלי המתנה.
-      ...['/bg.avif', '/bg.webp', '/logo.webp', '/logo.png', '/background.png', '/shabbat/sabbath.png', '/spellcheck/:path*', '/תמונה-נטפרי.svg'].map((source) => ({
+      ...['/logo.webp', '/logo.png', '/background.png', '/shabbat/sabbath.png', '/spellcheck/:path*', '/תמונה-נטפרי.svg'].map((source) => ({
         source,
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=604800' },

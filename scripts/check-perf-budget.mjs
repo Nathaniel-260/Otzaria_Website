@@ -49,8 +49,6 @@ const PAGE_BUDGETS = [
 ]
 
 const ASSET_BUDGETS = [
-  { file: 'public/bg.avif', maxKB: 35 },
-  { file: 'public/bg.webp', maxKB: 145 },
   { file: 'public/logo.webp', maxKB: 15 },
   { file: 'public/logo.png', maxKB: 35 },
   { file: 'src/app/icon.png', maxKB: 8 },
