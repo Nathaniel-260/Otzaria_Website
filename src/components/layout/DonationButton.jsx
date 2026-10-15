@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { clampShift, splitHint } from '@/lib/donationTip'
+import AppIcon from '@/components/ui/AppIcon'
 
 /**
  * קישור התרומה שבכותרת — כפתור טונלי בצבע התרומה, מחוץ לרשימת הניווט כדי שיבלוט בכל עמוד
@@ -14,7 +15,7 @@ import { clampShift, splitHint } from '@/lib/donationTip'
  * מוזז פנימה (--donation-tip-shift) — החוד נשאר מול הכפתור. במגע אין ריחוף — המשפט מוצג
  * בתפריט הנייד (DonationNote).
  *
- * @param {{ link: { href: string, label: string, icon?: string, hint?: string }, className?: string }} props
+ * @param {{ link: { href: string, label: string, icon?: string, customIcon?: string, hint?: string }, className?: string }} props
  */
 export default function DonationButton({ link, className = '' }) {
   const tipId = useId()
@@ -62,13 +63,13 @@ export default function DonationButton({ link, className = '' }) {
         aria-describedby={link.hint ? tipId : undefined}
         className="donation-button donation-nav-link text-sm"
       >
-        <span className="material-symbols-outlined donation-button-icon" aria-hidden="true">{link.icon}</span>
+        <AppIcon name={link.icon} custom={link.customIcon} className="donation-button-icon" />
         {link.label}
       </Link>
       {link.hint && (
         <span className="donation-tip" role="tooltip" id={tipId}>
           <span ref={bubbleRef} className="donation-tip-bubble">
-            <span className="material-symbols-outlined donation-tip-icon" aria-hidden="true">{link.icon}</span>
+            <AppIcon name={link.icon} custom={link.customIcon} className="donation-tip-icon" />
             <span className="donation-tip-text">
               {lead && <span className="donation-tip-lead">{lead}</span>}
               {lead && ' '}
@@ -86,7 +87,7 @@ export function DonationNote({ link, onNavigate }) {
   if (!link.hint) return null
   return (
     <Link href={link.href} prefetch={false} onClick={onNavigate} className="donation-note">
-      <span className="material-symbols-outlined donation-button-icon" aria-hidden="true">{link.icon}</span>
+      <AppIcon name={link.icon} custom={link.customIcon} className="donation-button-icon" />
       <span className="flex-1">{link.hint}</span>
       <span className="material-symbols-outlined text-lg" aria-hidden="true">chevron_left</span>
     </Link>

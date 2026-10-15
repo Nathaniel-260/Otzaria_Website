@@ -24,7 +24,7 @@ export const MAIN_NAV_LINKS = [
     label: 'עזור לספרייה',
     highlight: true,
     children: [
-      { href: '/donate', label: 'תרום לאוצריא', icon: 'volunteer_activism' },
+      { href: '/donate', label: 'תרום לאוצריא', customIcon: 'donate' },
       { href: '/library/upload', label: 'העלה ספר חדש', icon: 'upload_file' },
       { href: '/library/acronyms', label: 'הוסף כינויים וראשי תיבות', icon: 'short_text' },
       { href: '/library/info', label: 'הוסף מידע על ספרים', icon: 'info' },
@@ -38,7 +38,7 @@ export const MAIN_NAV_LINKS = [
   { href: '/docs', label: 'מדריכים', highlight: false },
   { href: '/faq', label: 'שאלות נפוצות', highlight: false },
   // hint — רמז התרומה: בועה בריחוף/פוקוס על הכפתור שבכותרת, ושורה בתפריט הנייד (DonationButton)
-  { href: '/donate', label: 'תרומות', icon: 'volunteer_activism', emphasis: 'donation', hint: 'אין לאוצריא גוף מממן: אתה הכוח המניע שלה' },
+  { href: '/donate', label: 'תרומות', customIcon: 'donate', emphasis: 'donation', hint: 'אין לאוצריא גוף מממן: אתה הכוח המניע שלה' },
   { href: '/forum', label: 'פורום', external: true, highlight: false }
 ]
 

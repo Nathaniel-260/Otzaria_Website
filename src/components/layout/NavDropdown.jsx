@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useId, useRef, useState } from 'react'
+import AppIcon from '@/components/ui/AppIcon'
 
 /**
  * פריט ניווט שנפתח לרשימת קישורים (בכותרת העליונה, בדסקטופ) — דפוס disclosure נגיש:
@@ -17,7 +18,7 @@ import { useEffect, useId, useRef, useState } from 'react'
  * Esc סוגר (גם כשהעכבר עדיין מעליו) ומחזיר את הפוקוס לכפתור; יציאת הפוקוס מהרכיב סוגרת.
  * חיצים: למטה מהכפתור — אל הקישור הראשון; למעלה/למטה בין הקישורים.
  *
- * @param {{ label: string, items: Array<{ href: string, label: string, icon?: string, more?: boolean }>,
+ * @param {{ label: string, items: Array<{ href: string, label: string, icon?: string, customIcon?: string, more?: boolean }>,
  *           className?: string }} props
  *   more — פריט "עוד..." שמופרד בקו מהשאר ומקבל חץ.
  */
@@ -123,8 +124,8 @@ export default function NavDropdown({ label, items, className = '' }) {
                 className="nav-dropdown-item"
                 onClick={() => { setPinned(false); setHovered(false); setFocused(false) }}
               >
-                {item.icon && (
-                  <span className="material-symbols-outlined nav-dropdown-icon" aria-hidden="true">{item.icon}</span>
+                {(item.icon || item.customIcon) && (
+                  <AppIcon name={item.icon} custom={item.customIcon} className="nav-dropdown-icon" />
                 )}
                 <span className="flex-1">{item.label}</span>
                 {item.more && (

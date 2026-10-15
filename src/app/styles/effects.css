@@ -56,6 +56,21 @@
     outline-offset: 2px;
   }
 
+  /* אייקון מותאם (AppIcon custom) — מסכה בצבע הטקסט ובגודל 1em, בדיוק כמו גליף מהגופן,
+     כך שמחלקות הגודל/הצבע/האנימציה של הגליפים חלות עליו כמו שהן. */
+  .app-icon {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 1em;
+    height: 1em;
+    background-color: currentColor;
+    mask: var(--app-icon-src) center / contain no-repeat;
+  }
+
+  .app-icon-donate {
+    --app-icon-src: url('/icons/donate-mask.png');
+  }
+
   .donation-button-icon {
     font-size: 1.15rem;
     line-height: 1;

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import SectionHeading from './SectionHeading'
+import AppIcon from '@/components/ui/AppIcon'
 
 // אזור הסיום של דף הבית: קריאה מכובדת לתרומה (במקום "הצטרפו לקהילת העורכים" שהוסר — הקהילה
 // אינה פעילה). ממורכז ובנוי כמו שאר האזורים (כותרת + קישוט), עם אותו כפתור טונלי בצבע התרומה
@@ -19,7 +20,7 @@ export default function DonateCallout() {
           prefetch={false}
           className="donation-button donation-button-lg"
         >
-          <span className="material-symbols-outlined donation-button-icon" aria-hidden="true">volunteer_activism</span>
+          <AppIcon custom="donate" className="donation-button-icon" />
           לתרומה לאוצריא
         </Link>
       </div>
