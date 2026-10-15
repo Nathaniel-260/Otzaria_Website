@@ -4,6 +4,13 @@ set -euo pipefail
 DEPLOY_REF=${1:?website commit required}
 VALIDATOR_REF=${2:?validator commit required}
 APP_DIR=${3:-/var/www/otzaria-web}
+# Optional: a second instance (the preview site) runs from its own directory, pm2 process and
+# port. The defaults are the production instance, so the existing workflow call is unchanged.
+PM2_NAME=${4:-otzaria-web}
+APP_PORT=${5:-3000}
+[[ "$PM2_NAME" =~ ^[a-z0-9-]+$ && "$APP_PORT" =~ ^[0-9]+$ ]] || {
+  echo 'Invalid pm2 process name or port' >&2; exit 1;
+}
 [[ "$DEPLOY_REF" =~ ^[a-f0-9]{40}$ && "$VALIDATOR_REF" =~ ^[a-f0-9]{40}$ ]] || {
   echo 'Deployment requires immutable commit SHAs' >&2; exit 1;
 }
@@ -19,7 +26,7 @@ RUNTIME_PATHS=(node_modules .next public/version.json public/export-editor/dicta
 
 check_health() {
   for attempt in 1 2 3 4 5 6; do
-    if curl --fail --silent --max-time 3 http://127.0.0.1:3000/version.json > "$STAGE/health.json" &&
+    if curl --fail --silent --max-time 3 http://127.0.0.1:$APP_PORT/version.json > "$STAGE/health.json" &&
        cmp -s "$APP_DIR/public/version.json" "$STAGE/health.json"; then
       return 0
     fi
@@ -35,14 +42,14 @@ cleanup() {
   if [[ "$STOPPED" == true && "$COMPLETE" != true ]]; then
     echo 'Activation failed; restoring the previous code and build' >&2
     set +e
-    pm2 stop otzaria-web || rollback_failed=true
+    pm2 stop "$PM2_NAME" || rollback_failed=true
     for item in ${INSTALLED_NEW[@]+"${INSTALLED_NEW[@]}"}; do rm -rf "$APP_DIR/$item" || rollback_failed=true; done
     for item in ${MOVED_OLD[@]+"${MOVED_OLD[@]}"}; do
       mkdir -p "$(dirname "$APP_DIR/$item")" || rollback_failed=true
       mv "$BACKUP/$item" "$APP_DIR/$item" || rollback_failed=true
     done
     git reset --hard "$OLD_REF" || rollback_failed=true
-    pm2 restart otzaria-web || rollback_failed=true
+    pm2 restart "$PM2_NAME" || rollback_failed=true
     check_health || rollback_failed=true
     if [[ "$rollback_failed" == true ]]; then
       echo "Rollback failed; backup retained at $STAGE" >&2
@@ -75,7 +82,7 @@ for item in "${RUNTIME_PATHS[@]}"; do test -e "$STAGE/$item"; done
 
 echo 'Build verified; activating it with rollback available'
 cd "$APP_DIR"
-pm2 stop otzaria-web
+pm2 stop "$PM2_NAME"
 STOPPED=true
 git reset --hard "$DEPLOY_REF"
 for item in "${RUNTIME_PATHS[@]}"; do
@@ -87,7 +94,7 @@ for item in "${RUNTIME_PATHS[@]}"; do
   mv "$STAGE/$item" "$APP_DIR/$item"
   INSTALLED_NEW+=("$item")
 done
-pm2 restart otzaria-web
+pm2 restart "$PM2_NAME"
 
 # Check the actual Node server and the exact build version, bypassing nginx caches.
 if check_health; then
