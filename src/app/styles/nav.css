@@ -38,9 +38,10 @@
     background-color: color-mix(in srgb, var(--color-tile) 70%, var(--color-outline-variant));
   }
 
+  /* טבעת הפוקוס האחידה (ui/focusRing.ts — FOCUS_RING), דרך --focus-ring-* */
   .nav-dropdown-trigger:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 
   .nav-dropdown-chevron {
@@ -132,9 +133,10 @@
     background-color: var(--color-card-selected);
   }
 
+  /* פריט ברשימה — טבעת פנימית (FOCUS_RING_INSET), כדי שלא תיחתך בקצה הרשימה */
   .nav-dropdown-item:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: -2px;
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: calc(var(--focus-ring-width) * -1);
   }
 
   .nav-dropdown-icon {

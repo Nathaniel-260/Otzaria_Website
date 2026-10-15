@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRef } from 'react'
 import useWordmarkHandoff from '@/hooks/useWordmarkHandoff'
+import { FOCUS_RING } from '@/components/ui/focusRing'
 
 const WORDMARK = 'אוצריא'
 
@@ -35,7 +36,7 @@ export default function HeaderLogo({ handoff = false }) {
       href="/"
       prefetch={false}
       aria-label={handoff ? `${WORDMARK} — דף הבית` : undefined}
-      className="flex min-h-12 shrink-0 items-center gap-2 rounded-lg transition-opacity hover:opacity-80"
+      className={`flex min-h-12 shrink-0 items-center gap-2 rounded-lg transition-opacity hover:opacity-80 ${FOCUS_RING}`}
     >
       <Image src="/logo.webp" alt={handoff ? '' : 'לוגו אוצריא'} width={32} height={32} className="size-[32px] shrink-0" />
       <span className="relative flex items-center">

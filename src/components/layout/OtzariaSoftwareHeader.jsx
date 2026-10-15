@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { getAvatarColor, getInitial } from '@/lib/avatar-colors'
 import { MAIN_NAV_LINKS } from '@/lib/navigation-constants'
+import { FOCUS_RING, FOCUS_RING_INSET } from '@/components/ui/focusRing'
 import HeaderLogo from './HeaderLogo'
 import NavDropdown from './NavDropdown'
 import DonationButton, { DonationNote } from './DonationButton'
@@ -43,7 +44,7 @@ function MobileNavLink({ link, pathname, onNavigate }) {
     <NavLink
       link={link}
       onClick={onNavigate}
-      className={`rounded-lg px-3 py-3 text-base font-medium hover:bg-card-selected ${
+      className={`rounded-lg px-3 py-3 text-base font-medium hover:bg-card-selected ${FOCUS_RING_INSET} ${
         pathname === link.href ? 'text-primary' : 'text-on-surface'
       }`}
     >
@@ -67,7 +68,7 @@ function AuthActions({ pathname, compact = false, onNavigate }) {
           href="/library/dashboard"
           prefetch={false}
           onClick={onNavigate}
-          className="flex items-center justify-center hover:opacity-80 transition-opacity"
+          className={`flex items-center justify-center rounded-full hover:opacity-80 transition-opacity ${FOCUS_RING}`}
           title={session.user.name}
         >
           <div
@@ -79,7 +80,7 @@ function AuthActions({ pathname, compact = false, onNavigate }) {
         </Link>
         <button
           onClick={() => signOut({ callbackUrl: pathname })}
-          className="flex items-center gap-2 px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/10 transition-colors text-sm font-medium"
+          className={`flex items-center gap-2 px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/10 transition-colors text-sm font-medium ${FOCUS_RING}`}
         >
           <span className="material-symbols-outlined text-lg">logout</span>
           <span>התנתק</span>
@@ -93,7 +94,7 @@ function AuthActions({ pathname, compact = false, onNavigate }) {
       href={loginHref}
       prefetch={false}
       onClick={onNavigate}
-      className={`flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors shadow-sm font-medium ${
+      className={`flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors shadow-sm font-medium ${FOCUS_RING} ${
         compact ? 'justify-center text-lg' : 'text-sm'
       }`}
     >
@@ -131,7 +132,7 @@ export default function OtzariaSoftwareHeader({ showAuth = false, wordmarkHandof
               <NavLink
                 key={link.label}
                 link={link}
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${FOCUS_RING} ${
                   link.highlight
                     ? 'bg-secondary-container text-on-secondary-container hover:bg-tile/70'
                     : isActive
@@ -156,7 +157,7 @@ export default function OtzariaSoftwareHeader({ showAuth = false, wordmarkHandof
           {/* Mobile Menu Button */}
           <button
             type="button"
-            className="lg:hidden flex h-12 w-12 items-center justify-center rounded-lg text-on-surface hover:bg-card-selected"
+            className={`lg:hidden flex h-12 w-12 items-center justify-center rounded-lg text-on-surface hover:bg-card-selected ${FOCUS_RING}`}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-expanded={isMenuOpen}
             aria-label="תפריט"

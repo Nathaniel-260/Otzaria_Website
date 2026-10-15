@@ -51,9 +51,10 @@
     box-shadow: inset 0 0 0 1px var(--color-donation), 0 4px 12px -6px rgb(140 59 31 / 0.45);
   }
 
+  /* טבעת הפוקוס האחידה של האתר (ui/focusRing.ts), כמו שאר פריטי הכותרת */
   .donation-button:focus-visible {
-    outline: 2px solid var(--color-donation);
-    outline-offset: 2px;
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 
   /* אייקון מותאם (AppIcon custom) — מסכה בצבע הטקסט ובגודל 1em, בדיוק כמו גליף מהגופן,
@@ -279,6 +280,12 @@
     font-size: var(--text-sm);
     line-height: var(--leading-snug);
     font-weight: var(--font-weight-medium);
+  }
+
+  /* בתוך התפריט הנייד הנגלל — טבעת פנימית (FOCUS_RING_INSET), כדי שלא תיחתך */
+  .donation-note:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: calc(var(--focus-ring-width) * -1);
   }
 
   .donation-note .donation-button-icon {
