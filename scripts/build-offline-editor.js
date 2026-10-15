@@ -17,7 +17,7 @@ const COMPONENT_PATHS = [
   'src/components/providers/DialogContext.jsx',
   'src/components/ui/Modal.jsx',
   'src/components/ui/FormInput.jsx',
-  'src/components/ui/Button.jsx',
+  'src/components/ui/legacy/LegacyButton.jsx',
   'src/components/ui/LoadingSpinner.jsx',
   'src/components/providers/LoadingContext.jsx',
   'src/components/dicta-tools/CreateHeadersModal.jsx',
