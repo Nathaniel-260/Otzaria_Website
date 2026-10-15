@@ -25,7 +25,7 @@
    * כפי שנמדדה ב-otzaria-design/download-assistant/build_assistant_art.py.
    * השמות הוותיקים (background / surface / primary ...) נשמרו — הם בשימוש בכל האתר —
    * וקיבלו את ערכי האפליקציה; לצדם נוספו טוקני M3 החסרים (top-bar, card, tile...). */
-  --color-background: #f6ede5;          /* panelBackground — רקע הדף */
+  --color-background: #f8f1ea;          /* רקע הדף — panelBackground של האפליקציה (#f6ede5), מובהר מעט באתר */
   --color-surface: #fff8f4;             /* surface — גוף הכרטיס (AppCard) */
   --color-surface-variant: #e1d4c8;     /* קו הפרדה עדין (גבול ה-topBar) */
   --color-primary: #805610;             /* primary — כפתור ראשי, קישורים */
