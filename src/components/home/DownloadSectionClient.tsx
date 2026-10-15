@@ -134,13 +134,14 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
     }
 
     return (
-      <Card onClick={config.onClick} className="flex h-full w-full items-center gap-4 p-4 lg:flex-col lg:items-start lg:p-5">
-        <IconTile icon={config.icon} size="md" />
-        <div className="min-w-0 flex-1">
-          <h3 className="text-lg font-bold text-on-surface">{config.title}</h3>
-          <p className="mt-0.5 text-sm text-on-surface-variant">{subtitle}</p>
+      // שם המערכת בשורת האריח (כמו בכרטיסי היכולות), ושורת המשנה מתחתיהם לכל רוחב הכרטיס
+      <Card onClick={config.onClick} className="flex h-full w-full flex-col gap-2 p-4 lg:p-5">
+        <div className="flex w-full items-center gap-3">
+          <IconTile icon={config.icon} size="md" />
+          <h3 className="min-w-0 flex-1 text-lg font-bold text-on-surface">{config.title}</h3>
+          <span className="material-symbols-outlined text-primary lg:hidden" aria-hidden="true">chevron_left</span>
         </div>
-        <span className="material-symbols-outlined text-primary lg:hidden" aria-hidden="true">chevron_left</span>
+        <p className="text-sm text-on-surface-variant">{subtitle}</p>
       </Card>
     )
   }
