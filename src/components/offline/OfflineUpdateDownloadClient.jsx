@@ -1,85 +1,99 @@
 'use client'
 
-const PLATFORMS = [
-  {
-    key: 'windows',
+import { useEffect, useState } from 'react'
+import AppIcon from '@/components/ui/AppIcon'
+import Badge from '@/components/ui/Badge'
+import Button from '@/components/ui/Button'
+import Card from '@/components/ui/Card'
+import OfflinePlatformCard from './OfflinePlatformCard'
+import { detectOfflinePlatform, formatReleaseDate, formatSize, orderOfflinePlatforms } from './offlinePlatforms'
+
+// מונחים לועזיים בבידוד (bdi) — אחרת "10 / 11" והסוגריים מתהפכים בשורה עברית
+const PLATFORMS = {
+  windows: {
     icon: 'desktop_windows',
     title: 'Windows',
-    subtitle: 'קובץ התקנה (exe)',
-    note: 'Windows 10 / 11'
+    requirement: <><bdi dir="ltr" className="whitespace-nowrap">Windows 10 / 11</bdi> (64 סיביות)</>,
+    kind: 'קובץ אחד, בלי התקנה'
   },
-  {
-    key: 'macos',
+  macos: {
     icon: 'laptop_mac',
     title: 'macOS',
-    subtitle: 'חבילת אפליקציה (zip)',
-    note: 'macOS 10.15 ומעלה'
+    requirement: <><bdi dir="ltr" className="whitespace-nowrap">macOS 10.15</bdi> ומעלה</>,
+    kind: <>קובץ <bdi dir="ltr" className="whitespace-nowrap">zip</bdi></>
   }
-]
-
-function formatSize(bytes) {
-  if (!bytes) return null
-  const mb = bytes / (1024 * 1024)
-  return `${mb.toFixed(mb >= 100 ? 0 : 1)} MB`
 }
 
 /**
- * כרטיסי ההורדה של "עדכוני אוצריא" — releases מגיע כבר טעון מהשרת (ראו
- * OfflineUpdateDownload.jsx, ה-Server Component שעוטף את הרכיב הזה ושולף
- * את /api/offline-update-releases בזמן רינדור הדף). כש-releases הוא null
- * (ה-API נכשל) נשאר קישור לדף ה-releases.
+ * אזור ההורדה של "עדכוני אוצריא" — releases מגיע כבר טעון מהשרת (OfflineUpdateDownload.jsx,
+ * ה-Server Component שעוטף את הרכיב הזה). כש-releases הוא null (השליפה נכשלה) כל כרטיס מוביל
+ * לדף הגרסאות. כאן נשאר רק מה שדורש דפדפן: זיהוי המערכת — הכרטיס שלה ראשון ובולט.
  */
 export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
-  const releasesPage = `${repoUrl}/releases/latest`
+  const [detected, setDetected] = useState(null)
+
+  useEffect(() => {
+    // navigator קיים רק בדפדפן; עד הזיהוי שני הכרטיסים שווים (כמו ברינדור השרת)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDetected(detectOfflinePlatform({
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      maxTouchPoints: navigator.maxTouchPoints
+    }))
+  }, [])
+
+  const releasesPage = releases?.releaseUrl || `${repoUrl}/releases/latest`
+  const date = formatReleaseDate(releases?.publishedAt)
 
   return (
-    <div className="glass-strong rounded-2xl p-8 border border-surface-variant shadow-xl">
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold font-frank mb-2">הורדת הכלי</h2>
-        <p className="text-on-surface/70">
-          {releases?.version
-            ? `הגרסה האחרונה: ${releases.version}`
-            : 'לא הצלחנו לטעון את פרטי הגרסה. ניתן להוריד ישירות מדף ההפצות.'}
-        </p>
-      </div>
+    <div className="flex flex-col gap-5">
+      {detected === 'mobile' && (
+        <Card tone="tonal" role="note" padding="sm" className="flex items-start gap-3 text-body-sm text-on-surface">
+          <AppIcon name="smartphone" className="mt-0.5 shrink-0 text-xl text-on-tile" />
+          <p>הכלי הזה מיועד למחשב (<bdi dir="ltr" className="whitespace-nowrap">Windows</bdi> או <bdi dir="ltr" className="whitespace-nowrap">macOS</bdi>). בטלפון, אוצריא מתעדכנת מחנות האפליקציות.</p>
+        </Card>
+      )}
 
-      <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
-        {PLATFORMS.map((platform) => {
-          const asset = releases?.[platform.key]
-          const href = asset?.url || releasesPage
+      <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+        {orderOfflinePlatforms(detected).map((key) => {
+          const platform = PLATFORMS[key]
+          const asset = releases?.[key]
           const size = formatSize(asset?.size)
-
           return (
-            <a
-              key={platform.key}
-              href={href}
-              className="flex items-center gap-5 p-6 bg-white border-2 border-primary rounded-2xl hover:shadow-2xl transition-all group"
-            >
-              <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined text-4xl text-primary group-hover:scale-110 transition-transform">
-                  {platform.icon}
-                </span>
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="text-xl font-bold">{platform.title}</h3>
-                <p className="text-sm text-neutral-600">{platform.subtitle}</p>
-                <p className="text-xs text-neutral-500 mt-1">
-                  {platform.note}
-                  {size ? ` · ${size}` : ''}
-                </p>
-              </div>
-              <span className="material-symbols-outlined text-3xl text-primary">download</span>
-            </a>
+            <li key={key}>
+              <OfflinePlatformCard
+                href={asset?.url || releasesPage}
+                icon={platform.icon}
+                title={platform.title}
+                details={[platform.requirement, size ? <>{platform.kind} · <bdi dir="ltr" className="whitespace-nowrap">{size}</bdi></> : platform.kind]}
+                actionLabel={`הורד ל-${platform.title}`}
+                ariaLabel={size ? `הורד ל-${platform.title}, ${size}` : `הורד ל-${platform.title}`}
+                primary={key === detected}
+              />
+            </li>
           )
         })}
-      </div>
+      </ul>
 
-      <p className="text-center text-sm text-neutral-500 mt-6">
-        מומלץ להתקין ישירות על כונן USB, כדי שאותו כונן ישמש להורדה במחשב המקוון ולעדכון במחשב הלא-מקוון.{' '}
-        <a href={`${repoUrl}/releases`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-          כל הגרסאות
-        </a>
-      </p>
+      <div className="flex flex-col items-center gap-3 text-center">
+        <p className="flex max-w-measure items-start gap-2 text-body-sm text-on-surface-variant">
+          <AppIcon name="usb" className="mt-0.5 shrink-0 text-xl text-on-tile" />
+          <span>שמור את הקובץ ישר על כונן USB. אין צורך בהתקנה, ואותו כונן ישמש אותך בשני המחשבים.</span>
+        </p>
+        <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-body-sm text-on-surface-variant">
+          {releases?.version ? (
+            <>
+              <Badge>גרסה <bdi dir="ltr" className="whitespace-nowrap">{releases.version}</bdi></Badge>
+              {date && <span>פורסמה ב-{date}</span>}
+            </>
+          ) : (
+            <span>לא הצלחנו לטעון את פרטי הגרסה. אפשר להוריד את הכלי מדף כל הגרסאות.</span>
+          )}
+          <Button href={`${repoUrl}/releases`} external variant="text" size="sm" iconEnd="open_in_new">
+            כל הגרסאות
+          </Button>
+        </p>
+      </div>
     </div>
   )
 }
