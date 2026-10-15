@@ -34,11 +34,11 @@
    * content      — רוחב התוכן של כל עמוד (אזורי דף הבית, הפוטר). מ-2xl (1536px) —
    *                content-wide. זה הרוחב שהכותרת העליונה אמורה להתיישר אליו.
    * narrow       — טקסט רציף / אזור ממוקד (קריאה לפעולה, טפסים קצרים).
-   * prose        — פסקת הסבר מתחת לכותרת (כ-65 תווים). */
+   * measure      — פסקת הסבר מתחת לכותרת (42rem). לא "prose": max-w-prose של Tailwind הוא 65ch. */
   --container-content: var(--container-6xl);
   --container-content-wide: var(--container-7xl);
   --container-narrow: var(--container-3xl);
-  --container-prose: var(--container-2xl);
+  --container-measure: var(--container-2xl);
 }
 
 /* מסך נמוך במחשב/טבלט לרוחב (למשל לפטופ 1366×768 שבו לדפדפן נשארים כ-650px): אזור הפתיחה

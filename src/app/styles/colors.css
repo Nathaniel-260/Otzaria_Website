@@ -40,7 +40,7 @@
   --color-inverse-surface: var(--ref-neutral-20);
   --color-inverse-on-surface: var(--ref-neutral-95);
   /* top-bar — הכותרת העליונה, הפוטר והתפריט הנייד: tone אחד מתחת לרקע הדף. באפליקציה
-     ‏topBarBackground = surfaceContainerHigh (tone 92) מול panelBackground (L* 94.2); באתר הדף
+     topBarBackground = surfaceContainerHigh (tone 92) מול panelBackground (L* 94.2); באתר הדף
      הובהר (L* 95.5), ולכן גם הכותרת עלתה ל-tone 93 — אותו מרווח בהירות (כ-2.4 L*), כך שהיא
      עדיין נבדלת מהדף. טקסט הניווט עליה: on-surface-variant 6.6:1, on-surface 12.0:1, primary 5.4:1. */
   --color-top-bar: var(--ref-neutral-93);
@@ -126,14 +126,14 @@
   /* ---------------- כינויים [מיושן] — אין להשתמש בקוד חדש ---------------- */
   /* [מיושן] → on-surface. שם מ-M2; זהה בערכו. */
   --color-on-background: var(--color-on-surface);
-  /* [מיושן] → surface-selected. שימו לב: ב-M3 ‏primaryContainer הוא גוון אחר (#FFDDB3,
+  /* [מיושן] → surface-selected. שימו לב: ב-M3 primaryContainer הוא גוון אחר (#FFDDB3,
      --ref-primary-90); כאן השם מחזיק את שכבת הבחירה, ולכן לא נעשה בו שימוש לתפקיד ה-M3. */
   --color-primary-container: var(--color-surface-selected);
   /* [מיושן] → primary-pressed (רקע) / primary (טקסט). כטקסט על background נותן 4.4:1 —
      מתחת ל-AA; אין להשתמש בו כצבע טקסט. */
   --color-accent: var(--color-primary-pressed);
   /* [מיושן] → outline-subtle (כקו) או surface-container-highest (כמשטח). ב-M3
-     ‏surfaceVariant הוא משטח ולא קו; כאן הוא שימש לשניהם, ולכן ההעברה מחייבת החלטה לכל שימוש. */
+     surfaceVariant הוא משטח ולא קו; כאן הוא שימש לשניהם, ולכן ההעברה מחייבת החלטה לכל שימוש. */
   --color-surface-variant: var(--color-outline-subtle);
 
   /* שמות שבשימוש בקוד ואינם מוגדרים בכלל (המחלקות לא עושות כלום היום, והטקסט יורש צבע):

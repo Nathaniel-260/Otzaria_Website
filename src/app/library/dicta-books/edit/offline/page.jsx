@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import Button from '@/components/ui/Button'
+import Button from '@/components/ui/legacy/LegacyButton'
 import dynamic from 'next/dynamic'
 
 // עד שה-chunk של העורך נטען שומרים את המקום שלו (השורש של DictaEditorCore הוא

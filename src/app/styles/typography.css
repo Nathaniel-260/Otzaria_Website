@@ -98,7 +98,7 @@
   --text-headline-md--line-height: var(--leading-tight);
   --text-headline-md--font-weight: 700;
   --text-headline-sm: var(--text-2xl);
-  --text-headline-sm--line-height: var(--leading-tight);
+  --text-headline-sm--line-height: var(--text-2xl--line-height);
   --text-headline-sm--font-weight: 700;
 
   --text-title-lg: var(--text-xl);

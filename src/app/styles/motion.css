@@ -13,10 +13,11 @@
  *   ease-standard — שינוי במקום (צבע, גודל).   ease-enter — כניסה (מאט בסוף).
  *   ease-exit     — יציאה (מאיץ בסוף).
  *
- * reduced-motion: ב-prefers-reduced-motion: reduce כל משכי התפקיד מתאפסים (כמעט 0), כך
- * שרכיב שמשתמש בטוקנים מכבד את ההעדפה בלי קוד נוסף. אנימציה שאינה רק מעבר (פעימה, לולאה,
- * תזוזה) — כל רכיב מבטל במפורש ב-@media (prefers-reduced-motion: reduce) או motion-reduce:,
- * כמו היום (animations.css, effects.css, GoldenBook, DonateAnimatedIcon).
+ * reduced-motion (prefers-reduced-motion: reduce): מסירים *תזוזה* (translate / scale / rotate, לולאות,
+ * פעימות, parallax) ומשאירים דהייה ושינוי צבע — הם לא גורמים לסחרחורת, והם מסבירים שמשהו
+ * השתנה. כל רכיב מבטל את התזוזה שלו במפורש (motion-reduce:... או @media), כמו היום
+ * (animations.css, effects.css, tooltip.css, GoldenBook, DonateAnimatedIcon). לכן המשכים
+ * כאן *לא* מתאפסים גלובלית.
  * ============================================================ */
 
 @theme {
@@ -50,10 +51,3 @@
   --motion-duration-emphasis: 300ms;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --motion-duration-fast: 0.01ms;
-    --motion-duration-standard: 0.01ms;
-    --motion-duration-emphasis: 0.01ms;
-  }
-}

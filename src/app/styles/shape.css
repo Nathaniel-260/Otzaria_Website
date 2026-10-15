@@ -34,7 +34,7 @@
   --radius-control: var(--radius-shape);  /* כפתור, שדה, פריט ניווט/תפריט */
   --radius-card: var(--radius-shape);     /* כרטיס, אריח אייקון, הערה */
   --radius-dialog: var(--radius-shape);   /* דיאלוג ממורכז */
-  --radius-container: var(--radius-xl);   /* תפריט נפתח, כרטיס-רמז (= צורה + 4px) */
+  --radius-container: var(--radius-xl);   /* תפריט נפתח (= צורה + 4px) */
   --radius-sheet: var(--radius-xl);       /* פינות עליונות של גיליון תחתון */
   --radius-pill: 9999px;                  /* תגית, תג */
 }

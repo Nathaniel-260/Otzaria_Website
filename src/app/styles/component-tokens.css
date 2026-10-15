@@ -44,6 +44,11 @@
   --button-text-fg: var(--color-primary);
   --button-text-bg-hover: var(--color-surface-selected);
 
+  /* danger — פעולה הרסנית (מחיקה). מלא בצבע השגיאה; ריחוף = שכבת מצב של 8% */
+  --button-danger-bg: var(--color-error);
+  --button-danger-bg-hover: color-mix(in srgb, var(--color-on-error) 8%, var(--color-error));
+  --button-danger-fg: var(--color-on-error);
+
   --button-disabled-opacity: 0.6;
 
   /* ---------- כרטיס (ui/Card) ----------
@@ -95,7 +100,7 @@
   /* ---------- רמז (ui/Tooltip; .tooltip ב-tooltip.css) ---------- */
   --tooltip-bg: var(--color-surface);
   --tooltip-fg: var(--color-on-surface);
-  --tooltip-radius: var(--radius-container);
+  --tooltip-radius: var(--radius-shape);
   --tooltip-shadow: var(--shadow-tooltip);
   --tooltip-max-width: 15rem;
   --tooltip-delay: 280ms;

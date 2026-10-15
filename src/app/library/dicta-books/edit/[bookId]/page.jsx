@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Button from '@/components/ui/Button'
+import Button from '@/components/ui/legacy/LegacyButton'
 import { useDialog } from '@/components/providers/DialogContext'
 import { getAvatarColor, getInitial } from '@/lib/avatar-colors'
 import DictaEditorCore from '@/components/editor/DictaEditorCore'

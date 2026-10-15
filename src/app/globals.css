@@ -19,6 +19,7 @@
  *   styles/icon-font.css   — @font-face של גופן האייקונים (נוצר אוטומטית)
  *   styles/base.css        — html / body / אייקונים
  *   styles/effects.css     — זכוכית, כפתור התרומה, אייקון מותאם, קישוט הכותרת, עוגן, פס גלילה
+ *   styles/tooltip.css     — כרטיס-הרמז (ui/Tooltip)
  *   styles/nav.css         — ניווט הכותרת: פריט נפתח וקבוצה בתפריט הנייד
  *   styles/animations.css  — keyframes + מחלקות animate-*
  * ============================================================ */
@@ -35,5 +36,6 @@
 @import "./styles/icon-font.css";
 @import "./styles/base.css";
 @import "./styles/effects.css";
+@import "./styles/tooltip.css";
 @import "./styles/nav.css";
 @import "./styles/animations.css";
