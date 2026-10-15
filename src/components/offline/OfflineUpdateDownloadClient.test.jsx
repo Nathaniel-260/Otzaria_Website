@@ -1,6 +1,6 @@
 // בדיקות ל-OfflineUpdateDownloadClient: מספר הגרסה שמגיע כבר טעון (releases prop, נשלף בשרת
 // ע"י OfflineUpdateDownload.jsx) מוצג; כש-releases הוא null מוצג מסר הנפילה והכרטיסים מובילים
-// לדף הגרסאות; המערכת שזוהתה בדפדפן ראשונה ומסומנת; בטלפון — הערה שהכלי למחשב.
+// לדף הגרסאות; המערכת שזוהתה בדפדפן מסומנת (בלי לשנות סדר); בטלפון — הערה שהכלי למחשב.
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import OfflineUpdateDownloadClient from './OfflineUpdateDownloadClient'
@@ -27,8 +27,10 @@ describe('OfflineUpdateDownloadClient', () => {
     render(<OfflineUpdateDownloadClient repoUrl={REPO} releases={RELEASES} />)
 
     expect(screen.getByText('v1.2.3')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'הורד ל-Windows, 18.7 MB' })).toHaveAttribute('href', RELEASES.windows.url)
-    expect(screen.getByRole('link', { name: 'הורד ל-macOS, 46.4 MB' })).toHaveAttribute('href', RELEASES.macos.url)
+    const windows = screen.getByRole('link', { name: 'הורד ל-Windows' })
+    expect(windows).toHaveAttribute('href', RELEASES.windows.url)
+    expect(windows).toHaveAccessibleDescription(/18\.7 MB/)
+    expect(screen.getByRole('link', { name: 'הורד ל-macOS' })).toHaveAttribute('href', RELEASES.macos.url)
   })
 
   test('מציג מסר נפילה כש-releases הוא null, והכרטיסים מובילים לדף הגרסה האחרונה', () => {
@@ -38,14 +40,15 @@ describe('OfflineUpdateDownloadClient', () => {
     for (const link of downloadLinks()) expect(link).toHaveAttribute('href', `${REPO}/releases/latest`)
   })
 
-  test('המערכת שזוהתה (macOS) ראשונה ומסומנת "המחשב שלך"', () => {
+  test('המערכת שזוהתה (macOS) מסומנת "המחשב שלך", והסדר נשאר קבוע', () => {
     mockNavigator({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', platform: 'MacIntel' })
     render(<OfflineUpdateDownloadClient repoUrl={REPO} releases={RELEASES} />)
 
     const [first, second] = downloadLinks()
-    expect(first).toHaveAccessibleName(/macOS/)
-    expect(first).toHaveTextContent('המחשב שלך')
-    expect(second).not.toHaveTextContent('המחשב שלך')
+    expect(first).toHaveAccessibleName('הורד ל-Windows')
+    expect(first).not.toHaveTextContent('המחשב שלך')
+    expect(second).toHaveAccessibleName('הורד ל-macOS')
+    expect(second).toHaveTextContent('המחשב שלך')
   })
 
   test('בטלפון מוצגת הערה שהכלי מיועד למחשב, ושני הכרטיסים נשארים זמינים', () => {

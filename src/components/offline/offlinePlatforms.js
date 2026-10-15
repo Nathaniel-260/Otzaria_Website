@@ -1,6 +1,6 @@
 // לוגיקה טהורה של אזור ההורדה ב-/offline (בלי React/DOM) — נבדקת ב-offlinePlatforms.test.mjs.
 
-/** המערכות שהכלי זמין להן, בסדר ברירת המחדל (כשלא זוהתה מערכת) */
+/** המערכות שהכלי זמין להן, בסדר התצוגה (קבוע — הזיהוי משנה רק את ההדגשה) */
 export const OFFLINE_PLATFORM_KEYS = ['windows', 'macos']
 
 /**
@@ -17,12 +17,6 @@ export function detectOfflinePlatform({ userAgent = '', platform = '', maxTouchP
   if (/win/.test(pf) || /windows/.test(ua)) return 'windows'
   if (/linux|cros|x11/.test(pf) || /linux|cros|x11/.test(ua)) return 'other'
   return null
-}
-
-/** סדר הכרטיסים: המערכת שזוהתה ראשונה, השאר אחריה */
-export function orderOfflinePlatforms(detected) {
-  if (!OFFLINE_PLATFORM_KEYS.includes(detected)) return [...OFFLINE_PLATFORM_KEYS]
-  return [detected, ...OFFLINE_PLATFORM_KEYS.filter((key) => key !== detected)]
 }
 
 /** גודל קובץ לתצוגה: "18.7 MB" (מ-100MB — בלי ספרה אחרי הנקודה); null כשאין גודל */

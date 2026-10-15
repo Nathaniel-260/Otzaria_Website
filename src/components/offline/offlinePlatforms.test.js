@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectOfflinePlatform, formatReleaseDate, formatSize, orderOfflinePlatforms } from './offlinePlatforms.js'
+import { detectOfflinePlatform, formatReleaseDate, formatSize } from './offlinePlatforms.js'
 
 const WIN_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36'
 const MAC_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15'
@@ -17,17 +17,6 @@ describe('detectOfflinePlatform', () => {
   it('Linux — other; בלי מידע — null', () => {
     expect(detectOfflinePlatform({ userAgent: 'Mozilla/5.0 (X11; Linux x86_64)', platform: 'Linux x86_64' })).toBe('other')
     expect(detectOfflinePlatform({})).toBe(null)
-  })
-})
-
-describe('orderOfflinePlatforms', () => {
-  it('המערכת שזוהתה ראשונה', () => {
-    expect(orderOfflinePlatforms('macos')).toEqual(['macos', 'windows'])
-    expect(orderOfflinePlatforms('windows')).toEqual(['windows', 'macos'])
-  })
-  it('בלי זיהוי מתאים — סדר ברירת המחדל', () => {
-    expect(orderOfflinePlatforms(null)).toEqual(['windows', 'macos'])
-    expect(orderOfflinePlatforms('mobile')).toEqual(['windows', 'macos'])
   })
 })
 

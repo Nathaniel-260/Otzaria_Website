@@ -6,7 +6,7 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import OfflinePlatformCard from './OfflinePlatformCard'
-import { detectOfflinePlatform, formatReleaseDate, formatSize, orderOfflinePlatforms } from './offlinePlatforms'
+import { detectOfflinePlatform, formatReleaseDate, formatSize, OFFLINE_PLATFORM_KEYS } from './offlinePlatforms'
 
 // מונחים לועזיים בבידוד (bdi) — אחרת "10 / 11" והסוגריים מתהפכים בשורה עברית
 const PLATFORMS = {
@@ -27,7 +27,9 @@ const PLATFORMS = {
 /**
  * אזור ההורדה של "עדכוני אוצריא" — releases מגיע כבר טעון מהשרת (OfflineUpdateDownload.jsx,
  * ה-Server Component שעוטף את הרכיב הזה). כש-releases הוא null (השליפה נכשלה) כל כרטיס מוביל
- * לדף הגרסאות. כאן נשאר רק מה שדורש דפדפן: זיהוי המערכת — הכרטיס שלה ראשון ובולט.
+ * לדף הגרסאות. כאן נשאר רק מה שדורש דפדפן: זיהוי המערכת — הכרטיס שלה בולט (מורם, כפתור מלא).
+ * סדר הכרטיסים קבוע (Windows, macOS) גם אחרי הזיהוי, כדי שהעמוד לא יזוז אחרי ה-hydration; בלי
+ * זיהוי מתאים (טלפון, Linux, לא ידוע) שני הכרטיסים שווים.
  */
 export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
   const [detected, setDetected] = useState(null)
@@ -50,12 +52,12 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
       {detected === 'mobile' && (
         <Card tone="tonal" role="note" padding="sm" className="flex items-start gap-3 text-body-sm text-on-surface">
           <AppIcon name="smartphone" className="mt-0.5 shrink-0 text-xl text-on-tile" />
-          <p>הכלי הזה מיועד למחשב (<bdi dir="ltr" className="whitespace-nowrap">Windows</bdi> או <bdi dir="ltr" className="whitespace-nowrap">macOS</bdi>). בטלפון, אוצריא מתעדכנת מחנות האפליקציות.</p>
+          <p>הכלי הזה מיועד למחשב (<bdi dir="ltr" className="whitespace-nowrap">Windows</bdi> או <bdi dir="ltr" className="whitespace-nowrap">macOS</bdi>). בטלפון ובטאבלט, אוצריא מתעדכנת דרך חנות האפליקציות.</p>
         </Card>
       )}
 
       <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-        {orderOfflinePlatforms(detected).map((key) => {
+        {OFFLINE_PLATFORM_KEYS.map((key) => {
           const platform = PLATFORMS[key]
           const asset = releases?.[key]
           const size = formatSize(asset?.size)
@@ -67,7 +69,7 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
                 title={platform.title}
                 details={[platform.requirement, size ? <>{platform.kind} · <bdi dir="ltr" className="whitespace-nowrap">{size}</bdi></> : platform.kind]}
                 actionLabel={`הורד ל-${platform.title}`}
-                ariaLabel={size ? `הורד ל-${platform.title}, ${size}` : `הורד ל-${platform.title}`}
+                idPrefix={`offline-download-${key}`}
                 primary={key === detected}
               />
             </li>
@@ -78,7 +80,7 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
       <div className="flex flex-col items-center gap-3 text-center">
         <p className="flex max-w-measure items-start gap-2 text-body-sm text-on-surface-variant">
           <AppIcon name="usb" className="mt-0.5 shrink-0 text-xl text-on-tile" />
-          <span>שמור את הקובץ ישר על כונן USB. אין צורך בהתקנה, ואותו כונן ישמש אותך בשני המחשבים.</span>
+          <span>שמור את הקובץ ישר על כונן USB. אותו כונן ישמש אותך בשני המחשבים.</span>
         </p>
         <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-body-sm text-on-surface-variant">
           {releases?.version ? (
@@ -90,7 +92,7 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
             <span>לא הצלחנו לטעון את פרטי הגרסה. אפשר להוריד את הכלי מדף כל הגרסאות.</span>
           )}
           <Button href={`${repoUrl}/releases`} external variant="text" size="sm" iconEnd="open_in_new">
-            כל הגרסאות
+            כל הגרסאות<span className="sr-only"> ב-GitHub (נפתח בחלון חדש)</span>
           </Button>
         </p>
       </div>

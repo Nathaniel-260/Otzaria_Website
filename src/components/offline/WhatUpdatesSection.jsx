@@ -1,5 +1,4 @@
-import AppIcon from '@/components/ui/AppIcon'
-import Card from '@/components/ui/Card'
+import IconTile from '@/components/ui/IconTile'
 import Section from '@/components/ui/Section'
 import SectionHeading from '@/components/ui/SectionHeading'
 import OfflineInfoCard from './OfflineInfoCard'
@@ -31,11 +30,11 @@ const EXTRAS = [
   {
     icon: 'flag',
     title: 'דיווחי טעויות',
-    text: 'דיווחים על טעויות בספרים, בתוכנה ובתוספים, שלא נשלחו מהמחשב בלי האינטרנט, נאספים באישורך ונשלחים אחר כך מהמחשב המחובר.'
+    text: 'דיווחים על טעויות בספרים, בתוכנה ובתוספים, שלא נשלחו מהמחשב הלא-מקוון, נאספים באישורך ונשלחים אחר כך מהמחשב המחובר.'
   }
 ]
 
-// שלושת הרכיבים המרכזיים ככרטיסים, ו"ועוד" — שתי יכולות משניות בתיבה טונלית שקטה אחת
+// שלושת הרכיבים המרכזיים ככרטיסים, ו"ועוד" — שתי יכולות משניות כרשימה שקטה, בלי משטח
 export default function WhatUpdatesSection() {
   return (
     <Section labelledBy="updates-heading">
@@ -46,12 +45,12 @@ export default function WhatUpdatesSection() {
         ))}
       </ul>
 
-      <Card tone="tonal" padding="md" className="mt-3 sm:mt-4">
-        <h3 className="mb-3 text-title-sm text-on-surface">ועוד</h3>
+      <div className="mt-8 md:mt-10">
+        <h3 className="mb-4 text-center text-title-md text-on-surface">ועוד</h3>
         <ul className="grid gap-4 md:grid-cols-2 md:gap-8">
           {EXTRAS.map((item) => (
             <li key={item.title} className="flex items-start gap-3">
-              <AppIcon name={item.icon} className="mt-0.5 shrink-0 text-2xl text-on-tile" />
+              <IconTile icon={item.icon} size="sm" />
               <div className="min-w-0">
                 <h4 className="text-title-sm text-on-surface">{item.title}</h4>
                 <p className="mt-0.5 text-body-sm text-on-surface-variant">{item.text}</p>
@@ -59,7 +58,7 @@ export default function WhatUpdatesSection() {
             </li>
           ))}
         </ul>
-      </Card>
+      </div>
     </Section>
   )
 }

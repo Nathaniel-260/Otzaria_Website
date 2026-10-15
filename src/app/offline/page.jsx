@@ -10,7 +10,7 @@ import PageHeader from '@/components/ui/PageHeader'
 import Section from '@/components/ui/Section'
 
 export const metadata = {
-  title: 'עדכוני אוצריא - עדכון לא-מקוון | אוצריא',
+  title: 'עדכוני אוצריא – עדכון במחשב לא-מקוון | אוצריא',
   description:
     'כלי קטן לעדכון אוצריא, ספריית הספרים והתוספים במחשב בלי אינטרנט. הורד במחשב מחובר אל כונן USB, ועדכן מהכונן. ל-Windows ול-macOS.'
 }
@@ -25,8 +25,9 @@ export default function OfflineUpdatePage() {
       <OtzariaSoftwareHeader />
 
       <main className="flex-1">
-        {/* בלי אנימציית כניסה: הכותרת היא אלמנט ה-LCP */}
-        <Section id="download" labelledBy="offline-title" anchor container="narrow" className="pt-10 md:pt-14 short:pt-8">
+        {/* בלי אנימציית כניסה: הכותרת היא אלמנט ה-LCP. בלי ריפוד תחתון — הרווח עד האזור הבא
+            הוא הריפוד העליון שלו, כדי שההורדה ו"איך זה עובד" לא יתרחקו זה מזה */}
+        <Section id="download" labelledBy="offline-title" anchor container="narrow" spacing="none" className="pt-10 md:pt-14 short:pt-8">
           <div className="mb-4 flex justify-center">
             <IconTile icon="cloud_off" size="lg" />
           </div>
