@@ -48,7 +48,7 @@ export default function LicensePage() {
                 <div className="flex items-center gap-2 text-sm bg-surface p-3 rounded-lg border border-surface-variant/50">
                    <span className="material-symbols-outlined text-primary text-lg">info</span>
                    <p>
-                    לצפייה ברשיון המאגר המלא:{' '}
+                    לצפייה ברישיון המאגר המלא:{' '}
                     <Link href="/license" className="text-primary font-bold hover:underline">
                       לחצו כאן
                     </Link>

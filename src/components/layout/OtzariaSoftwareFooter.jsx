@@ -3,7 +3,7 @@ import Link from 'next/link'
 // כותרת תחתונה בסגנון ה-topBar של האפליקציה: רקע surfaceContainerHigh, קו הפרדה דק
 // למעלה, טקסט שקט. אותה כותרת משמשת את כל הדפים הציבוריים.
 const FOOTER_LINKS = [
-  { href: '/license', label: 'רשיון' },
+  { href: '/license', label: 'רישיון' },
   { href: '/library', label: 'הספרייה המקוונת' },
   { href: '/privacy', label: 'מדיניות פרטיות' }
 ]
