@@ -51,13 +51,6 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
 
   return (
     <div className="flex flex-col gap-5">
-      {detected === 'mobile' && (
-        <Card tone="tonal" role="note" padding="sm" className="flex items-start gap-3 text-body-sm text-on-surface">
-          <AppIcon name="smartphone" className="mt-0.5 shrink-0 text-xl text-on-tile" />
-          <p>הכלי הזה מיועד למחשב (<bdi dir="ltr" className="whitespace-nowrap">Windows</bdi> או <bdi dir="ltr" className="whitespace-nowrap">macOS</bdi>). בטלפון ובטאבלט, אוצריא מתעדכנת דרך חנות האפליקציות.</p>
-        </Card>
-      )}
-
       <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4">
         {OFFLINE_PLATFORM_KEYS.map((key) => {
           const platform = PLATFORMS[key]
@@ -79,6 +72,15 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
           )
         })}
       </ul>
+
+      {/* אחרי הכרטיסים ולא לפניהם: ההערה מופיעה רק אחרי הזיהוי בדפדפן, ומעליהם הייתה דוחפת
+          אותם למטה (קפיצת layout) */}
+      {detected === 'mobile' && (
+        <Card tone="tonal" role="note" padding="sm" className="flex items-start gap-3 text-body-sm text-on-surface">
+          <AppIcon name="smartphone" className="mt-0.5 shrink-0 text-xl text-on-tile" />
+          <p>הכלי הזה מיועד למחשב (<bdi dir="ltr" className="whitespace-nowrap">Windows</bdi> או <bdi dir="ltr" className="whitespace-nowrap">macOS</bdi>). בטלפון ובטאבלט, אוצריא מתעדכנת דרך חנות האפליקציות.</p>
+        </Card>
+      )}
 
       <div className="flex flex-col items-center gap-3 text-center">
         <p className="flex max-w-measure items-start gap-2 text-body-sm text-on-surface-variant">
