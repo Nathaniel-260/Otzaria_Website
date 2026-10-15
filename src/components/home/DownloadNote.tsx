@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import Card from '@/components/ui/Card'
 
 /**
  * הערה בחלון ההורדה.
@@ -17,10 +18,10 @@ export default function DownloadNote({ icon = 'info', variant = 'quiet', title, 
     return (
       // ממורכזת, בלי אייקון — הכותרת המודגשת היא העוגן, וריפוד שווה מכל הצדדים.
       // text-balance מאזן את השורות, כדי שלא תישאר מילה יתומה בשורה האחרונה.
-      <div role="note" className="rounded-lg bg-tile/40 px-3 py-3.5 text-center text-sm leading-relaxed text-balance text-on-surface sm:px-4 sm:py-4 sm:text-[0.9375rem]">
+      <Card tone="tonal" role="note" className="px-3 py-3.5 text-center text-sm leading-relaxed text-balance text-on-surface sm:px-4 sm:py-4 sm:text-[0.9375rem]">
         {title && <p className="font-bold">{title}</p>}
         <p className={title ? 'mt-1 text-on-surface-variant' : undefined}>{children}</p>
-      </div>
+      </Card>
     )
   }
 

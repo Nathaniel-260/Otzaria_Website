@@ -1,4 +1,5 @@
-import SectionHeading from './SectionHeading'
+import Section from '@/components/ui/Section'
+import SectionHeading from '@/components/ui/SectionHeading'
 import FeatureCard from './FeatureCard'
 
 // Server Component: תוכן סטטי לגמרי, בלי JavaScript בדפדפן (בלי framer-motion — ראו
@@ -49,24 +50,22 @@ const features = [
 
 export default function FeaturesSection() {
   return (
-    <section id="features" aria-labelledby="features-heading" className="anchor-section px-4 py-14 md:px-8 md:py-20">
-      <div className="container mx-auto max-w-6xl 2xl:max-w-7xl">
-        <SectionHeading
-          id="features-heading"
-          title="למה לבחור באוצריא?"
-          subtitle="פלטפורמה מתקדמת המשלבת טכנולוגיה חדישה עם כבוד למסורת"
-        />
+    <Section id="features" labelledBy="features-heading" anchor>
+      <SectionHeading
+        id="features-heading"
+        title="למה לבחור באוצריא?"
+        subtitle="פלטפורמה מתקדמת המשלבת טכנולוגיה חדישה עם כבוד למסורת"
+      />
 
-        {/* נייד: עמודה אחת; טבלט: שתיים; דסקטופ רחב: ארבע. הכניסה המדורגת ב-CSS
-            (הכרטיסים כבר ב-HTML של השרת, לא מחכים ל-hydration). */}
-        <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
-          {features.map((feature, index) => (
-            <li key={feature.title} className="flex">
-              <FeatureCard {...feature} index={index} />
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+      {/* נייד: עמודה אחת; טבלט: שתיים; דסקטופ רחב: ארבע. הכניסה המדורגת ב-CSS
+          (הכרטיסים כבר ב-HTML של השרת, לא מחכים ל-hydration). */}
+      <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+        {features.map((feature, index) => (
+          <li key={feature.title} className="flex">
+            <FeatureCard {...feature} index={index} />
+          </li>
+        ))}
+      </ul>
+    </Section>
   )
 }

@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
-import Link from 'next/link'
+import Button from '@/components/ui/Button'
+import TitleOrnament from '@/components/ui/TitleOrnament'
 import HeroEmblem from './HeroEmblem'
 import HeroStatsLoader from './HeroStatsLoader'
 import { HeroStatsPlaceholder } from './HeroStats'
@@ -27,9 +28,10 @@ import { HeroStatsPlaceholder } from './HeroStats'
 // הריפוד העליון ב-tall הוא --hero-peek: מתחת לגיבור יש גם את הריפוד העליון של האזור הבא, ובלי
 // איזון התוכן נראה צף גבוה מדי ביחס לכותרת האזור הבא שמציצה מלמטה.
 
-const BUTTON_BASE =
-  'inline-flex min-h-12 items-center justify-center gap-2 rounded-lg px-6 text-base font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary tall:min-h-[calc(2.85*var(--hero-tall-rem))] tall:px-[calc(1.425*var(--hero-tall-rem))] tall:text-[calc(1*var(--hero-tall-rem))]'
-const BUTTON_ICON = 'material-symbols-outlined text-[22px] tall:text-[calc(1.375*var(--hero-tall-rem))]'
+// הכפתורים — ui/Button בגודל md; כאן רק ההגדלה היחסית במסך tall
+const TALL_BUTTON =
+  'tall:min-h-[calc(2.85*var(--hero-tall-rem))] tall:px-[calc(1.425*var(--hero-tall-rem))] tall:text-[calc(1*var(--hero-tall-rem))]'
+const TALL_ICON = 'tall:text-[calc(1.375*var(--hero-tall-rem))]'
 
 export default function HeroSection() {
   return (
@@ -48,7 +50,7 @@ export default function HeroSection() {
             <h1 className="font-display text-5xl font-normal leading-none text-on-surface sm:text-6xl lg:text-7xl 2xl:text-8xl short:lg:text-6xl tall:text-[calc(6*var(--hero-tall-rem))]">
               <span data-wordmark-handoff-source="" className="[--wordmark-handoff-rise:1] md:[--wordmark-handoff-rise:0.6]">אוצריא</span>
             </h1>
-            <span className="title-ornament mt-5 [--ornament-ratio:100%] short:mt-3" aria-hidden="true" data-wordmark-handoff-companion="" />
+            <TitleOrnament className="mt-5 [--ornament-ratio:100%] short:mt-3" data-wordmark-handoff-companion="" />
           </div>
 
           <p className="mt-5 text-balance text-xl font-medium leading-snug text-on-surface sm:text-2xl lg:text-[1.75rem] 2xl:text-[2.125rem] short:mt-3 short:lg:text-2xl tall:text-[calc(2.125*var(--hero-tall-rem))]">
@@ -64,18 +66,12 @@ export default function HeroSection() {
           <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row short:mt-5">
             {/* עוגן באותו דף — <a> רגיל. כ-Link, Next התייחס אליו כמסלול
                 ופתח בקשות RSC ספקולטיביות לדף הנוכחי. */}
-            <a href="#download" className={`${BUTTON_BASE} bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-pressed`}>
-              <span className={BUTTON_ICON} aria-hidden="true">download</span>
+            <Button href="#download" icon="download" iconClassName={TALL_ICON} className={TALL_BUTTON}>
               הורד בחינם
-            </a>
-            <Link
-              href="/about"
-              prefetch={false}
-              className={`${BUTTON_BASE} bg-secondary-container text-on-secondary-container hover:bg-[#f6d4ad]`}
-            >
-              <span className={BUTTON_ICON} aria-hidden="true">info</span>
+            </Button>
+            <Button href="/about" variant="tonal" icon="info" iconClassName={TALL_ICON} className={TALL_BUTTON}>
               אודות הספרייה
-            </Link>
+            </Button>
           </div>
         </div>
       </div>

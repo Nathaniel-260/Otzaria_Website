@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import Card from '@/components/ui/Card'
 import DownloadNote, { Ltr, Nowrap } from './DownloadNote'
 import DownloadOptionCard from './DownloadOptionCard'
 
@@ -94,7 +95,7 @@ export default function DownloadAssistantOptions({ platform, links }: { platform
 // מה עושים עם ה-APK ועם קובצי הספרייה.
 export function AndroidAssistantNotice({ href }: { href: string }) {
   return (
-    <div role="note" className="mt-1 flex gap-3 rounded-lg bg-tile/40 p-3 text-on-surface sm:p-4">
+    <Card tone="tonal" padding="sm" role="note" className="mt-1 flex gap-3 text-on-surface">
       <span aria-hidden="true" className="material-symbols-outlined mt-px shrink-0 text-[22px] text-on-tile">wifi_off</span>
       <div className="min-w-0 flex-1">
         <p className="font-bold">אין אינטרנט במכשיר?</p>
@@ -109,6 +110,6 @@ export function AndroidAssistantNotice({ href }: { href: string }) {
           <span>הורדת המסייע ל-Windows</span>
         </a>
       </div>
-    </div>
+    </Card>
   )
 }

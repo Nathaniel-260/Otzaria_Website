@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import DownloadAssistantOptions, { AndroidAssistantNotice, hasDownloadAssistant } from './DownloadAssistantOptions'
-import SectionHeading from './SectionHeading'
-import IconTile from './IconTile'
-import DownloadDialog from './DownloadDialog'
+import Card from '@/components/ui/Card'
+import Dialog from '@/components/ui/Dialog'
+import IconTile from '@/components/ui/IconTile'
+import Section from '@/components/ui/Section'
+import SectionHeading from '@/components/ui/SectionHeading'
 import DownloadOptionCard from './DownloadOptionCard'
 // ייבוא טיפוס בלבד (נמחק בקומפילציה) — הקוד של stableDownloads.ts נשאר בשרת
 import type { Downloads } from './stableDownloads'
@@ -117,11 +119,7 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
     // שורת כרטיס בסגנון המתקין: אריח אייקון, כותרת ושורת משנה, ו"כפתור" ראשי מלא
     if (large) {
       return (
-        <button
-          type="button"
-          onClick={config.onClick}
-          className="group flex w-full items-center gap-4 rounded-lg bg-card p-4 text-start transition-colors hover:bg-card-selected focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:gap-5 sm:p-6"
-        >
+        <Card onClick={config.onClick} className="flex w-full items-center gap-4 p-4 sm:gap-5 sm:p-6">
           <IconTile icon={config.icon} size="lg" />
           <div className="min-w-0 flex-1">
             <h3 className="text-xl font-bold text-on-surface sm:text-2xl">{config.title}</h3>
@@ -131,90 +129,86 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
             <span className="material-symbols-outlined">download</span>
             <span className="hidden sm:inline">הורדה</span>
           </span>
-        </button>
+        </Card>
       )
     }
 
     return (
-      <button
-        type="button"
-        onClick={config.onClick}
-        className="group flex h-full w-full items-center gap-4 rounded-lg bg-card p-4 text-start transition-colors hover:bg-card-selected focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:flex-col lg:items-start lg:p-5"
-      >
+      <Card onClick={config.onClick} className="flex h-full w-full items-center gap-4 p-4 lg:flex-col lg:items-start lg:p-5">
         <IconTile icon={config.icon} size="md" />
         <div className="min-w-0 flex-1">
           <h3 className="text-lg font-bold text-on-surface">{config.title}</h3>
           <p className="mt-0.5 text-sm text-on-surface-variant">{subtitle}</p>
         </div>
         <span className="material-symbols-outlined text-primary lg:hidden" aria-hidden="true">chevron_left</span>
-      </button>
+      </Card>
     )
   }
 
   return (
     <>
       {/* Download Section (Software) */}
-      <section id="download" aria-labelledby="download-heading" className="anchor-section px-4 py-14 md:px-8 md:py-20">
-          <div className="container mx-auto w-full max-w-6xl 2xl:max-w-7xl">
-              <SectionHeading id="download-heading" title="הורדת התוכנה" className="md:!mb-6 !mb-5" />
+      <Section id="download" labelledBy="download-heading" anchor>
+        <SectionHeading id="download-heading" title="הורדת התוכנה" spacing="none" className="mb-5 md:mb-6" />
 
-              {/* הצגת כפתור הורדה לפלטפורמה שזוהתה */}
-              {detectedPlatform && !showAllPlatforms ? (
-                <div className="mx-auto max-w-2xl">
-                  <p className="mb-6 text-center text-lg text-on-surface-variant">זיהינו שאתה משתמש ב-{getPlatformName(detectedPlatform)}</p>
+        {/* הצגת כפתור הורדה לפלטפורמה שזוהתה */}
+        {detectedPlatform && !showAllPlatforms ? (
+          <div className="mx-auto max-w-2xl">
+            <p className="mb-6 text-center text-lg text-on-surface-variant">זיהינו שאתה משתמש ב-{getPlatformName(detectedPlatform)}</p>
 
-                  <div className="flex flex-col items-center gap-3">
-                    {renderPlatformButton(detectedPlatform, true)}
+            <div className="flex flex-col items-center gap-3">
+              {renderPlatformButton(detectedPlatform, true)}
 
-                    <button
-                      type="button"
-                      onClick={() => setShowAllPlatforms(true)}
-                      className="flex min-h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-primary hover:bg-card-selected"
-                    >
-                      <span>הורדה למערכת אחרת</span>
-                      <span className="material-symbols-outlined text-lg">expand_more</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <p className="mb-8 text-center text-lg text-on-surface-variant">
-                    {detectedPlatform ? 'בחר מערכת' : 'לא הצלחנו לזהות את המערכת שלך — בחר מערכת'}
-                  </p>
-
-                  {/* נייד: רשימה; טבלט: שתי עמודות; דסקטופ: חמישה כרטיסים אנכיים בשורה */}
-                  <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
-                      {renderPlatformButton('windows')}
-                      {renderPlatformButton('linux')}
-                      {renderPlatformButton('android')}
-                      {renderPlatformButton('ios')}
-                      {renderPlatformButton('macos')}
-                  </div>
-
-                  {detectedPlatform && (
-                    <div className="mt-6 text-center">
-                      <button
-                        type="button"
-                        onClick={() => setShowAllPlatforms(false)}
-                        className="mx-auto flex min-h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-primary hover:bg-card-selected"
-                      >
-                        <span className="material-symbols-outlined text-lg">expand_less</span>
-                        <span>חזור להורדה ל-{getPlatformName(detectedPlatform)}</span>
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
+              <button
+                type="button"
+                onClick={() => setShowAllPlatforms(true)}
+                className="flex min-h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-primary hover:bg-card-selected"
+              >
+                <span>הורדה למערכת אחרת</span>
+                <span className="material-symbols-outlined text-lg">expand_more</span>
+              </button>
+            </div>
           </div>
-      </section>
+        ) : (
+          <>
+            <p className="mb-8 text-center text-lg text-on-surface-variant">
+              {detectedPlatform ? 'בחר מערכת' : 'לא הצלחנו לזהות את המערכת שלך — בחר מערכת'}
+            </p>
+
+            {/* נייד: רשימה; טבלט: שתי עמודות; דסקטופ: חמישה כרטיסים אנכיים בשורה */}
+            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
+                {renderPlatformButton('windows')}
+                {renderPlatformButton('linux')}
+                {renderPlatformButton('android')}
+                {renderPlatformButton('ios')}
+                {renderPlatformButton('macos')}
+            </div>
+
+            {detectedPlatform && (
+              <div className="mt-6 text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowAllPlatforms(false)}
+                  className="mx-auto flex min-h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-primary hover:bg-card-selected"
+                >
+                  <span className="material-symbols-outlined text-lg">expand_less</span>
+                  <span>חזור להורדה ל-{getPlatformName(detectedPlatform)}</span>
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </Section>
 
       {openPlatform && (
-        <DownloadDialog
+        <Dialog
           title={`הורדת אוצריא ל-${getPlatformName(openPlatform)}`}
           onClose={() => setOpenPlatform(null)}
         >
-          {renderDownloadOptions(getPlatformName(openPlatform), getDialogLinks(openPlatform, stableDownloads))}
-        </DownloadDialog>
+          <div className="grid gap-3">
+            {renderDownloadOptions(getPlatformName(openPlatform), getDialogLinks(openPlatform, stableDownloads))}
+          </div>
+        </Dialog>
       )}
     </>
   )
