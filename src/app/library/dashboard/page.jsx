@@ -281,9 +281,9 @@ export default function DashboardPage() {
 
   if (status === 'loading') {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <main id="main-content" className="flex items-center justify-center min-h-screen">
         <LoadingSpinner message="טוען..." size="lg" />
-      </div>
+      </main>
     )
   }
 
@@ -297,7 +297,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <div id="main-content" className="container mx-auto px-4 py-12">
+      <main id="main-content" className="container mx-auto px-4 py-12">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-4xl font-bold mb-2 text-on-surface">
             שלום, {session.user.name}!
@@ -607,7 +607,7 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-      </div>
+      </main>
 
       {showEmailModal && (
         <EmailChangeModal

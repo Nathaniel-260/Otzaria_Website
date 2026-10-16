@@ -224,7 +224,7 @@ function LibraryEditSpaceContent() {
 // עטיפת Suspense — נדרשת ל-useSearchParams ב-Next.js כדי למנוע שגיאת build
 export default function LibraryEditSpacePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#f8f9fa]" />}>
+    <Suspense fallback={<main id="main-content" className="min-h-screen bg-[#f8f9fa]" />}>
       <LibraryEditSpaceContent />
     </Suspense>
   )

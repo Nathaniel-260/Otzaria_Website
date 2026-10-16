@@ -154,12 +154,12 @@ export default function ModerationPage() {
   }
 
   if (status === 'loading') {
-    return <div className="min-h-screen flex items-center justify-center"><LoadingSpinner message="" /></div>
+    return <main id="main-content" className="min-h-screen flex items-center justify-center"><LoadingSpinner message="" /></main>
   }
   if (!isModerator) {
     return (
       <div className="min-h-screen bg-[#f8f9fa]"><Header />
-        <div className="container mx-auto px-4 py-20 text-center text-neutral-cool-500">אין לך הרשאת גישה לתור האישורים.</div>
+        <main id="main-content" className="container mx-auto px-4 py-20 text-center text-neutral-cool-500">אין לך הרשאת גישה לתור האישורים.</main>
       </div>
     )
   }

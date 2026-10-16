@@ -9,19 +9,14 @@ export const MAIN_CONTENT_ID = 'main-content'
 const isRendered = (el) => el.getClientRects().length > 0
 
 /**
- * יעד הדילוג: האלמנט עם MAIN_CONTENT_ID — כשהוא מוצג (ב-/plugins/all הוא מוסתר עד שהסינון
- * מה-URL נטען). בעמוד שאין בו (עורכים במסך מלא, עמודי התחברות) או כשהוא מוסתר —
- * ה-<main> הפנימי ביותר; ואם הכותרת העליונה יושבת בתוכו (ה-<main> של layout הספרייה עוטף
- * עמודים שמציירים Header בעצמם) — האלמנט שאחרי הכותרת, כדי שהדילוג באמת יעבור אותה.
+ * יעד הדילוג: האלמנט עם MAIN_CONTENT_ID — כשהוא מוצג. בעמוד שאין בו (עמוד חדש ששכח אותו)
+ * או כשהוא מוסתר — ה-<main> המוצג. בכל עמוד יש <main> אחד בלבד, והכותרת העליונה מחוצה לו
+ * (layout הספרייה עוטף ב-<div>, לא ב-<main>), כך שהדילוג לתוכו תמיד עובר את הכותרת.
  */
 export function findSkipTarget(doc = document) {
   const byId = doc.getElementById(MAIN_CONTENT_ID)
   if (byId && isRendered(byId)) return byId
-  const mains = [...doc.querySelectorAll('main')].filter(isRendered)
-  const main = mains[mains.length - 1]
-  if (!main) return null
-  const header = main.querySelector('header')
-  return header?.nextElementSibling ?? main
+  return [...doc.querySelectorAll('main')].find(isRendered) ?? null
 }
 
 /**

@@ -90,15 +90,15 @@ export default function ResetPasswordPage() {
 
   if (isCheckingToken) {
       return (
-          <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+          <main id="main-content" className="min-h-screen flex items-center justify-center bg-neutral-50">
               <Loader size="lg" />
-          </div>
+          </main>
       );
   }
 
   if (!isValidToken) {
       return (
-          <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4">
+          <main id="main-content" className="min-h-screen flex items-center justify-center bg-neutral-50 px-4">
               <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-lg text-center">
                   <div className="w-16 h-16 bg-danger-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <span className="material-symbols-outlined text-3xl text-danger-600">link_off</span>
@@ -116,12 +116,12 @@ export default function ResetPasswordPage() {
                       חזור לדף הכניסה
                   </button>
               </div>
-          </div>
+          </main>
       );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4">
+    <main id="main-content" className="min-h-screen flex items-center justify-center bg-neutral-50 px-4">
         <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-lg">
             <h2 className="text-2xl font-bold mb-6 text-center text-neutral-800">איפוס סיסמה</h2>
             
@@ -172,6 +172,6 @@ export default function ResetPasswordPage() {
                 </button>
             </form>
         </div>
-    </div>
+    </main>
   );
 }

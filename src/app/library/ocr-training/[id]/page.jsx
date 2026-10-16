@@ -301,7 +301,7 @@ export default function OcrTrainingEditor() {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
-        <div className="text-center p-20 text-on-surface/60">טוען...</div>
+        <main id="main-content" className="text-center p-20 text-on-surface/60">טוען...</main>
       </div>
     )
 
@@ -309,7 +309,7 @@ export default function OcrTrainingEditor() {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
-        <div className="text-center p-20 text-danger-500">{error}</div>
+        <main id="main-content" className="text-center p-20 text-danger-500">{error}</main>
       </div>
     )
 

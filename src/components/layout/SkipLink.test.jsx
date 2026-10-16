@@ -1,5 +1,5 @@
-// בדיקות ל"דלג לתוכן": היעד (findSkipTarget) — לפי המזהה, ובלעדיו ה-<main> הפנימי או מה שאחרי
-// הכותרת שבתוכו; ולחיצה מעבירה את הפוקוס ליעד בלי לשנות את כתובת העמוד.
+// בדיקות ל"דלג לתוכן": היעד (findSkipTarget) — לפי המזהה, ובלעדיו ה-<main> המוצג;
+// ולחיצה מעבירה את הפוקוס ליעד בלי לשנות את כתובת העמוד.
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import SkipLink, { findSkipTarget } from './SkipLink'
@@ -17,28 +17,23 @@ afterEach(() => {
 })
 
 describe('findSkipTarget', () => {
-  test('האלמנט עם id="main-content" — גם כשיש <main> חיצוני בלי מזהה', () => {
-    document.body.innerHTML = '<main><header></header><main id="main-content">תוכן</main></main>'
+  test('האלמנט עם id="main-content" — גם כשהוא לא ה-<main> עצמו (עורכי דיקטה)', () => {
+    document.body.innerHTML = '<header></header><div id="main-content"><main>עורך</main></div>'
     expect(findSkipTarget()).toBe(document.getElementById('main-content'))
   })
 
-  test('בלי מזהה — ה-<main> הפנימי ביותר', () => {
-    document.body.innerHTML = '<main id="outer"><main id="inner">תוכן</main></main>'
-    expect(findSkipTarget().id).toBe('inner')
+  test('בלי מזהה — ה-<main> של העמוד', () => {
+    document.body.innerHTML = '<div><header>ניווט</header><main id="page">תוכן</main></div>'
+    expect(findSkipTarget().id).toBe('page')
   })
 
-  test('בלי מזהה, והכותרת בתוך ה-<main> — האלמנט שאחריה', () => {
-    document.body.innerHTML = '<main><div><header>ניווט</header><section id="after">תוכן</section></div></main>'
-    expect(findSkipTarget().id).toBe('after')
-  })
-
-  test('המזהה על אלמנט מוסתר (סינון ב-/plugins/all) — ה-<main> המוצג', () => {
+  test('המזהה על אלמנט מוסתר — ה-<main> המוצג', () => {
     document.body.innerHTML = '<main id="main-content" hidden>מוסתר</main><main id="pending">ממתין</main>'
     expect(findSkipTarget().id).toBe('pending')
   })
 
-  test('בלי <main> בכלל — null', () => {
-    document.body.innerHTML = '<div>עמוד</div>'
+  test('בלי <main> מוצג — null', () => {
+    document.body.innerHTML = '<div>עמוד</div><main hidden>מוסתר</main>'
     expect(findSkipTarget()).toBe(null)
   })
 })

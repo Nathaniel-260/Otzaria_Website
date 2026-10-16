@@ -167,12 +167,12 @@ function CompleteProfileContent() {
 
 export default function CompleteProfilePage() {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-bl from-primary-container via-background to-secondary-container" dir="rtl">
+    <main id="main-content" className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-bl from-primary-container via-background to-secondary-container" dir="rtl">
       <Suspense fallback={
         <Loader size="lg" />
       }>
         <CompleteProfileContent />
       </Suspense>
-    </div>
+    </main>
   )
 }

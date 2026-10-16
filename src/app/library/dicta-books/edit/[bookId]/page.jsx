@@ -327,17 +327,17 @@ export default function DictaEditorPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <main id="main-content" className="flex items-center justify-center min-h-screen">
         <LoadingSpinner message="טוען נתונים..." />
-      </div>
+      </main>
     )
   }
 
   if (!book) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <main id="main-content" className="flex items-center justify-center min-h-screen">
         <div className="text-xl text-danger-600">הספר לא נמצא</div>
-      </div>
+      </main>
     )
   }
 
@@ -452,18 +452,21 @@ export default function DictaEditorPage() {
 
   return (
     <>
-      <DictaEditorCore 
-        initialContent={book.content || ''}
-        title={book.title}
-        canEdit={canEdit}
-        isCompleted={isCompleted}
-        onSave={handleSaveToServer}
-        saving={saving}
-        hasUnsavedChangesOuter={hasUnsavedChanges}
-        setHasUnsavedChanges={setHasUnsavedChanges}
-        headerStartElement={headerStart}
-        headerEndElement={headerEnd}
-      />
+      {/* יעד "דלג לתוכן" — ה-<main> עצמו נמצא בתוך DictaEditorCore */}
+      <div id="main-content">
+        <DictaEditorCore 
+          initialContent={book.content || ''}
+          title={book.title}
+          canEdit={canEdit}
+          isCompleted={isCompleted}
+          onSave={handleSaveToServer}
+          saving={saving}
+          hasUnsavedChangesOuter={hasUnsavedChanges}
+          setHasUnsavedChanges={setHasUnsavedChanges}
+          headerStartElement={headerStart}
+          headerEndElement={headerEnd}
+        />
+      </div>
 
       {showUploadDialog && (
         <DictaUploadDialog

@@ -588,9 +588,9 @@ function DictaBooksContent() {
 export default function DictaBooksPublicPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
+      <main id="main-content" className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
         <LoadingSpinner message="" />
-      </div>
+      </main>
     }>
       <DictaBooksContent />
     </Suspense>

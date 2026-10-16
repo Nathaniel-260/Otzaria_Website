@@ -178,10 +178,10 @@ export default function ConflictsPage() {
   const bookName = (path) => (path?.split('/').slice(1).join('/').replace(/\.txt$/, '') || path)
 
   if (status === 'loading') {
-    return <div className="min-h-screen flex items-center justify-center"><LoadingSpinner message="" /></div>
+    return <main id="main-content" className="min-h-screen flex items-center justify-center"><LoadingSpinner message="" /></main>
   }
   if (!canSync) {
-    return <div className="min-h-screen bg-[#f8f9fa]"><Header /><div className="container mx-auto px-4 py-20 text-center text-neutral-cool-500">אין לך הרשאת גישה.</div></div>
+    return <div className="min-h-screen bg-[#f8f9fa]"><Header /><main id="main-content" className="container mx-auto px-4 py-20 text-center text-neutral-cool-500">אין לך הרשאת גישה.</main></div>
   }
 
   return (
