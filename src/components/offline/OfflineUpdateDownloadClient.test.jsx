@@ -1,9 +1,9 @@
 // בדיקות ל-OfflineUpdateDownloadClient: מספר הגרסה שמגיע כבר טעון (releases prop, נשלף בשרת
-// ע"י OfflineUpdateDownload.jsx) מוצג; כש-releases הוא null מוצג מסר הנפילה והכרטיסים מובילים
-// לדף הגרסאות; המערכת שזוהתה בדפדפן מסומנת (בלי לשנות סדר); בלי זיהוי מתאים — Windows ראשי בלי
-// התג "המחשב שלך"; בטלפון — הערה שהכלי למחשב.
-import { afterEach, describe, expect, test, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+// ע"י OfflineUpdateDownload.jsx) מוצג; כש-releases הוא null מוצג מסר הנפילה והקישורים מובילים
+// לדף הגרסאות. איזה כרטיס מוצג נקבע ב-CSS לפי <html data-os> (jsdom לא מחשב CSS) — כאן נבדקות
+// מחלקות ה-CSS, התג "המחשב שלך" (לפי data-os), והקישור המשני למערכת השנייה.
+import { afterEach, describe, expect, test } from 'vitest'
+import { render, screen, within } from '@testing-library/react'
 import OfflineUpdateDownloadClient from './OfflineUpdateDownloadClient'
 
 const REPO = 'https://github.com/org/repo'
@@ -14,16 +14,10 @@ const RELEASES = {
   macos: { url: 'https://example.com/mac.zip', size: 48_603_042 }
 }
 
-function mockNavigator({ userAgent, platform }) {
-  vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue(userAgent)
-  vi.spyOn(window.navigator, 'platform', 'get').mockReturnValue(platform)
-}
+const setOs = (os) => document.documentElement.setAttribute('data-os', os)
+const block = (container, key) => container.querySelector(`[data-offline-platform="${key}"]`)
 
-const downloadLinks = () => screen.getAllByRole('link', { name: /^הורד ל-/ })
-// הכרטיס הראשי — "כפתור" ההורדה שבו מלא (filled); בשאר — tonal
-const isPrimary = (link) => link.querySelector('[id$="-action"]').className.includes('--button-filled-bg')
-
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => document.documentElement.removeAttribute('data-os'))
 
 describe('OfflineUpdateDownloadClient', () => {
   test('מציג את מספר הגרסה ואת הקישורים הישירים לקבצים', () => {
@@ -36,45 +30,58 @@ describe('OfflineUpdateDownloadClient', () => {
     expect(screen.getByRole('link', { name: 'הורד ל-macOS' })).toHaveAttribute('href', RELEASES.macos.url)
   })
 
-  test('מציג מסר נפילה כש-releases הוא null, והכרטיסים מובילים לדף הגרסה האחרונה', () => {
+  test('מסר נפילה כש-releases הוא null, וכל הקישורים מובילים לדף הגרסה האחרונה', () => {
     render(<OfflineUpdateDownloadClient repoUrl={REPO} releases={null} />)
 
     expect(screen.getByText(/לא הצלחנו לטעון את פרטי הגרסה/)).toBeInTheDocument()
-    for (const link of downloadLinks()) expect(link).toHaveAttribute('href', `${REPO}/releases/latest`)
+    for (const link of screen.getAllByRole('link', { name: /^(הורד ל-|להורדה ל-)/ })) {
+      expect(link).toHaveAttribute('href', `${REPO}/releases/latest`)
+    }
   })
 
-  test('המערכת שזוהתה (macOS) מסומנת "המחשב שלך", והסדר נשאר קבוע', () => {
-    mockNavigator({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', platform: 'MacIntel' })
-    render(<OfflineUpdateDownloadClient repoUrl={REPO} releases={RELEASES} />)
+  test('ב-CSS: Windows מוצג תמיד חוץ מב-Mac, ו-macOS רק ב-Mac', () => {
+    const { container } = render(<OfflineUpdateDownloadClient repoUrl={REPO} releases={RELEASES} />)
 
-    const [first, second] = downloadLinks()
-    expect(first).toHaveAccessibleName('הורד ל-Windows')
-    expect(first).not.toHaveTextContent('המחשב שלך')
-    expect(second).toHaveAccessibleName('הורד ל-macOS')
-    expect(second).toHaveTextContent('המחשב שלך')
-    expect(second).toHaveAccessibleDescription(/^המחשב שלך/)
-    expect(isPrimary(first)).toBe(false)
-    expect(isPrimary(second)).toBe(true)
+    expect(block(container, 'windows').className).toMatch(/(^|\s)flex(\s|$)/)
+    expect(block(container, 'windows')).toHaveClass('in-data-[os=macos]:hidden')
+    expect(block(container, 'macos')).toHaveClass('hidden', 'in-data-[os=macos]:flex')
+    expect(screen.getByRole('note', { hidden: true })).toHaveClass('hidden', 'in-data-[os=mobile]:flex')
   })
 
-  test('ב-Linux (מערכת שהכלי לא זמין לה) Windows ראשי, ובלי "המחשב שלך"', () => {
-    mockNavigator({ userAgent: 'Mozilla/5.0 (X11; Linux x86_64)', platform: 'Linux x86_64' })
-    render(<OfflineUpdateDownloadClient repoUrl={REPO} releases={RELEASES} />)
+  test('מתחת לכל כרטיס — קישור משני להורדה למערכת השנייה', () => {
+    const { container } = render(<OfflineUpdateDownloadClient repoUrl={REPO} releases={RELEASES} />)
 
-    const [windows, macos] = downloadLinks()
-    expect(isPrimary(windows)).toBe(true)
-    expect(isPrimary(macos)).toBe(false)
-    expect(screen.queryByText('המחשב שלך')).not.toBeInTheDocument()
+    const underWindows = within(block(container, 'windows'))
+    expect(underWindows.getByText(/יש לך/)).toHaveTextContent('יש לך Mac? להורדה ל-macOS')
+    expect(underWindows.getByRole('link', { name: 'להורדה ל-macOS' })).toHaveAttribute('href', RELEASES.macos.url)
+    const underMac = within(block(container, 'macos'))
+    expect(underMac.getByRole('link', { name: 'להורדה ל-Windows' })).toHaveAttribute('href', RELEASES.windows.url)
   })
 
-  test('בטלפון מוצגת הערה שהכלי מיועד למחשב, ושני הכרטיסים נשארים זמינים', () => {
-    mockNavigator({ userAgent: 'Mozilla/5.0 (Linux; Android 14) Mobile', platform: 'Linux armv8l' })
+  test('Mac שזוהה — התג "המחשב שלך" על כרטיס macOS בלבד', () => {
+    setOs('macos')
     render(<OfflineUpdateDownloadClient repoUrl={REPO} releases={RELEASES} />)
 
-    expect(screen.getByRole('note')).toHaveTextContent(/מיועד למחשב/)
-    const [windows, macos] = downloadLinks()
-    expect(isPrimary(windows)).toBe(true)
-    expect(isPrimary(macos)).toBe(false)
-    expect(screen.queryByText('המחשב שלך')).not.toBeInTheDocument()
+    const mac = screen.getByRole('link', { name: 'הורד ל-macOS' })
+    expect(mac).toHaveTextContent('המחשב שלך')
+    expect(mac).toHaveAccessibleDescription(/^המחשב שלך/)
+    expect(screen.getByRole('link', { name: 'הורד ל-Windows' })).not.toHaveTextContent('המחשב שלך')
+  })
+
+  test('Windows שזוהה — התג על כרטיס Windows', () => {
+    setOs('windows')
+    render(<OfflineUpdateDownloadClient repoUrl={REPO} releases={RELEASES} />)
+
+    expect(screen.getByRole('link', { name: 'הורד ל-Windows' })).toHaveTextContent('המחשב שלך')
+  })
+
+  test('Linux, טלפון או לא ידוע — בלי התג "המחשב שלך"', () => {
+    for (const os of ['other', 'mobile', null]) {
+      if (os) setOs(os)
+      else document.documentElement.removeAttribute('data-os')
+      const { unmount } = render(<OfflineUpdateDownloadClient repoUrl={REPO} releases={RELEASES} />)
+      expect(screen.queryByText('המחשב שלך')).not.toBeInTheDocument()
+      unmount()
+    }
   })
 })

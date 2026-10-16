@@ -1,86 +1,99 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import AppIcon from '@/components/ui/AppIcon'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
+import { FOCUS_RING } from '@/components/ui/focusRing'
+import { readDocumentOs } from '@/lib/detectOs'
 import OfflinePlatformCard from './OfflinePlatformCard'
-import { detectOfflinePlatform, formatReleaseDate, formatSize, OFFLINE_PLATFORM_KEYS, resolvePrimaryPlatform } from './offlinePlatforms'
+import { formatReleaseDate, formatSize, OFFLINE_PLATFORM_KEYS, otherPlatform, resolveShownPlatform } from './offlinePlatforms'
 
 // מונחים לועזיים בבידוד (bdi) — אחרת "10 / 11" והסוגריים מתהפכים בשורה עברית
 const PLATFORMS = {
   windows: {
     icon: 'desktop_windows',
     title: 'Windows',
+    question: 'Windows',
     requirement: <><bdi dir="ltr" className="whitespace-nowrap">Windows 10 / 11</bdi> (64 סיביות)</>,
     kind: 'קובץ אחד, בלי התקנה'
   },
   macos: {
     icon: 'laptop_mac',
     title: 'macOS',
+    question: 'Mac',
     requirement: <><bdi dir="ltr" className="whitespace-nowrap">macOS 10.15</bdi> ומעלה</>,
     kind: <>קובץ <bdi dir="ltr" className="whitespace-nowrap">zip</bdi></>
   }
 }
 
+// מה מוצג בציור הראשון — CSS בלבד, לפי <html data-os> שהסקריפט ב-layout כותב לפני הציור
+// (lib/detectOs.js): macOS רק כשזוהה Mac, ו-Windows בכל מקרה אחר (כולל טלפון, Linux ולא ידוע).
+// כך אין קפיצה אחרי ה-hydration, והדף זהה לכל המבקרים (מטמון CDN ציבורי). חייב להתאים ל-
+// resolveShownPlatform (offlinePlatforms.js), שקובע את התג "המחשב שלך".
+const SHOWN_WHEN = {
+  windows: 'flex in-data-[os=macos]:hidden',
+  macos: 'hidden in-data-[os=macos]:flex'
+}
+
+// ה-data-os לא משתנה אחרי הטעינה — אין למה להירשם
+const subscribe = () => () => {}
+const getOs = () => readDocumentOs(document)
+const getServerOs = () => null
+
 /**
  * אזור ההורדה של "עדכוני אוצריא" — releases מגיע כבר טעון מהשרת (OfflineUpdateDownload.jsx,
  * ה-Server Component שעוטף את הרכיב הזה). כש-releases הוא null (השליפה נכשלה) כל כרטיס מוביל
- * לדף הגרסאות. כאן נשאר רק מה שדורש דפדפן: זיהוי המערכת — הכרטיס שלה בולט (מורם, כפתור מלא)
- * ומסומן "המחשב שלך". בלי זיהוי מתאים (טלפון, Linux, לא ידוע — וגם ברינדור השרת) כרטיס Windows
- * ראשי, בלי התג. סדר הכרטיסים קבוע (Windows, macOS) גם אחרי הזיהוי, וההדגשה משנה רק צבע וצל —
- * העמוד לא זז אחרי ה-hydration.
+ * לדף הגרסאות. מוצג כרטיס אחד: של המערכת שזוהתה, או Windows (בלי התג "המחשב שלך") כשלא זוהתה
+ * מערכת שהכלי זמין לה. מתחתיו קישור משני קטן להורדה למערכת השנייה ("יש לך Mac?"), כדי שמי
+ * שהזיהוי טעה אצלו לא ייתקע. שני הכרטיסים נמצאים ב-HTML, ו-CSS מסתיר את זה שלא מתאים.
  */
 export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
-  const [detected, setDetected] = useState(null)
-
-  useEffect(() => {
-    // navigator קיים רק בדפדפן; עד הזיהוי — ברירת המחדל (Windows ראשי, כמו ברינדור השרת)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDetected(detectOfflinePlatform({
-      userAgent: navigator.userAgent,
-      platform: navigator.platform,
-      maxTouchPoints: navigator.maxTouchPoints
-    }))
-  }, [])
-
-  const primary = resolvePrimaryPlatform(detected)
+  // בשרת וב-hydration — null (כמו ה-HTML); מיד אחריו — הערך מ-<html data-os>. רק התג וה-aria
+  // תלויים בו, ושניהם לא משנים גובה
+  const os = useSyncExternalStore(subscribe, getOs, getServerOs)
+  const shown = resolveShownPlatform(os)
   const releasesPage = releases?.releaseUrl || `${repoUrl}/releases/latest`
   const date = formatReleaseDate(releases?.publishedAt)
+  const hrefFor = (key) => releases?.[key]?.url || releasesPage
 
   return (
     <div className="flex flex-col gap-5">
-      <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-        {OFFLINE_PLATFORM_KEYS.map((key) => {
-          const platform = PLATFORMS[key]
-          const asset = releases?.[key]
-          const size = formatSize(asset?.size)
-          return (
-            <li key={key}>
-              <OfflinePlatformCard
-                href={asset?.url || releasesPage}
-                icon={platform.icon}
-                title={platform.title}
-                details={[platform.requirement, size ? <>{platform.kind} · <bdi dir="ltr" className="whitespace-nowrap">{size}</bdi></> : platform.kind]}
-                actionLabel={`הורד ל-${platform.title}`}
-                idPrefix={`offline-download-${key}`}
-                primary={key === primary.key}
-                matched={key === primary.key && primary.matched}
-              />
-            </li>
-          )
-        })}
-      </ul>
+      {OFFLINE_PLATFORM_KEYS.map((key) => {
+        const platform = PLATFORMS[key]
+        const other = PLATFORMS[otherPlatform(key)]
+        const size = formatSize(releases?.[key]?.size)
+        return (
+          <div key={key} data-offline-platform={key} className={`${SHOWN_WHEN[key]} mx-auto w-full max-w-md flex-col gap-3`}>
+            <OfflinePlatformCard
+              href={hrefFor(key)}
+              icon={platform.icon}
+              title={platform.title}
+              details={[platform.requirement, size ? <>{platform.kind} · <bdi dir="ltr" className="whitespace-nowrap">{size}</bdi></> : platform.kind]}
+              actionLabel={`הורד ל-${platform.title}`}
+              idPrefix={`offline-download-${key}`}
+              matched={key === shown.key && shown.matched}
+            />
+            <p className="text-center text-body-sm text-on-surface-variant">
+              יש לך <bdi dir="ltr">{other.question}</bdi>?{' '}
+              <a
+                href={hrefFor(otherPlatform(key))}
+                className={`inline-block rounded-control py-1 underline underline-offset-4 hover:text-on-surface ${FOCUS_RING}`}
+              >
+                להורדה ל-<bdi dir="ltr">{other.title}</bdi>
+              </a>
+            </p>
+          </div>
+        )
+      })}
 
-      {/* אחרי הכרטיסים ולא לפניהם: ההערה מופיעה רק אחרי הזיהוי בדפדפן, ומעליהם הייתה דוחפת
-          אותם למטה (קפיצת layout) */}
-      {detected === 'mobile' && (
-        <Card tone="tonal" role="note" padding="sm" className="flex items-start gap-3 text-body-sm text-on-surface">
-          <AppIcon name="smartphone" className="mt-0.5 shrink-0 text-xl text-on-tile" />
-          <p>הכלי הזה מיועד למחשב (<bdi dir="ltr" className="whitespace-nowrap">Windows</bdi> או <bdi dir="ltr" className="whitespace-nowrap">macOS</bdi>). בטלפון ובטאבלט, אוצריא מתעדכנת דרך חנות האפליקציות.</p>
-        </Card>
-      )}
+      {/* בטלפון — הערה שהכלי למחשב. גם היא ב-CSS לפי data-os, כדי שלא תדחוף את מה שמתחתיה
+          אחרי הטעינה */}
+      <Card tone="tonal" role="note" padding="sm" className="hidden items-start gap-3 text-body-sm text-on-surface in-data-[os=mobile]:flex">
+        <AppIcon name="smartphone" className="mt-0.5 shrink-0 text-xl text-on-tile" />
+        <p>הכלי הזה מיועד למחשב (<bdi dir="ltr" className="whitespace-nowrap">Windows</bdi> או <bdi dir="ltr" className="whitespace-nowrap">macOS</bdi>). בטלפון ובטאבלט, אוצריא מתעדכנת דרך חנות האפליקציות.</p>
+      </Card>
 
       <div className="flex flex-col items-center gap-3 text-center">
         <p className="flex max-w-measure items-start gap-2 text-body-sm text-on-surface-variant">

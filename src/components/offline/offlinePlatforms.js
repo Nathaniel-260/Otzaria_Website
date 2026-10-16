@@ -1,36 +1,27 @@
 // לוגיקה טהורה של אזור ההורדה ב-/offline (בלי React/DOM) — נבדקת ב-offlinePlatforms.test.js.
 
-/** המערכות שהכלי זמין להן, בסדר התצוגה (קבוע — הזיהוי משנה רק את ההדגשה) */
+/** המערכות שהכלי זמין להן */
 export const OFFLINE_PLATFORM_KEYS = ['windows', 'macos']
 
-/** הכרטיס הראשי כשהמערכת לא זוהתה כאחת מהנתמכות (טלפון, Linux, לא ידוע — וגם ברינדור השרת) */
+/** הכרטיס שמוצג כשהמערכת לא זוהתה כאחת מהנתמכות (טלפון, Linux, לא ידוע — וגם ברינדור השרת) */
 export const DEFAULT_OFFLINE_PLATFORM = 'windows'
 
 /**
- * איזה כרטיס הורדה ראשי (מורם, כפתור מלא), והאם הוא באמת המחשב של המבקר.
- * detected — הפלט של detectOfflinePlatform (או null לפני הזיהוי).
- * matched=false — ברירת המחדל: הכרטיס ראשי, אבל בלי התג "המחשב שלך".
+ * איזה כרטיס הורדה מוצג (אחד בלבד), והאם הוא באמת המחשב של המבקר.
+ * os — ערך data-os (lib/detectOs.js), או null לפני הזיהוי / בשרת.
+ * matched=false — ברירת המחדל: כרטיס Windows, בלי התג "המחשב שלך".
+ * חייב להתאים ל-CSS שב-OfflineUpdateDownloadClient (in-data-[os=macos]:...), שמחליט מה מוצג
+ * בציור הראשון: macOS רק כש-data-os="macos", ו-Windows בכל מקרה אחר.
  */
-export function resolvePrimaryPlatform(detected) {
-  return OFFLINE_PLATFORM_KEYS.includes(detected)
-    ? { key: detected, matched: true }
+export function resolveShownPlatform(os) {
+  return OFFLINE_PLATFORM_KEYS.includes(os)
+    ? { key: os, matched: true }
     : { key: DEFAULT_OFFLINE_PLATFORM, matched: false }
 }
 
-/**
- * זיהוי המערכת של המבקר מתוך navigator.userAgent / navigator.platform.
- * מחזיר 'windows' | 'macos' — מחשב שהכלי זמין לו; 'mobile' — טלפון/טאבלט (הכלי למחשב בלבד);
- * 'other' — מחשב אחר (Linux וכו'); null — לא ידוע.
- * iPadOS מתחזה ל-Mac ב-userAgent — מזוהה לפי maxTouchPoints.
- */
-export function detectOfflinePlatform({ userAgent = '', platform = '', maxTouchPoints = 0 } = {}) {
-  const ua = userAgent.toLowerCase()
-  const pf = platform.toLowerCase()
-  if (/android|iphone|ipad|ipod/.test(ua)) return 'mobile'
-  if (/mac/.test(pf) || /macintosh/.test(ua)) return maxTouchPoints > 1 ? 'mobile' : 'macos'
-  if (/win/.test(pf) || /windows/.test(ua)) return 'windows'
-  if (/linux|cros|x11/.test(pf) || /linux|cros|x11/.test(ua)) return 'other'
-  return null
+/** המערכת השנייה — לקישור המשני "יש לך Mac?" מתחת לכרטיס */
+export function otherPlatform(key) {
+  return key === 'macos' ? 'windows' : 'macos'
 }
 
 /** גודל קובץ לתצוגה: "18.7 MB" (מ-100MB — בלי ספרה אחרי הנקודה); null כשאין גודל */

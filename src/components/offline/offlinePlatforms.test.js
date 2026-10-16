@@ -1,34 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { detectOfflinePlatform, formatReleaseDate, formatSize, resolvePrimaryPlatform } from './offlinePlatforms.js'
+import { formatReleaseDate, formatSize, otherPlatform, resolveShownPlatform } from './offlinePlatforms.js'
 
-const WIN_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36'
-const MAC_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15'
+// זיהוי המערכת עצמו — src/lib/detectOs.test.mjs
 
-describe('detectOfflinePlatform', () => {
-  it('מזהה Windows ו-macOS', () => {
-    expect(detectOfflinePlatform({ userAgent: WIN_UA, platform: 'Win32' })).toBe('windows')
-    expect(detectOfflinePlatform({ userAgent: MAC_UA, platform: 'MacIntel' })).toBe('macos')
+describe('resolveShownPlatform', () => {
+  it('מערכת שזוהתה — הכרטיס שלה מוצג, ומסומן כמחשב של המבקר', () => {
+    expect(resolveShownPlatform('windows')).toEqual({ key: 'windows', matched: true })
+    expect(resolveShownPlatform('macos')).toEqual({ key: 'macos', matched: true })
   })
-  it('טלפון וטאבלט (כולל iPad שמתחזה ל-Mac) — mobile', () => {
-    expect(detectOfflinePlatform({ userAgent: 'Mozilla/5.0 (Linux; Android 14) Mobile', platform: 'Linux armv8l' })).toBe('mobile')
-    expect(detectOfflinePlatform({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', platform: 'iPhone' })).toBe('mobile')
-    expect(detectOfflinePlatform({ userAgent: MAC_UA, platform: 'MacIntel', maxTouchPoints: 5 })).toBe('mobile')
-  })
-  it('Linux — other; בלי מידע — null', () => {
-    expect(detectOfflinePlatform({ userAgent: 'Mozilla/5.0 (X11; Linux x86_64)', platform: 'Linux x86_64' })).toBe('other')
-    expect(detectOfflinePlatform({})).toBe(null)
+  it('טלפון, Linux או לא ידוע — Windows, בלי סימון "המחשב שלך"', () => {
+    for (const os of ['mobile', 'other', null, undefined]) {
+      expect(resolveShownPlatform(os)).toEqual({ key: 'windows', matched: false })
+    }
   })
 })
 
-describe('resolvePrimaryPlatform', () => {
-  it('מערכת שזוהתה — הכרטיס שלה ראשי, ומסומן כמחשב של המבקר', () => {
-    expect(resolvePrimaryPlatform('windows')).toEqual({ key: 'windows', matched: true })
-    expect(resolvePrimaryPlatform('macos')).toEqual({ key: 'macos', matched: true })
-  })
-  it('טלפון, Linux או לא ידוע — Windows ראשי, בלי סימון "המחשב שלך"', () => {
-    for (const detected of ['mobile', 'other', null, undefined]) {
-      expect(resolvePrimaryPlatform(detected)).toEqual({ key: 'windows', matched: false })
-    }
+describe('otherPlatform', () => {
+  it('המערכת השנייה, לקישור המשני', () => {
+    expect(otherPlatform('windows')).toBe('macos')
+    expect(otherPlatform('macos')).toBe('windows')
   })
 })
 

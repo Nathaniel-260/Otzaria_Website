@@ -10,6 +10,7 @@ import { DialogProvider } from '@/components/providers/DialogContext'
 import { LoadingProvider } from '@/components/providers/LoadingContext'
 import { ICON_FONT_URL } from '@/lib/icon-font'
 import SkipLink from '@/components/layout/SkipLink'
+import { OS_DETECT_SCRIPT } from '@/lib/detectOs'
 
 
 const frankRuehl = localFont({
@@ -56,10 +57,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   // --font-assistant על <html> ולא על <body>: --font-sans/--font-hebrew (typography.css) הם
-  // טוקני @theme רגילים שמחושבים ב-:root, ושם המשתנה חייב כבר להיות מוגדר
+  // טוקני @theme רגילים שמחושבים ב-:root, ושם המשתנה חייב כבר להיות מוגדר.
+  // suppressHydrationWarning — רק בשביל data-os, שהסקריפט שלמטה מוסיף ל-<html> לפני ה-hydration
   return (
-    <html lang="he" dir="rtl" className={assistant.variable}>
+    <html lang="he" dir="rtl" className={assistant.variable} suppressHydrationWarning>
       <head>
+        {/* זיהוי מערכת ההפעלה → <html data-os="windows|macos|mobile|other"> (lib/detectOs.js).
+            ראשון ב-head ו-inline: רץ לפני הציור הראשון, ולכן CSS (למשל in-data-[os=macos]:...)
+            מציג את מה שמתאים למערכת בלי קפיצה, והדף עצמו זהה לכולם (מטמון ציבורי) */}
+        <script dangerouslySetInnerHTML={{ __html: OS_DETECT_SCRIPT }} />
         {/* גופן האייקונים מוגש מקומית כ-subset (scripts/build-icon-font.mjs) ומוצהר
             ב-styles/icon-font.css. ה-preload מקדים את הבקשה לפרסור ה-CSS. */}
         <link rel="preload" href={ICON_FONT_URL} as="font" type="font/woff2" crossOrigin="anonymous" />
