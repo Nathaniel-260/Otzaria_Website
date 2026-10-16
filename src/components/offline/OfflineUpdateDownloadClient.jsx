@@ -5,6 +5,8 @@ import AppIcon from '@/components/ui/AppIcon'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
+import Ltr from '@/components/ui/Ltr'
+import NewWindowHint from '@/components/ui/NewWindowHint'
 import { FOCUS_RING } from '@/components/ui/focusRing'
 import { readDocumentOs } from '@/lib/detectOs'
 import OfflinePlatformCard from './OfflinePlatformCard'
@@ -16,15 +18,15 @@ const PLATFORMS = {
     icon: 'desktop_windows',
     title: 'Windows',
     question: 'Windows',
-    requirement: <><bdi dir="ltr" className="whitespace-nowrap">Windows 10 / 11</bdi> (64 סיביות)</>,
+    requirement: <><Ltr>Windows 10 / 11</Ltr> (64 סיביות)</>,
     kind: 'קובץ אחד, בלי התקנה'
   },
   macos: {
     icon: 'laptop_mac',
     title: 'macOS',
     question: 'Mac',
-    requirement: <><bdi dir="ltr" className="whitespace-nowrap">macOS 10.15</bdi> ומעלה</>,
-    kind: <>קובץ <bdi dir="ltr" className="whitespace-nowrap">zip</bdi></>
+    requirement: <><Ltr>macOS 10.15</Ltr> ומעלה</>,
+    kind: <>קובץ <Ltr>zip</Ltr></>
   }
 }
 
@@ -64,11 +66,11 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
           מערכות הוא זמין. ב-CSS לפי data-os (לפני הציור הראשון), ולכן היא לא דוחפת דבר אחרי הטעינה */}
       <Card tone="tonal" role="note" padding="sm" className="hidden items-start gap-3 text-body-sm text-on-surface in-data-[os=mobile]:flex">
         <AppIcon name="smartphone" className="mt-0.5 shrink-0 text-xl text-on-tile" />
-        <p>הכלי הזה מיועד למחשב (<bdi dir="ltr" className="whitespace-nowrap">Windows</bdi> או <bdi dir="ltr" className="whitespace-nowrap">macOS</bdi>). בטלפון ובטאבלט, אוצריא מתעדכנת דרך חנות האפליקציות.</p>
+        <p>הכלי הזה מיועד למחשב (<Ltr>Windows</Ltr> או <Ltr>macOS</Ltr>). בטלפון ובטאבלט, אוצריא מתעדכנת דרך חנות האפליקציות.</p>
       </Card>
       <Card tone="tonal" role="note" padding="sm" className="hidden items-start gap-3 text-body-sm text-on-surface in-data-[os=other]:flex">
         <AppIcon name="info" className="mt-0.5 shrink-0 text-xl text-on-tile" />
-        <p>הכלי זמין ל-<bdi dir="ltr" className="whitespace-nowrap">Windows</bdi> ול-<bdi dir="ltr" className="whitespace-nowrap">macOS</bdi>. אפשר להוריד אותו כאן ולהפעיל אותו במחשב אחר עם אחת מהמערכות האלה.</p>
+        <p>הכלי זמין ל-<Ltr>Windows</Ltr> ול-<Ltr>macOS</Ltr>. אפשר להוריד אותו כאן ולהפעיל אותו במחשב אחר עם אחת מהמערכות האלה.</p>
       </Card>
 
       {OFFLINE_PLATFORM_KEYS.map((key) => {
@@ -81,7 +83,7 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
               href={hrefFor(key)}
               icon={platform.icon}
               title={platform.title}
-              details={[platform.requirement, size ? <>{platform.kind} · <bdi dir="ltr" className="whitespace-nowrap">{size}</bdi></> : platform.kind]}
+              details={[platform.requirement, size ? <>{platform.kind} · <Ltr>{size}</Ltr></> : platform.kind]}
               actionLabel={`הורד ל-${platform.title}`}
               idPrefix={`offline-download-${key}`}
               matched={key === shown.key && shown.matched}
@@ -107,14 +109,14 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
         <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-body-sm text-on-surface-variant">
           {releases?.version ? (
             <>
-              <Badge>גרסה <bdi dir="ltr" className="whitespace-nowrap">{releases.version}</bdi></Badge>
+              <Badge>גרסה <Ltr>{releases.version}</Ltr></Badge>
               {date && <span>פורסמה ב-{date}</span>}
             </>
           ) : (
             <span>לא הצלחנו לטעון את פרטי הגרסה. אפשר להוריד את הכלי מדף כל הגרסאות.</span>
           )}
           <Button href={`${repoUrl}/releases`} external variant="text" size="sm" iconEnd="open_in_new">
-            כל הגרסאות<span className="sr-only"> ב-GitHub (נפתח בחלון חדש)</span>
+            כל הגרסאות<NewWindowHint destination="ב-GitHub" />
           </Button>
         </p>
       </div>

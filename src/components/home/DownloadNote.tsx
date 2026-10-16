@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import Card from '@/components/ui/Card'
+import LtrTerm from '@/components/ui/Ltr'
 
 /**
  * הערה בחלון ההורדה.
@@ -35,7 +36,7 @@ export default function DownloadNote({ icon = 'info', variant = 'quiet', title, 
 
 // שמות קבצים ופקודות הם LTR; בלי בידוד הסוגריים והנקודה סביבם מתהפכים בפסקה עברית.
 export function Ltr({ children }: { children: string }) {
-  return <bdi dir="ltr" className="whitespace-nowrap font-mono text-[0.92em]">{children}</bdi>
+  return <LtrTerm className="font-mono text-[0.92em]">{children}</LtrTerm>
 }
 
 // מצמיד תחילית עברית ("ה-") למילה הלועזית שאחריה, כדי שהשורה לא תישבר באמצע

@@ -1,5 +1,7 @@
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
+import Ltr from '@/components/ui/Ltr'
+import NewWindowHint from '@/components/ui/NewWindowHint'
 import Section from '@/components/ui/Section'
 import SectionHeading from '@/components/ui/SectionHeading'
 
@@ -9,7 +11,7 @@ const ITEMS = [
     q: 'מה צריך כדי להשתמש בכלי?',
     a: (
       <>
-        מחשב <bdi dir="ltr" className="whitespace-nowrap">Windows 10 / 11</bdi> (64 סיביות) או <bdi dir="ltr" className="whitespace-nowrap">macOS 10.15</bdi> ומעלה, וכונן USB עם
+        מחשב <Ltr>Windows 10 / 11</Ltr> (64 סיביות) או <Ltr>macOS 10.15</Ltr> ומעלה, וכונן USB עם
         מקום פנוי. הכלי בודק שיש מספיק מקום לפני ההורדה. הממשק בעברית ובאנגלית.
       </>
     )
@@ -58,10 +60,10 @@ export default function GoodToKnowSection({ repoUrl }) {
       </Card>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Button href={`${repoUrl}/issues`} external variant="outlined" icon="bug_report">
-          דיווח על תקלה בכלי<span className="sr-only"> ב-GitHub (נפתח בחלון חדש)</span>
+          דיווח על תקלה בכלי<NewWindowHint destination="ב-GitHub" />
         </Button>
         <Button href={repoUrl} external variant="outlined" icon="code">
-          קוד המקור ב-GitHub<span className="sr-only"> (נפתח בחלון חדש)</span>
+          קוד המקור ב-GitHub<NewWindowHint />
         </Button>
       </div>
     </Section>
