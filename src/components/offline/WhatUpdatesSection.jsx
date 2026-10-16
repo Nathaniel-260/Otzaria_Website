@@ -48,7 +48,7 @@ const EXTRAS = [
 export default function WhatUpdatesSection() {
   return (
     <Section labelledBy="updates-heading">
-      <SectionHeading id="updates-heading" title="מה אפשר לעדכן" />
+      <SectionHeading id="updates-heading" title="מה הכלי מעדכן" />
       <ul className="grid gap-3 sm:gap-4 md:grid-cols-3">
         {MODULES.map((item) => (
           <OfflineInfoCard key={item.title} icon={item.icon} title={item.title}>{item.text}</OfflineInfoCard>
