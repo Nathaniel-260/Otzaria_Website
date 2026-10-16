@@ -36,7 +36,7 @@ export default function DonateAnimatedIcon({ size = '1em', strokeWidth = 1.5, cl
       style={{ display: 'inline-block', verticalAlign: 'middle' }}
     >
       <defs>
-        {/* הקופה נראית מעל קו החשיפה, הספר מתחתיו; הקו עולה מ-22 ל-4 ("הקופה נפתחת לספר") */}
+        {/* הקופה נראית מעל קו החשיפה, הספר מתחתיו; הקו עולה מ-24 ל-4 ("הקופה נפתחת לספר") */}
         <clipPath id={`${uid}-box`}>
           <rect className="donate-anim-reveal-box" x="0" y="0" width="24" height="24" />
         </clipPath>

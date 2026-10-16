@@ -143,17 +143,19 @@
     100% { opacity: 1; }
   }
 
-  /* קו החשיפה ב-22 (קופה) → 4 (ספר): הקופה נחתכת מלמטה, הספר נחשף מלמעלה */
+  /* קו החשיפה ב-24 (קופה) → 4 (ספר): הקופה נחתכת מלמטה, הספר נחשף מלמעלה.
+     נקודת ההתחלה בתחתית ה-viewBox (24) ולא ב-22: תחתית עובי הספר (BOOK_THICKNESS) יורדת עד
+     y=21.8, ועם חצי ה-stroke (העגול) היא חוצה את 22 — ונראתה כנקודה מתחת לקופה עד החשיפה. */
   @keyframes donate-anim-reveal-box {
-    0%, 50% { transform: scaleY(0.9167); }
+    0%, 50% { transform: scaleY(1); }
     75%, 94% { transform: scaleY(0.1667); }
-    95%, 100% { transform: scaleY(0.9167); }
+    95%, 100% { transform: scaleY(1); }
   }
 
   @keyframes donate-anim-reveal-book {
-    0%, 50% { transform: translateY(22px); }
+    0%, 50% { transform: translateY(24px); }
     75%, 94% { transform: translateY(4px); }
-    95%, 100% { transform: translateY(22px); }
+    95%, 100% { transform: translateY(24px); }
   }
 
   /* המילוי עולה מתחתית הקופה (y=20) בשלוש מדרגות */
