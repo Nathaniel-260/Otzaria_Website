@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Header from '@/components/layout/Header'
+import { FOCUS_RING } from '@/components/ui/focusRing'
 import { canManageCorrections } from '@/lib/roles'
 
 export default function CorrectionsLayout({ children }) {
@@ -31,7 +32,8 @@ export default function CorrectionsLayout({ children }) {
                   <Link
                     key={t.href}
                     href={t.href}
-                    className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 ${pathname === t.href ? 'bg-primary text-on-primary' : 'glass text-on-surface hover:bg-surface-variant'}`}
+                    aria-current={pathname === t.href ? 'page' : undefined}
+                    className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 ${FOCUS_RING} ${pathname === t.href ? 'bg-primary text-on-primary' : 'glass text-on-surface hover:bg-surface-variant'}`}
                   >
                     <span className="material-symbols-outlined">{t.icon}</span>
                     {t.label}
