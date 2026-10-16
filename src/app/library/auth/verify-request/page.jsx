@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
+import Loader from '@/components/ui/Loader'
 
 export default function VerifyRequestPage() {
     const { data: session, update } = useSession();
@@ -195,7 +196,7 @@ export default function VerifyRequestPage() {
                 >
                     {verificationStatus.loading ? (
                         <>
-                            <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                            <Loader size="inline" decorative />
                             שולח...
                         </>
                     ) : verificationStatus.sent ? (

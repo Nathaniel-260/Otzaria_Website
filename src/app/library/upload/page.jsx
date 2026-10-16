@@ -5,6 +5,7 @@ import { useState, useRef } from 'react'
 import Header from '@/components/layout/Header'
 import { useDialog } from '@/components/providers/DialogContext'
 import { useRequireAuth } from '@/hooks/useRequireAuth'
+import Loader from '@/components/ui/Loader'
 
 const BOOK_CATEGORIES = [
   'תנ"ך',
@@ -455,7 +456,7 @@ export default function UploadPage() {
                 disabled={loading || !file}
                 className="w-full py-3 bg-primary text-on-primary rounded-lg font-bold hover:bg-accent transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {loading && <span className="material-symbols-outlined animate-spin">progress_activity</span>}
+                {loading && <Loader size="inline" decorative />}
                 {loading ? 'מעלה...' : 'העלה ספר'}
               </button>
             </form>

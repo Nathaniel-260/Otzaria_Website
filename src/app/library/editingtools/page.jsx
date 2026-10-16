@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import { useDialog } from '@/components/providers/DialogContext'
+import Loader from '@/components/ui/Loader'
 
 export default function EditingToolsPage() {
   const { showAlert } = useDialog()
@@ -145,7 +146,7 @@ export default function EditingToolsPage() {
 
                   {loading ? (
                     <div className="flex items-center gap-2 text-on-surface/60">
-                      <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                      <Loader size="inline" decorative />
                       <span>טוען מידע על גרסאות...</span>
                     </div>
                   ) : releases ? (

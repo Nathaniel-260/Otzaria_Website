@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Loader from '@/components/ui/Loader'
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -90,7 +91,7 @@ export default function ResetPasswordPage() {
   if (isCheckingToken) {
       return (
           <div className="min-h-screen flex items-center justify-center bg-neutral-50">
-              <span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span>
+              <Loader size="lg" />
           </div>
       );
   }

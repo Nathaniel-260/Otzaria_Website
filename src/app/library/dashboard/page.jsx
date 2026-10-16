@@ -14,6 +14,7 @@ import EmailChangeModal from '@/components/dashboard/EmailChangeModal'
 import SubscriptionReminderModal from '@/components/dashboard/SubscriptionReminderModal'
 import NotificationSubscriptionModal from '@/components/dashboard/NotificationSubscriptionModal'
 import MyMessagesModal from '@/components/dashboard/MyMessagesModal'
+import Loader from '@/components/ui/Loader'
 
 export default function DashboardPage() {
   const { data: session, status, update } = useSession()
@@ -698,7 +699,7 @@ export default function DashboardPage() {
               >
                 {sendingMessage ? (
                   <>
-                    <span className="material-symbols-outlined animate-spin text-xl">progress_activity</span>
+                    <Loader size="inline" decorative className="text-xl" />
                     <span>שולח...</span>
                   </>
                 ) : (

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
+import Loader from '@/components/ui/Loader'
 
 export default function ApproveTermsPage() {
   const router = useRouter()
@@ -97,7 +98,7 @@ export default function ApproveTermsPage() {
             >
               {loading ? (
                 <>
-                  <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                  <Loader size="inline" decorative />
                   <span>מעדכן...</span>
                 </>
               ) : (

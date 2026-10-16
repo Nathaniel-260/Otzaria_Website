@@ -27,6 +27,7 @@ import DirectInstallButton from '@/components/plugins/DirectInstallButton'
 import Breadcrumbs from '@/components/plugins/Breadcrumbs'
 import type { PluginSearchResult, PluginCategorySummary } from '@/components/plugins/types'
 import { SEARCH_PAGE_SIZE, type PluginSearchResponse } from './searchConfig'
+import Loader from '@/components/ui/Loader'
 
 const SEARCH_DEBOUNCE_MS = 300
 const PAGE_SIZE = SEARCH_PAGE_SIZE
@@ -378,7 +379,7 @@ export default function PluginSearchClient({ initialQuery, initialResults }: Plu
                     >
                       {loadingMore ? (
                         <>
-                          <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
+                          <Loader size="inline" decorative className="text-base" />
                           <span>טוען...</span>
                         </>
                       ) : (

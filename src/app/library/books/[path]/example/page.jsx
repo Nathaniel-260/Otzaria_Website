@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import ImagePanel from '@/components/editor/ImagePanel'
+import Loader from '@/components/ui/Loader'
 
 export default function ExamplePageViewer() {
   const params = useParams()
@@ -72,8 +73,7 @@ export default function ExamplePageViewer() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-50 gap-4">
-        <span className="material-symbols-outlined animate-spin text-5xl text-info-600">progress_activity</span>
-        <p className="text-neutral-600 font-medium">טוען עמוד דוגמא...</p>
+        <Loader size="lg" label="טוען עמוד דוגמא…" />
       </div>
     )
   }

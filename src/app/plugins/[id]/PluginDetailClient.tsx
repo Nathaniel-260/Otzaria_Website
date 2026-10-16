@@ -26,6 +26,7 @@ import DirectInstallButton from '@/components/plugins/DirectInstallButton'
 import Breadcrumbs, { type BreadcrumbItem } from '@/components/plugins/Breadcrumbs'
 import ScreenshotGallery from '@/components/plugins/ScreenshotGallery'
 import type { CategoryRef } from '@/components/plugins/types'
+import Loader from '@/components/ui/Loader'
 
 // חלונות העריכה (למעלה התוסף בלבד) והדיווח נפתחים רק בלחיצה — נטענים
 // בנפרד כדי שלא יכבידו על הטעינה הראשונה של כל צופה בדף. בזמן הטעינה מוצגת
@@ -33,8 +34,8 @@ import type { CategoryRef } from '@/components/plugins/types'
 // מרענן את הדף במקום להפיל אותו ל-error boundary.
 function ModalLoadingOverlay() {
   return (
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 p-4" role="status" aria-label="טוען...">
-      <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 p-4">
+      <Loader size="lg" tone="current" showLabel={false} className="text-white" />
     </div>
   )
 }
@@ -178,8 +179,7 @@ export default function PluginDetailClient({ initialPlugin }: PluginDetailClient
         <OtzariaSoftwareHeader showAuth />
         <main id="main-content" className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-on-surface/50 font-medium">טוען פרטי תוסף...</p>
+            <Loader size="lg" label="טוען פרטי תוסף…" />
           </div>
         </main>
         <OtzariaSoftwareFooter />
@@ -400,7 +400,6 @@ export default function PluginDetailClient({ initialPlugin }: PluginDetailClient
                       installState={installState}
                       onInstall={handleDirectInstall}
                       className="inline-flex items-center gap-2 px-6 py-3 bg-white border-2 border-primary text-primary rounded-xl font-bold hover:bg-primary/5 transition-colors disabled:cursor-default disabled:opacity-80"
-                      spinnerClassName="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"
                       showIcons
                       idleLabel="התקנה ישירה לאוצריא"
                     />

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import Loader from '@/components/ui/Loader'
 
 export default function PersonalLibraryPage() {
   const [flatBooks, setFlatBooks] = useState([])
@@ -235,7 +236,7 @@ function UploadModal({ onClose, onSuccess }) {
                     >
                         {isUploading ? (
                             <>
-                             <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                             <Loader size="inline" decorative className="text-sm" />
                              מעלה...
                             </>
                         ) : 'העלה'}

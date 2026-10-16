@@ -6,6 +6,7 @@ import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton'
+import Loader from '@/components/ui/Loader'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -254,7 +255,7 @@ export default function RegisterPage() {
             >
               {loading ? (
                 <>
-                  <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                  <Loader size="inline" decorative />
                   <span>נרשם...</span>
                 </>
               ) : (

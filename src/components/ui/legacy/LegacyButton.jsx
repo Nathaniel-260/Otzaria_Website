@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Loader from '@/components/ui/Loader'
 
 // מיושן — הכפתור הישן (label + variant primary/secondary/outline/ghost/danger), שנשמר כמו שהוא
 // עבור העורכים ודיקטה (DictaEditorCore, SpellcheckDialog, dicta-edit, dicta-books/edit), כדי
@@ -76,9 +77,7 @@ export default function Button({
       {...rest}
     >
       {loading ? (
-        <span className="material-symbols-outlined text-xl animate-spin">
-          progress_activity
-        </span>
+        <Loader size="inline" decorative className="text-xl" />
       ) : icon ? (
         <span className="material-symbols-outlined text-xl">{icon}</span>
       ) : null}

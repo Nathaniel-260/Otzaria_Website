@@ -33,6 +33,7 @@ import PluginSearchBox from '@/components/plugins/PluginSearchBox'
 import Breadcrumbs from '@/components/plugins/Breadcrumbs'
 import { filterPlugins, extractSortedTags } from '@/lib/pluginFilter'
 import type { PluginCardData } from '@/components/plugins/types'
+import Loader from '@/components/ui/Loader'
 
 // מזהה אלמנט ה-style שהסקריפט מוסיף ל-head; מוסר אחרי אתחול המסננים מה-URL.
 // style ב-head ולא attribute על <html>: ל-<html> יש props מ-React (layout.tsx),
@@ -123,8 +124,7 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
       {/* מוצג (במקום main) רק בזמן שהסקריפט למעלה מזהה פרמטר סינון ב-URL */}
       <div id="all-plugins-pending" className="hidden min-h-screen flex-1 items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-on-surface/50 font-medium">טוען את כל התוספים...</p>
+          <Loader size="lg" label="טוען את כל התוספים…" />
         </div>
       </div>
 
