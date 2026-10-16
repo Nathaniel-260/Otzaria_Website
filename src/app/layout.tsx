@@ -38,10 +38,15 @@ const vilna = localFont({
 // גופן משתנה (200–800) — קובץ אחד לכל המשקלים. next/font מוריד אותו בזמן ה-build ומגיש
 // אותו מהאתר עצמו (בלי בקשה ל-Google בזמן ריצה). Assistant נראה קטן מגופן המערכת באותו
 // גודל — הפיצוי ב---font-body-size-adjust (typography.css), לא בגדלים עצמם.
+//
+// display: "optional" ולא "swap": גופן הממשק קובע את רוחב כל הטקסט, וההחלפה מגופן הגיבוי
+// (Arial מותאם-מידות, שמותאם לאותיות לטיניות ולא לעבריות) הזיזה את כל קישורי הניווט בכותרת
+// בכ-20px בביקור הראשון (נמדד ב-CDP). עם optional: הגופן מוקדם (preload), וכמעט תמיד מגיע
+// לפני הציור הראשון; אם לא — העמוד הזה נשאר בגופן הגיבוי בלי להחליף באמצע, והבא כבר מהמטמון.
 const assistant = Assistant({
   subsets: ["hebrew", "latin"],
   variable: "--font-assistant",
-  display: "swap",
+  display: "optional",
 });
 
 export const metadata: Metadata = {

@@ -8,6 +8,9 @@
   html {
     direction: rtl;
     background-color: var(--color-background);
+    /* מקום קבוע לפס הגלילה: בלעדיו, מעבר בין עמוד קצר (למשל loading.jsx בזמן ניווט) לעמוד ארוך
+       מוסיף/מסיר את הפס ומשנה את רוחב הדף ב-15px — וכל מה שממורכז (הניווט בכותרת) זז בחצי. */
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -40,6 +43,11 @@
     letter-spacing: normal;
     text-transform: none;
     display: inline-block;
+    /* רוחב של גליף אחד גם לפני שגופן האייקונים עולה (font-display: block מסתיר את הטקסט אבל
+       פורס אותו ברוחבו — "expand_more" ברוחב מילה שלמה). בלי זה, עליית הגופן כיווצה את
+       הניווט בכותרת ב-80px והזיזה את כל הקישורים (נמדד ב-CDP). גליפי Material Symbols ריבועיים. */
+    width: 1em;
+    overflow: hidden;
     white-space: nowrap;
     word-wrap: normal;
     direction: ltr;
