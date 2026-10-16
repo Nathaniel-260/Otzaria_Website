@@ -18,7 +18,7 @@ import { FOCUS_RING } from './focusRing'
  */
 
 export const BUTTON_VARIANTS = ['filled', 'tonal', 'outlined', 'text', 'danger', 'donation'] as const
-export const BUTTON_SIZES = ['sm', 'md', 'lg'] as const
+export const BUTTON_SIZES = ['sm', 'md', 'lg', 'header'] as const
 
 export type ButtonVariant = (typeof BUTTON_VARIANTS)[number]
 export type ButtonSize = (typeof BUTTON_SIZES)[number]
@@ -36,18 +36,27 @@ const VARIANT: Record<Exclude<ButtonVariant, 'donation'>, string> = {
   danger: 'bg-(--button-danger-bg) text-(--button-danger-fg) hover:bg-(--button-danger-bg-hover)'
 }
 
-/** גובה (מטרת מגע ≥44px בכל הגדלים), ריפוד וגודל טקסט */
+/**
+ * מטרת מגע של 44px לכפתור שגובהו החזותי נמוך ממנה (header): שכבה שקופה ב-::before, ממורכזת
+ * אנכית, בגובה max(100%, 44px) — כמו .donation-nav-link שלצדו בכותרת.
+ */
+const TOUCH_TARGET_OVERLAY =
+  "relative before:absolute before:inset-x-0 before:top-1/2 before:h-[max(100%,var(--touch-target))] before:-translate-y-1/2 before:content-['']"
+
+/** גובה (מטרת מגע ≥44px בכל הגדלים — ב-header דרך ::before), ריפוד וגודל טקסט */
 const SIZE: Record<ButtonSize, string> = {
   sm: 'min-h-(--button-height-sm) px-4 text-sm',
   md: 'min-h-(--button-height-md) px-6 text-base',
-  lg: 'min-h-(--button-height-lg) px-8 text-base'
+  lg: 'min-h-(--button-height-lg) px-8 text-base',
+  header: `min-h-(--button-height-header) px-3.5 text-sm whitespace-nowrap ${TOUCH_TARGET_OVERLAY}`
 }
 
 /** כפתור אייקון בלבד — ריבוע ברוחב הגובה */
 const ICON_ONLY: Record<ButtonSize, string> = {
   sm: 'min-h-(--button-height-sm) min-w-(--button-height-sm) text-sm',
   md: 'min-h-(--button-height-md) min-w-(--button-height-md) text-base',
-  lg: 'min-h-(--button-height-lg) min-w-(--button-height-lg) text-base'
+  lg: 'min-h-(--button-height-lg) min-w-(--button-height-lg) text-base',
+  header: `min-h-(--button-height-header) min-w-(--button-height-header) text-sm ${TOUCH_TARGET_OVERLAY}`
 }
 
 /** גודל הגליף — ברירת המחדל לפי גודל הכפתור */
@@ -56,7 +65,8 @@ export type ButtonIconSize = ButtonSize
 const ICON_SIZE: Record<ButtonIconSize, string> = {
   sm: 'text-(length:--button-icon-size-sm)',
   md: 'text-(length:--button-icon-size-md)',
-  lg: 'text-(length:--button-icon-size-lg)'
+  lg: 'text-(length:--button-icon-size-lg)',
+  header: 'text-(length:--button-icon-size-header)'
 }
 
 export const DISABLED_CLASSES = 'pointer-events-none opacity-(--button-disabled-opacity)'

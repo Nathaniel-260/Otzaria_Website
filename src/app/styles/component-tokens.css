@@ -19,14 +19,23 @@
 
   /* ---------- כפתור (ui/Button) ----------
    * גובה: sm = מטרת המגע המינימלית (44px); md = הכפתורים הראשיים של דף הבית (min-h-12,
-   * 45.6px); lg = קריאה לפעולה בסוף אזור (48px). */
+   * 45.6px); lg = קריאה לפעולה בסוף אזור (48px). header = פעולה בשורת הכותרת (התחבר,
+   * התנתק, תרומות): גובה חזותי נמוך יותר כדי לא להעיב על הניווט, ומטרת המגע (44px) נשמרת
+   * דרך ::before (ראו buttonStyles.ts ו-.donation-nav-link ב-effects.css). */
   --button-radius: var(--radius-control);
   --button-height-sm: var(--touch-target);
   --button-height-md: calc(var(--spacing) * 12);
   --button-height-lg: 3rem;
+  --button-height-header: calc(var(--spacing) * 9);
   --button-icon-size-sm: 1.25rem;
   --button-icon-size-md: 22px;
   --button-icon-size-lg: 1.375rem;
+  --button-icon-size-header: 1.15rem;
+
+  /* ---------- אזור החשבון בכותרת (layout/AccountActions) ----------
+   * רוחב קבוע ל"התחבר" / כפתור החשבון / המקום השמור בזמן טעינת ה-session — כדי שהניווט לא
+   * יזוז כשהמצב מתחלף. מתאים לכפתור החשבון עם שם קצר (AccountMenu, השם נחתך ב-truncate). */
+  --account-slot-width: 9.5rem;
 
   --button-filled-bg: var(--color-primary);
   --button-filled-bg-hover: var(--color-primary-hover);
