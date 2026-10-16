@@ -7,6 +7,7 @@ import Dialog from '@/components/ui/Dialog'
 import IconTile from '@/components/ui/IconTile'
 import Section from '@/components/ui/Section'
 import SectionHeading from '@/components/ui/SectionHeading'
+import { detectPlatform } from '@/lib/detectOs'
 import DownloadOptionCard from './DownloadOptionCard'
 // ייבוא טיפוס בלבד (נמחק בקומפילציה) — הקוד של stableDownloads.ts נשאר בשרת
 import type { Downloads } from './stableDownloads'
@@ -39,27 +40,9 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
 
   // זיהוי פלטפורמה אוטומטי
   useEffect(() => {
-    const detectPlatform = () => {
-      const userAgent = navigator.userAgent.toLowerCase()
-      const platform = navigator.platform?.toLowerCase() || ''
-
-      if (/android/.test(userAgent)) {
-        return 'android'
-      } else if (/iphone|ipad|ipod/.test(userAgent)) {
-        return 'ios'
-      } else if (/mac/.test(platform) || /macintosh/.test(userAgent)) {
-        return 'macos'
-      } else if (/win/.test(platform) || /windows/.test(userAgent)) {
-        return 'windows'
-      } else if (/linux/.test(platform) || /linux/.test(userAgent)) {
-        return 'linux'
-      }
-      return null
-    }
-
     // זיהוי פלטפורמה רץ רק בצד הלקוח (navigator לא קיים בשרת)
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDetectedPlatform(detectPlatform())
+    setDetectedPlatform(detectPlatform({ userAgent: navigator.userAgent, platform: navigator.platform || '' }))
   }, [])
 
   // פונקציה להחזרת שם הפלטפורמה בעברית

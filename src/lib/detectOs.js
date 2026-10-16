@@ -23,6 +23,22 @@ export function detectOs({ userAgent = '', platform = '', maxTouchPoints = 0 } =
   return null
 }
 
+/**
+ * הפלטפורמה של אפליקציית אוצריא שמתאימה למבקר — לאזור ההורדה בדף הבית (DownloadSectionClient),
+ * שמציע כרטיס לכל אחת: 'android' | 'ios' | 'macos' | 'windows' | 'linux', או null — לא ידוע.
+ * גס יותר מ-detectOs בכוונה (כמו שהיה ברכיב): iPad שמתחזה ל-Mac נחשב macOS, ו-ChromeOS — לא ידוע.
+ */
+export function detectPlatform({ userAgent = '', platform = '' } = {}) {
+  const ua = userAgent.toLowerCase()
+  const pf = platform.toLowerCase()
+  if (/android/.test(ua)) return 'android'
+  if (/iphone|ipad|ipod/.test(ua)) return 'ios'
+  if (/mac/.test(pf) || /macintosh/.test(ua)) return 'macos'
+  if (/win/.test(pf) || /windows/.test(ua)) return 'windows'
+  if (/linux/.test(pf) || /linux/.test(ua)) return 'linux'
+  return null
+}
+
 /** הערך שהסקריפט כתב על <html> (או null — בשרת, לפני הסקריפט, או ערך לא מוכר) */
 export function readDocumentOs(doc) {
   const value = doc?.documentElement?.getAttribute('data-os')

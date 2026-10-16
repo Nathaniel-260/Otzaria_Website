@@ -5,7 +5,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { detectOs, OS_DETECT_SCRIPT, readDocumentOs } from './detectOs.js'
+import { detectOs, detectPlatform, OS_DETECT_SCRIPT, readDocumentOs } from './detectOs.js'
 
 const WIN_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36'
 const MAC_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15'
@@ -47,4 +47,20 @@ test('readDocumentOs — רק ערכים מוכרים; בלי document או בל
   assert.equal(readDocumentOs(runScript({}).document), null)
   assert.equal(readDocumentOs({ documentElement: { getAttribute: () => 'beos' } }), null)
   assert.equal(readDocumentOs(undefined), null)
+})
+
+test('detectPlatform — כרטיס ההורדה בדף הבית: Android, iOS, macOS, Windows, Linux, לא ידוע', () => {
+  const cases = [
+    [{ userAgent: WIN_UA, platform: 'Win32' }, 'windows'],
+    [{ userAgent: WIN_UA }, 'windows'],
+    [{ userAgent: MAC_UA, platform: 'MacIntel' }, 'macos'],
+    // iPad שמתחזה ל-Mac — macOS (לא כמו detectOs)
+    [{ userAgent: MAC_UA, platform: 'MacIntel', maxTouchPoints: 5 }, 'macos'],
+    [{ userAgent: 'Mozilla/5.0 (Linux; Android 14) Mobile', platform: 'Linux armv8l' }, 'android'],
+    [{ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', platform: 'iPhone' }, 'ios'],
+    [{ userAgent: 'Mozilla/5.0 (X11; Linux x86_64)', platform: 'Linux x86_64' }, 'linux'],
+    [{ userAgent: 'Mozilla/5.0 (X11; CrOS x86_64 14541.0.0)', platform: '' }, null],
+    [{}, null]
+  ]
+  for (const [input, expected] of cases) assert.equal(detectPlatform(input), expected, JSON.stringify(input))
 })
