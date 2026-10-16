@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { prefersReducedMotion } from '@/lib/reducedMotion'
+import { prefersReducedMotion, REDUCED_MOTION_QUERY } from '@/lib/reducedMotion'
 import { computeHandoffGeometry, handoffFrame } from '@/lib/wordmarkHandoff'
 
 // useWordmarkHandoff — מחבר את שם האתר שבכותרת העליונה למילה "אוצריא" שבכותרת הראשית של
@@ -58,7 +58,7 @@ export default function useWordmarkHandoff({ enabled, targetRef, flyerRef }) {
     const companions = Array.from(document.querySelectorAll('[data-wordmark-handoff-companion]'))
     const useCss = supportsScrollTimeline()
     const reducedQuery = typeof window.matchMedia === 'function'
-      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      ? window.matchMedia(REDUCED_MOTION_QUERY)
       : null
     let geometry = null
     let frame = 0

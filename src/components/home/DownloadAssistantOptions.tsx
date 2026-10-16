@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import Card from '@/components/ui/Card'
-import DownloadNote, { Ltr, Nowrap } from './DownloadNote'
+import DownloadNote, { LtrCode, Nowrap } from './DownloadNote'
 import DownloadOptionCard from './DownloadOptionCard'
 
 type PlatformLinks = Record<string, string | undefined>
@@ -34,7 +34,7 @@ const ASSISTANT_CONFIG: Record<string, AssistantPlatformConfig> = {
     ]
   },
   macOS: {
-    lead: <>פתח את <Nowrap>ה-<Ltr>ZIP</Ltr></Nowrap> שהורד והפעל את המסייע שבתוכו&nbsp;— משם הוא ינחה אותך.</>,
+    lead: <>פתח את <Nowrap>ה-<LtrCode>ZIP</LtrCode></Nowrap> שהורד והפעל את המסייע שבתוכו&nbsp;— משם הוא ינחה אותך.</>,
     buttons: [
       { key: 'assistant', icon: 'laptop_mac', title: 'מסייע ההורדה של אוצריא', desc: 'macOS 12 ומעלה, Intel ו-Apple Silicon' }
     ],
@@ -45,7 +45,7 @@ const ASSISTANT_CONFIG: Record<string, AssistantPlatformConfig> = {
     }
   },
   Linux: {
-    lead: <>חלץ את <Nowrap>ה-<Ltr>tar.gz</Ltr></Nowrap> שהורד והפעל את <Ltr>Otzaria-Download-Assistant</Ltr> שבתיקייה&nbsp;— משם הוא ינחה אותך.</>,
+    lead: <>חלץ את <Nowrap>ה-<LtrCode>tar.gz</LtrCode></Nowrap> שהורד והפעל את <LtrCode>Otzaria-Download-Assistant</LtrCode> שבתיקייה&nbsp;— משם הוא ינחה אותך.</>,
     buttons: [
       { key: 'assistantX64', icon: 'computer', title: 'מסייע ההורדה (x64)', desc: 'מעבד Intel או AMD — רוב המחשבים' },
       { key: 'assistantArm64', icon: 'memory', title: 'מסייע ההורדה (ARM64)', desc: 'מעבד ARM' }
@@ -54,7 +54,7 @@ const ASSISTANT_CONFIG: Record<string, AssistantPlatformConfig> = {
     note: {
       icon: 'terminal',
       onlyWithMultipleButtons: true,
-      text: <>לא בטוח? הרץ בטרמינל <Ltr>uname -m</Ltr>: <Ltr>x86_64</Ltr> פירושו x64, ו-<Ltr>aarch64</Ltr> פירושו ARM64.</>
+      text: <>לא בטוח? הרץ בטרמינל <LtrCode>uname -m</LtrCode>: <LtrCode>x86_64</LtrCode> פירושו x64, ו-<LtrCode>aarch64</LtrCode> פירושו ARM64.</>
     }
   }
 }
