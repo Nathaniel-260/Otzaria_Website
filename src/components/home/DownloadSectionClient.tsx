@@ -29,6 +29,9 @@ type DownloadOption = {
   isLink?: boolean
 }
 
+// כפתור המעבר בין "המערכת שזוהתה" ל"כל המערכות" (שני הכיוונים)
+const TOGGLE_BUTTON = 'flex min-h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-primary hover:bg-card-selected'
+
 // stableDownloads מגיע כבר טעון מהשרת (ראו DownloadSection.tsx, ה-Server Component
 // שעוטף את הרכיב הזה) — כאן נשארת רק האינטראקטיביות (זיהוי פלטפורמה, מודלים).
 export default function DownloadSectionClient({ stableDownloads }: { stableDownloads: Downloads | null }) {
@@ -146,7 +149,7 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
               <button
                 type="button"
                 onClick={() => setShowAllPlatforms(true)}
-                className="flex min-h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-primary hover:bg-card-selected"
+                className={TOGGLE_BUTTON}
               >
                 <span>הורדה למערכת אחרת</span>
                 <span className="material-symbols-outlined text-lg">expand_more</span>
@@ -173,7 +176,7 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
                 <button
                   type="button"
                   onClick={() => setShowAllPlatforms(false)}
-                  className="mx-auto flex min-h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-primary hover:bg-card-selected"
+                  className={`mx-auto ${TOGGLE_BUTTON}`}
                 >
                   <span className="material-symbols-outlined text-lg">expand_less</span>
                   <span>חזור להורדה ל-{getPlatformName(detectedPlatform)}</span>
