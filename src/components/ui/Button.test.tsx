@@ -43,7 +43,8 @@ describe('Button', () => {
     const button = screen.getByRole('button', { name: /שמירה/ })
     expect(button).toBeDisabled()
     expect(button).toHaveAttribute('aria-busy', 'true')
-    expect(button).toHaveTextContent('progress_activity')
+    expect(button.querySelector('.loader[aria-hidden="true"]')).not.toBeNull()
+    expect(button).toHaveAccessibleName('שמירה')
     expect(button).not.toHaveTextContent('save')
   })
 

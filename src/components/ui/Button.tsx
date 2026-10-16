@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, MouseEvent, ReactNode } from 'react'
 import AppIcon from './AppIcon'
+import Loader from './Loader'
 import { cx } from './cx'
 import {
   buttonClasses,
@@ -67,7 +68,7 @@ function renderIcon(icon: ButtonIcon, className: string) {
  * לעוגן/כתובת חיצונית — לפי href. מבוסס טוקנים (component-tokens.css → --button-*), ומטרת
  * המגע לפחות 44px בכל הגדלים. Server Component (בלי hooks) — אפשר להשתמש בו גם בדפי שרת.
  *
- * נגישות: loading → aria-busy ו-disabled; קישור מושבת → aria-disabled ומחוץ לסדר הטאב
+ * נגישות: loading → aria-busy ו-disabled, ובמקום האייקון מחוון הטעינה (ui/Loader, דקורטיבי); קישור מושבת → aria-disabled ומחוץ לסדר הטאב
  * (קישור אין לו disabled אמיתי); iconOnly דורש aria-label.
  */
 export default function Button(props: ButtonProps) {
@@ -93,7 +94,7 @@ export default function Button(props: ButtonProps) {
   const content = (
     <>
       {loading
-        ? <AppIcon name="progress_activity" className={cx(iconClasses, 'animate-spin motion-reduce:animate-none')} />
+        ? <Loader size="inline" decorative className={variant === 'donation' ? undefined : iconClasses} />
         : renderIcon(icon, iconClasses)}
       {children}
       {renderIcon(iconEnd, iconClasses)}

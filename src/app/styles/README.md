@@ -39,7 +39,7 @@
 
 ## מחלקות CSS משותפות
 
-`effects.css`: `.glass`, `.donation-button` (+`-lg`, `.donation-nav-link`), `.app-icon`, `.title-ornament`, `.anchor-section`, `.custom-scrollbar`, `.spellcheck-highlight`, `.hover-lift`.
+`effects.css`: `.glass`, `.donation-button` (+`-lg`, `.donation-nav-link`), `.app-icon`, `.loader*` (ui/Loader), `.title-ornament`, `.anchor-section`, `.custom-scrollbar`, `.spellcheck-highlight`, `.hover-lift`.
 `nav.css`: `.nav-dropdown*`, `.mobile-nav-group*`. `animations.css`: `@keyframes` + `animate-*`.
 
 ## תחזוקה
