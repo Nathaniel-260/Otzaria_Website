@@ -263,7 +263,7 @@
        למרחק האנכי (כפול --wordmark-handoff-rise), כך שהמילה עולה בקצב קבוע ביחס לגלילה.
        2px = HANDOFF_SWAP_DISTANCE: המילה שבגיבור והמעופף מתחלפים בבת אחת (steps) — אף פעם
        לא שתי מילים, ולא שני עותקים חצי-שקופים.
-       0.85 = CROSSFADE_START: בקטע האחרון המעופף (Regular, מוקטן) דועך ושם האתר הסטטי (Bold,
+       0.85 = CROSSFADE_START: בקטע האחרון המעופף (Regular, מוקטן) דועך ושם האתר הסטטי (Regular,
        בגודל אמיתי — חד) עולה במקומו. ה-hide ב-forwards בלבד: לפני הטווח שלו אין לו השפעה,
        ואחרת היה דורס את ה-show */
     :root[data-wordmark-handoff='css'] .wordmark-handoff-flyer {

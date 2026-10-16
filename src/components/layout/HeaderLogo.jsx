@@ -11,8 +11,8 @@ const WORDMARK = 'אוצריא'
 /**
  * הלוגו ושם האתר שבכותרת העליונה — קישור לדף הבית.
  *
- * הלוגו מוצג תמיד, קבוע, מטעינת הדף. שם האתר — "אוצריא" ב-OT Vilna Bold: בגודל הכותרת
- * העליונה ה-Regular דק מדי לקריאה (ה-Regular שמור למילה הגדולה שבגיבור).
+ * הלוגו מוצג תמיד, קבוע, מטעינת הדף. שם האתר — "אוצריא" ב-OT Vilna Regular, כמו המילה הגדולה
+ * שבגיבור (OT Vilna נטען בלי Bold — design-system.md).
  *
  * handoff (דף הבית בלבד): בראש הדף שם האתר אינו מוצג בכותרת — הוא המילה הגדולה שבגיבור.
  * בגלילה המילה עולה ומתכווצת אל מקומו כאן (useWordmarkHandoff, "מעבר שם האתר" ב-
@@ -40,7 +40,7 @@ export default function HeaderLogo({ handoff = false }) {
     >
       <Image src="/logo.webp" alt={handoff ? '' : 'לוגו אוצריא'} width={32} height={32} className="size-[32px] shrink-0" />
       <span className="relative flex items-center">
-        <span ref={targetRef} className={`font-display text-2xl font-bold leading-none text-on-surface ${handoff ? 'wordmark-handoff-target' : ''}`}>
+        <span ref={targetRef} className={`font-display text-2xl font-normal leading-none text-on-surface ${handoff ? 'wordmark-handoff-target' : ''}`}>
           {WORDMARK}
         </span>
         {handoff && (

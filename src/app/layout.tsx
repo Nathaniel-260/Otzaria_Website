@@ -20,16 +20,16 @@ const frankRuehl = localFont({
 });
 
 // OT Vilna — Levi Chyrek / Otzar Fonts; התקבל אישור שימוש באתר.
-// שני משקלים: Bold (700) לטקסט התצוגה המודגש (font-display: כותרות האזורים), ו-Regular (400)
-// למילה "אוצריא" כשם המותג (הכותרת הראשית בגיבור ושם האתר בכותרת העליונה). אין בו אותיות לטיניות — הן נופלות ל---font-hebrew (typography.css).
+// Regular (400) בלבד, בלי Bold — לכל הכותרות (font-display) ולשם המותג "אוצריא". קובץ ה-Bold
+// נשאר ב-fonts/ אבל לא נטען. כדי שהדפדפן לא ייצר בולד מלאכותי (faux bold) אם משקל גבוה מתבקש
+// בטעות — font-synthesis-weight: none על font-display (typography.css).
+// אין בו אותיות לטיניות — הן נופלות ל---font-hebrew (typography.css).
 // preload (ברירת המחדל) נשאר: שם האתר בכותרת העליונה משתמש בו בכל עמוד, ובדף הבית הוא
-// גם הכותרת הראשית. כ-17KB לכל משקל. adjustFontFallback (ברירת המחדל, Arial מותאם-מידות) מצמצם
+// גם הכותרת הראשית. כ-17KB. adjustFontFallback (ברירת המחדל, Arial מותאם-מידות) מצמצם
 // את קפיצת ה-layout ברגע ההחלפה (display: swap).
 const vilna = localFont({
-  src: [
-    { path: "./fonts/OTVilna-Regular.woff2", weight: "400" },
-    { path: "./fonts/OTVilna-Bold.woff2", weight: "700" },
-  ],
+  src: "./fonts/OTVilna-Regular.woff2",
+  weight: "400",
   variable: "--font-vilna",
   display: "swap",
 });

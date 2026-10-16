@@ -18,10 +18,10 @@ import { foreverShift } from './foreverTaglineLogic'
 
 const FIRST = 'חינם'
 const FINAL = 'לנצח!'
-// שתי המילים בגופן התצוגה (OT Vilna): "חינם" ב-Regular ובצבע הטקסט הכהה, ו"לנצח!" ב-Bold
-// ובצבע הראשי — הוא ההדגשה של הצירוף
+// שתי המילים בגופן התצוגה (OT Vilna Regular — הוא נטען בלי Bold): "חינם" בצבע הטקסט הכהה,
+// ו"לנצח!" בצבע הראשי — הצבע הוא ההדגשה של הצירוף
 const FIRST_CLASS = 'inline-block font-display font-normal text-on-surface'
-const FINAL_CLASS = 'inline-block font-display font-bold text-primary'
+const FINAL_CLASS = 'inline-block font-display font-normal text-primary'
 
 function useForeverShift(lineRef: React.RefObject<HTMLSpanElement | null>, finalRef: React.RefObject<HTMLSpanElement | null>) {
   useEffect(() => {

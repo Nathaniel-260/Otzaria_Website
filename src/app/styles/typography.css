@@ -4,7 +4,7 @@
  * הערה: --font-frank-ruehl ו---font-vilna מוגדרים ע"י next/font ב-layout.tsx.
  * ============================================================ */
 
-/* גופן התצוגה (OT Vilna Bold) — רק לטקסט מודגש גדול: כותרות ושם האתר. אין בו לטינית,
+/* גופן התצוגה (OT Vilna Regular בלבד, בלי Bold) — לכותרות ולשם האתר, תמיד במשקל 400. אין בו לטינית,
    ולכן אותיות לועזיות נופלות ל---font-hebrew.
    inline בכוונה: --font-vilna מוגדר על <body> (המחלקה של next/font), לא על :root. בלי
    inline הטוקן היה מחושב ב-:root, שם --font-vilna לא קיים, והערך כולו היה נפסל בשקט
@@ -78,6 +78,7 @@
    * כך שהמעבר אליהם אינו משנה דבר בדף הבית.
    *   display  — שם המותג בגיבור בלבד (גופן התצוגה, משקל רגיל).
    *   headline — כותרת עמוד (lg) וכותרת אזור (md בנייד → lg מ-md; ראו ui/SectionHeading).
+   *              גופן התצוגה, משקל 400 (OT Vilna נטען רק ב-Regular).
    *   title    — כותרת כרטיס / דיאלוג / פריט.
    *   body     — טקסט רץ. lg לפסקת פתיחה, md ברירת המחדל, sm לתיאור משני.
    *   label    — כפתור, תגית, תווית שדה. */
@@ -93,13 +94,13 @@
 
   --text-headline-lg: var(--text-4xl);
   --text-headline-lg--line-height: var(--leading-tight);
-  --text-headline-lg--font-weight: 700;
+  --text-headline-lg--font-weight: 400;
   --text-headline-md: 1.7rem;
   --text-headline-md--line-height: var(--leading-tight);
-  --text-headline-md--font-weight: 700;
+  --text-headline-md--font-weight: 400;
   --text-headline-sm: var(--text-2xl);
   --text-headline-sm--line-height: var(--text-2xl--line-height);
-  --text-headline-sm--font-weight: 700;
+  --text-headline-sm--font-weight: 400;
 
   --text-title-lg: var(--text-xl);
   --text-title-lg--line-height: var(--leading-snug);
@@ -146,6 +147,12 @@
 @layer base {
   body {
     font-size-adjust: var(--font-body-size-adjust);
+  }
+
+  /* OT Vilna נטען רק ב-Regular. בלי זה, משקל ≥600 שמתבקש בטעות על גופן התצוגה היה מקבל בולד
+     מלאכותי (הדפדפן "מעבה" את הגליפים). */
+  .font-display {
+    font-synthesis-weight: none;
   }
 
   .font-display,
