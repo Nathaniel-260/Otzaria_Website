@@ -381,7 +381,7 @@ function DictaBooksContent() {
 
           <div className="flex flex-col md:flex-row gap-4 mb-8">
             <div className="relative flex-1">
-              <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-neutral-cool-400 w-5 h-5">
+              <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-neutral-cool-400 text-xl">
                 search
               </span>
               <input 

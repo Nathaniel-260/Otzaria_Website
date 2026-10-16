@@ -122,7 +122,7 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
           גם בזמן שהסינון מה-URL עוד לא הוחל — כולל לפני ה-hydration, כקישור עוגן רגיל */}
       <main id="main-content" className="flex-1">
       {/* מוצג (במקום all-plugins-content) רק בזמן שהסקריפט למעלה מזהה פרמטר סינון ב-URL */}
-      <div id="all-plugins-pending" className="hidden min-h-screen flex-1 items-center justify-center">
+      <div id="all-plugins-pending" className="hidden min-h-[60vh] flex-1 items-center justify-center">
         <div className="text-center">
           <Loader size="lg" label="טוען את כל התוספים…" />
         </div>

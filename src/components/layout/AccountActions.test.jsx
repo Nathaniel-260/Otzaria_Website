@@ -93,6 +93,17 @@ describe('AccountActions — שורת הכותרת', () => {
   })
 })
 
+test('Tab שיוצא מהתפריט אל רכיב אחר סוגר אותו', async () => {
+  render(<><AccountActions session={demoUser()} status="authenticated" /><button type="button">אחר</button></>)
+  await userEvent.click(accountButton())
+  expect(accountButton()).toHaveAttribute('aria-expanded', 'true')
+  await userEvent.tab() // לוח בקרה
+  await userEvent.tab() // התנתק
+  await userEvent.tab() // יוצא
+  expect(screen.getByRole('button', { name: 'אחר' })).toHaveFocus()
+  expect(accountButton()).toHaveAttribute('aria-expanded', 'false')
+})
+
 describe('AccountActions — תפריט נייד (compact)', () => {
   test('אורח: "התחבר" ברוחב מלא', () => {
     render(<AccountActions session={null} status="unauthenticated" compact />)

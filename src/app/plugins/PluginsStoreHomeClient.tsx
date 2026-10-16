@@ -65,12 +65,10 @@ function LegacyTagRedirect() {
   if (!legacyTag) return null
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-background">
-      <div className="flex flex-1 flex-col">
-        <main id="main-content" className="flex-1">
-          <StoreHomeSkeleton />
-        </main>
-      </div>
+    // מתחת לכותרת (שב-plugins/layout.tsx), כדי שהיא תישאר גלויה בזמן ההפניה; div ולא <main>,
+    // כי ה-<main id="main-content"> של הדף עדיין ב-DOM מתחת לשכבה
+    <div className="fixed inset-x-0 bottom-0 top-(--site-header-height) z-40 overflow-y-auto bg-background">
+      <StoreHomeSkeleton />
     </div>
   )
 }

@@ -71,7 +71,7 @@ function AccountMenuButton({ name, appearance, unreadMessages, buttonProps }) {
       {...buttonProps}
       aria-label={label}
       title={name}
-      className={cx(buttonClasses({ variant: outlined ? 'outlined' : 'tonal', size: 'header' }), 'ps-1 pe-2 gap-1.5')}
+      className={cx(buttonClasses({ variant: outlined ? 'outlined' : 'tonal', size: 'header' }), 'ps-1 pe-2')}
     >
       {outlined
         ? <AppIcon name="person" className="text-[1.35rem]" />
@@ -167,7 +167,16 @@ export default function AccountMenu({ user, unreadMessages = 0, appearance = 'to
   }
 
   return (
-    <div className="relative" onKeyDown={onKeyDown}>
+    <div
+      className="relative"
+      onKeyDown={onKeyDown}
+      // Tab שיוצא מהכפתור ומהתפריט אל רכיב אחר — סוגר (כמו NavDropdown). relatedTarget ריק
+      // (לחיצה על אזור לא-פוקוסבילי, גם בתוך התפריט) — לא; לחיצה בחוץ נסגרת ב-useDisclosureMenu
+      onBlur={(event) => {
+        const next = event.relatedTarget
+        if (menu.isOpen && next && !event.currentTarget.contains(next)) menu.close()
+      }}
+    >
       <AccountMenuButton
         name={user?.name}
         appearance={appearance}
