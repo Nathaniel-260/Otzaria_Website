@@ -39,6 +39,23 @@ const SHOWN_WHEN = {
   macos: 'hidden in-data-[os=macos]:flex'
 }
 
+// הערה לפני הכרטיס כשהמערכת לא נתמכת (טלפון / Linux וכו'). shownClass מלא ולא מורכב — כדי
+// ש-Tailwind ימצא אותו בסריקה.
+const UNSUPPORTED_OS_NOTES = [
+  {
+    os: 'mobile',
+    shownClass: 'in-data-[os=mobile]:flex',
+    icon: 'smartphone',
+    text: <>הכלי הזה מיועד למחשב (<Ltr>Windows</Ltr> או <Ltr>macOS</Ltr>). בטלפון ובטאבלט, אוצריא מתעדכנת דרך חנות האפליקציות.</>
+  },
+  {
+    os: 'other',
+    shownClass: 'in-data-[os=other]:flex',
+    icon: 'info',
+    text: <>הכלי זמין ל-<Ltr>Windows</Ltr> ול-<Ltr>macOS</Ltr>. אפשר להוריד אותו כאן ולהפעיל אותו במחשב אחר עם אחת מהמערכות האלה.</>
+  }
+]
+
 // ה-data-os לא משתנה אחרי הטעינה — אין למה להירשם
 const subscribe = () => () => {}
 const getOs = () => readDocumentOs(document)
@@ -64,14 +81,12 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
     <div className="flex flex-col gap-5">
       {/* הערה לפני הכרטיס, כשהמערכת לא נתמכת: בטלפון — שהכלי למחשב; ב-Linux וכו' — לאילו
           מערכות הוא זמין. ב-CSS לפי data-os (לפני הציור הראשון), ולכן היא לא דוחפת דבר אחרי הטעינה */}
-      <Card tone="tonal" role="note" padding="sm" className="hidden items-start gap-3 text-body-sm text-on-surface in-data-[os=mobile]:flex">
-        <AppIcon name="smartphone" className="mt-0.5 shrink-0 text-xl text-on-tile" />
-        <p>הכלי הזה מיועד למחשב (<Ltr>Windows</Ltr> או <Ltr>macOS</Ltr>). בטלפון ובטאבלט, אוצריא מתעדכנת דרך חנות האפליקציות.</p>
-      </Card>
-      <Card tone="tonal" role="note" padding="sm" className="hidden items-start gap-3 text-body-sm text-on-surface in-data-[os=other]:flex">
-        <AppIcon name="info" className="mt-0.5 shrink-0 text-xl text-on-tile" />
-        <p>הכלי זמין ל-<Ltr>Windows</Ltr> ול-<Ltr>macOS</Ltr>. אפשר להוריד אותו כאן ולהפעיל אותו במחשב אחר עם אחת מהמערכות האלה.</p>
-      </Card>
+      {UNSUPPORTED_OS_NOTES.map((note) => (
+        <Card key={note.os} tone="tonal" role="note" padding="sm" className={`hidden items-start gap-3 text-body-sm text-on-surface ${note.shownClass}`}>
+          <AppIcon name={note.icon} className="mt-0.5 shrink-0 text-xl text-on-tile" />
+          <p>{note.text}</p>
+        </Card>
+      ))}
 
       {OFFLINE_PLATFORM_KEYS.map((key) => {
         const platform = PLATFORMS[key]
