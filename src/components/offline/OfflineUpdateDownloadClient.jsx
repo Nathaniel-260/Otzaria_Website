@@ -60,6 +60,17 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* הערה לפני הכרטיס, כשהמערכת לא נתמכת: בטלפון — שהכלי למחשב; ב-Linux וכו' — לאילו
+          מערכות הוא זמין. ב-CSS לפי data-os (לפני הציור הראשון), ולכן היא לא דוחפת דבר אחרי הטעינה */}
+      <Card tone="tonal" role="note" padding="sm" className="hidden items-start gap-3 text-body-sm text-on-surface in-data-[os=mobile]:flex">
+        <AppIcon name="smartphone" className="mt-0.5 shrink-0 text-xl text-on-tile" />
+        <p>הכלי הזה מיועד למחשב (<bdi dir="ltr" className="whitespace-nowrap">Windows</bdi> או <bdi dir="ltr" className="whitespace-nowrap">macOS</bdi>). בטלפון ובטאבלט, אוצריא מתעדכנת דרך חנות האפליקציות.</p>
+      </Card>
+      <Card tone="tonal" role="note" padding="sm" className="hidden items-start gap-3 text-body-sm text-on-surface in-data-[os=other]:flex">
+        <AppIcon name="info" className="mt-0.5 shrink-0 text-xl text-on-tile" />
+        <p>הכלי זמין ל-<bdi dir="ltr" className="whitespace-nowrap">Windows</bdi> ול-<bdi dir="ltr" className="whitespace-nowrap">macOS</bdi>. אפשר להוריד אותו כאן ולהפעיל אותו במחשב אחר עם אחת מהמערכות האלה.</p>
+      </Card>
+
       {OFFLINE_PLATFORM_KEYS.map((key) => {
         const platform = PLATFORMS[key]
         const other = PLATFORMS[otherPlatform(key)]
@@ -87,13 +98,6 @@ export default function OfflineUpdateDownloadClient({ repoUrl, releases }) {
           </div>
         )
       })}
-
-      {/* בטלפון — הערה שהכלי למחשב. גם היא ב-CSS לפי data-os, כדי שלא תדחוף את מה שמתחתיה
-          אחרי הטעינה */}
-      <Card tone="tonal" role="note" padding="sm" className="hidden items-start gap-3 text-body-sm text-on-surface in-data-[os=mobile]:flex">
-        <AppIcon name="smartphone" className="mt-0.5 shrink-0 text-xl text-on-tile" />
-        <p>הכלי הזה מיועד למחשב (<bdi dir="ltr" className="whitespace-nowrap">Windows</bdi> או <bdi dir="ltr" className="whitespace-nowrap">macOS</bdi>). בטלפון ובטאבלט, אוצריא מתעדכנת דרך חנות האפליקציות.</p>
-      </Card>
 
       <div className="flex flex-col items-center gap-3 text-center">
         <p className="flex max-w-measure items-start gap-2 text-body-sm text-on-surface-variant">

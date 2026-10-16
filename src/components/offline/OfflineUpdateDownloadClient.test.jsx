@@ -45,7 +45,10 @@ describe('OfflineUpdateDownloadClient', () => {
     expect(block(container, 'windows').className).toMatch(/(^|\s)flex(\s|$)/)
     expect(block(container, 'windows')).toHaveClass('in-data-[os=macos]:hidden')
     expect(block(container, 'macos')).toHaveClass('hidden', 'in-data-[os=macos]:flex')
-    expect(screen.getByRole('note', { hidden: true })).toHaveClass('hidden', 'in-data-[os=mobile]:flex')
+    const [mobileNote, otherNote] = screen.getAllByRole('note', { hidden: true })
+    expect(mobileNote).toHaveClass('hidden', 'in-data-[os=mobile]:flex')
+    expect(mobileNote).toHaveTextContent(/מיועד למחשב/)
+    expect(otherNote).toHaveClass('hidden', 'in-data-[os=other]:flex')
   })
 
   test('מתחת לכל כרטיס — קישור משני להורדה למערכת השנייה', () => {
