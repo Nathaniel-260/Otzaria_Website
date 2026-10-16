@@ -422,6 +422,54 @@
     display: none;
   }
 
+  /* פס גלילה דק לאזור גלילה פנימי (סרגל צד דביק, תוכן עניינים, טבלה או בלוק קוד רחבים):
+     ~6px, בלי חצים, מסילה שקופה, ואגודל מעוגל בצבע קו המתאר שמתכהה בריחוף.
+     Chromium/Safari — ::-webkit-scrollbar (שם scrollbar-color היה מבטל את העיצוב הזה, ולכן
+     התקני הוא רק לדפדפן בלי ::-webkit-scrollbar, כלומר Firefox). לא לפס הגלילה הראשי של הדף. */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track,
+  .scrollbar-thin::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: var(--radius-pill);
+  }
+
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    .scrollbar-thin {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
+
+    .scrollbar-thin:hover {
+      scrollbar-color: var(--scrollbar-thumb-hover) transparent;
+    }
+  }
+
+  /* פס הגלילה בקצה החיצוני (ימין) של סרגל בצד ימין של עמוד RTL — לא בין הסרגל לתוכן.
+     המכל LTR (שם הדפדפן מצייר את הפס מימין), והתוכן שבתוכו חוזר ל-RTL. */
+  .scrollbar-end-right {
+    direction: ltr;
+  }
+
+  .scrollbar-end-right > * {
+    direction: rtl;
+  }
+
   .spellcheck-highlight {
     background-color: #fde68a;
     border-radius: 3px;

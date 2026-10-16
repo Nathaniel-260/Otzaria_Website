@@ -60,6 +60,11 @@
   --card-raised-ring: color-mix(in oklab, var(--color-outline-variant) 60%, transparent);
   --card-raised-shadow: var(--shadow-raised);
 
+  /* ---------- פס גלילה דק (.scrollbar-thin ב-effects.css) — לאזורי גלילה פנימיים ---------- */
+  --scrollbar-size: 6px;
+  --scrollbar-thumb: var(--color-outline-variant);
+  --scrollbar-thumb-hover: var(--color-outline);
+
   /* ---------- אריח אייקון (ui/IconTile) ---------- */
   --icon-tile-radius: var(--radius-card);
   --icon-tile-bg: var(--color-tile);

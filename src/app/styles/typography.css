@@ -20,6 +20,10 @@
   --font-frank: var(--font-frank-ruehl), serif;
   --font-sans: var(--font-assistant), 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-hebrew: var(--font-assistant), 'Segoe UI', Tahoma, Arial, sans-serif;
+  /* קוד במדריכים (font-code): גופן מונו ללטינית בלבד ('Otzaria Code' למטה), ועברית בתוך הקוד נופלת
+     ל-Assistant — לא לגופן המונו של המערכת (ב-Windows ‏Consolas מקושר ל-Courier New, שבו האותיות העבריות
+     מרווחות ונקראות קשה). */
+  --font-code: 'Otzaria Code', var(--font-assistant), monospace;
 
   --text-xs: 0.72rem;
   --text-xs--line-height: calc(1 / 0.72);
@@ -144,6 +148,16 @@
   --font-body-size-adjust: 0.55;
 }
 
+/* גופן הקוד של המדריכים (--font-code): גופני המונו המקומיים של המערכת, מוגבלים ללטינית ולסימנים
+   (unicode-range). אותיות עבריות אינן בטווח, ולכן הדפדפן עובר לגופן הבא בשרשרת (Assistant). */
+@font-face {
+  font-family: 'Otzaria Code';
+  src: local('Consolas'), local('SFMono-Regular'), local('Menlo-Regular'), local('Menlo'), local('DejaVu Sans Mono'),
+    local('Liberation Mono'), local('Courier New');
+  unicode-range: U+0000-024F, U+2000-206F, U+2190-21FF, U+2200-22FF;
+  font-display: swap;
+}
+
 @layer base {
   body {
     font-size-adjust: var(--font-body-size-adjust);
@@ -158,6 +172,7 @@
   .font-display,
   .font-frank,
   .font-mono,
+  .font-code,
   .material-symbols-outlined,
   [style*='font-family'] {
     font-size-adjust: none;
