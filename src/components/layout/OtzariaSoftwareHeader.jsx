@@ -4,10 +4,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { getAvatarColor, getInitial } from '@/lib/avatar-colors'
 import { MAIN_NAV_LINKS } from '@/lib/navigation-constants'
 import { FOCUS_RING, FOCUS_RING_INSET } from '@/components/ui/focusRing'
 import HeaderLogo from './HeaderLogo'
+import UserAvatarLink from './UserAvatarLink'
 import NavDropdown from './NavDropdown'
 import DonationButton, { DonationNote } from './DonationButton'
 
@@ -64,20 +64,7 @@ function AuthActions({ pathname, compact = false, onNavigate }) {
   if (session) {
     return (
       <div className={compact ? 'flex items-center gap-3 p-2' : 'flex items-center gap-3'}>
-        <Link
-          href="/library/dashboard"
-          prefetch={false}
-          onClick={onNavigate}
-          className={`flex items-center justify-center rounded-full hover:opacity-80 transition-opacity ${FOCUS_RING}`}
-          title={session.user.name}
-        >
-          <div
-            className="w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-md hover:shadow-lg transition-shadow"
-            style={{ backgroundColor: getAvatarColor(session.user.name) }}
-          >
-            {getInitial(session.user.name)}
-          </div>
-        </Link>
+        <UserAvatarLink name={session.user.name} onNavigate={onNavigate} />
         <button
           onClick={() => signOut({ callbackUrl: pathname })}
           className={`flex items-center gap-2 px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/10 transition-colors text-sm font-medium ${FOCUS_RING}`}
