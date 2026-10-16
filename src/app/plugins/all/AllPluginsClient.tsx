@@ -23,9 +23,7 @@
 
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import OtzariaSoftwareHeader from '@/components/layout/OtzariaSoftwareHeader'
-import OtzariaSoftwareFooter from '@/components/layout/OtzariaSoftwareFooter'
+import Button from '@/components/ui/Button'
 import { useDirectInstall } from '@/components/plugins/useDirectInstall'
 import { useDialog } from '@/components/providers/DialogContext'
 import PluginCard from '@/components/plugins/PluginCard'
@@ -117,8 +115,7 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
   }, [allTags])
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <OtzariaSoftwareHeader showAuth />
+    <div className="flex flex-1 flex-col">
 
       <script dangerouslySetInnerHTML={{ __html: FILTER_PENDING_SCRIPT }} />
       {/* ה-<main> עוטף גם את אזור ההמתנה: כך הוא מוצג תמיד, ו"דלג לתוכן" (#main-content) עובד
@@ -168,15 +165,9 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
               </div>
 
               <div className="flex items-end">
-                <Link
-                  href="/plugins/upload" prefetch={false}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-md hover:shadow-lg whitespace-nowrap"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span>העלה תוסף חדש</span>
-                </Link>
+                <Button href="/plugins/upload" variant="filled" icon="add" className="whitespace-nowrap">
+                  העלה תוסף חדש
+                </Button>
               </div>
             </div>
 
@@ -315,8 +306,6 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
         </section>
       </div>
       </main>
-
-      <OtzariaSoftwareFooter />
     </div>
   )
 }

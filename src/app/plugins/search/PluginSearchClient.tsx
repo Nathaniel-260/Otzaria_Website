@@ -17,8 +17,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import OtzariaSoftwareHeader from '@/components/layout/OtzariaSoftwareHeader'
-import OtzariaSoftwareFooter from '@/components/layout/OtzariaSoftwareFooter'
 import { useDirectInstall } from '@/components/plugins/useDirectInstall'
 import { useDialog } from '@/components/providers/DialogContext'
 import { highlightMatches } from '@/components/plugins/PluginSearchBox'
@@ -191,8 +189,7 @@ export default function PluginSearchClient({ initialQuery, initialResults }: Plu
   const showZeroResults = hasQuery && !searching && executedQuery && results.length === 0
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <OtzariaSoftwareHeader showAuth />
+    <div className="flex flex-1 flex-col">
 
       <main id="main-content" className="flex-1">
         {/* Search Header */}
@@ -393,8 +390,6 @@ export default function PluginSearchClient({ initialQuery, initialResults }: Plu
           </div>
         </section>
       </main>
-
-      <OtzariaSoftwareFooter />
     </div>
   )
 }

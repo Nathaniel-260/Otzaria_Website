@@ -10,8 +10,6 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import OtzariaSoftwareHeader from '@/components/layout/OtzariaSoftwareHeader'
-import OtzariaSoftwareFooter from '@/components/layout/OtzariaSoftwareFooter'
 import RatingStars from '@/components/plugins/RatingStars'
 import PluginRatingPanel from '@/components/plugins/PluginRatingPanel'
 import { useDialog } from '@/components/providers/DialogContext'
@@ -175,14 +173,12 @@ export default function PluginDetailClient({ initialPlugin }: PluginDetailClient
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <OtzariaSoftwareHeader showAuth />
+      <div className="flex flex-1 flex-col">
         <main id="main-content" className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <Loader size="lg" label="טוען פרטי תוסף…" />
           </div>
         </main>
-        <OtzariaSoftwareFooter />
       </div>
     )
   }
@@ -258,8 +254,7 @@ export default function PluginDetailClient({ initialPlugin }: PluginDetailClient
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <OtzariaSoftwareHeader showAuth />
+    <div className="flex flex-1 flex-col">
       
       <main id="main-content" className="flex-1 py-8 px-4">
         <div className="container mx-auto max-w-5xl">
@@ -576,8 +571,6 @@ export default function PluginDetailClient({ initialPlugin }: PluginDetailClient
 
         </div>
       </main>
-
-      <OtzariaSoftwareFooter />
 
       {reporting && (
         <PluginReportModal
