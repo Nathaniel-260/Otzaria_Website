@@ -147,7 +147,7 @@ export default function DevelopmentTutorialPage() {
                   <p>הורידו והתקינו את <ExternalLink href="https://code.visualstudio.com/">Visual Studio Code</ExternalLink></p>
                 </DocsStep>
                 <DocsStep title="התקנת תוסף Flutter">
-                  <p>פתחו את VS Code, לחצו על Extensions (Ctrl+Shift+X) וחפשו &quot;Flutter&quot;. התקינו את התוסף הרשמי.</p>
+                  <p>פתחו את VS Code, לחצו על <bdi dir="ltr">Extensions (Ctrl+Shift+X)</bdi> וחפשו &quot;Flutter&quot;. התקינו את התוסף הרשמי.</p>
                 </DocsStep>
               </DocsSteps>
             </DocsSection>

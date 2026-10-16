@@ -18,7 +18,8 @@ export default function DocsBeforeAfter({ before, after }: { before: Panel; afte
           <h3 className={cx('mb-2 text-title-lg', panel.tone === 'before' ? 'text-error' : 'text-success')}>{panel.title}</h3>
           <pre
             className={cx(
-              'scrollbar-thin overflow-x-auto whitespace-pre-wrap rounded-card border-s-4 p-4 font-sans text-body-sm text-on-surface',
+              // unicode-bidi: plaintext — כיוון לכל שורה לפי תוכנה, כך שתגיות כמו <h1>…</h1> לא מתהפכות; היישור נשאר לימין
+              'scrollbar-thin overflow-x-auto whitespace-pre-wrap rounded-e-card rounded-s-none border-s-4 p-4 text-right font-sans text-body-sm text-on-surface [unicode-bidi:plaintext]',
               panel.tone === 'before' ? 'border-error bg-error-container/40' : 'border-success bg-success-container/40'
             )}
           >

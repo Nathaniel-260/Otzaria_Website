@@ -22,7 +22,7 @@ export const PROSE = {
     FOCUS_RING
   ),
   strong: 'font-bold text-on-surface',
-  blockquote: 'my-6 rounded-card border-s-4 border-primary bg-surface-container-low px-4 py-3 text-on-surface [&>p:last-child]:mb-0',
+  blockquote: 'my-6 rounded-e-card rounded-s-none border-s-4 border-primary bg-surface-container-low px-4 py-3 text-on-surface [&>p:last-child]:mb-0',
   hr: 'my-10 border-outline-variant',
   /** קוד בתוך שורה. בתוך pre הרקע והריפוד מתאפסים (ראו pre). */
   code: 'rounded-sm bg-surface-container-high px-1.5 py-0.5 font-code text-on-surface break-words',
@@ -35,6 +35,8 @@ export const PROSE = {
   th: 'border-b border-outline-variant px-4 py-3 text-start align-bottom font-bold text-on-surface',
   td: 'border-b border-outline-subtle px-4 py-3 align-top text-on-surface [tr:last-child>&]:border-b-0',
   figure: 'my-6',
-  img: 'mx-auto block h-auto max-w-full rounded-card',
-  caption: 'mt-2 block text-center text-body-sm text-on-surface-variant'
+  img: 'mx-auto block h-auto max-w-full rounded-card'
 } as const
+
+/** אזור גלילה פנימי (טבלה / בלוק קוד): מקבל פוקוס מהמקלדת (tabIndex=0) — טבעת הפוקוס האחידה */
+export const SCROLL_REGION = FOCUS_RING

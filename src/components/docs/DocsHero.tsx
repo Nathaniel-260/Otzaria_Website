@@ -18,7 +18,14 @@ export default function DocsHero({ id, icon, title, subtitle, align = 'center', 
   const center = align === 'center'
   return (
     <div className={cx('flex', center ? 'flex-col items-center' : 'items-start gap-4', className)}>
-      <IconTile icon={icon} size="lg" className={center ? 'mb-4' : 'mt-1 hidden sm:inline-flex'} />
+      {center ? (
+        <IconTile icon={icon} size="lg" className="mb-4" />
+      ) : (
+        // בנייד בלי האריח (הכותרת לבד, ברוחב מלא); העטיפה מסתירה — IconTile עצמו inline-flex
+        <span className="mt-1 hidden sm:block">
+          <IconTile icon={icon} size="lg" />
+        </span>
+      )}
       <PageHeader id={id} title={title} subtitle={subtitle} align={align} />
     </div>
   )

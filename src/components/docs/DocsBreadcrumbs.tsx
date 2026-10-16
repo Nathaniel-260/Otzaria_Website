@@ -28,7 +28,7 @@ export default function DocsBreadcrumbs({ items, className }: { items: Crumb[]; 
                   href={item.href}
                   prefetch={item.prefetch}
                   className={cx(
-                    'inline-flex min-h-(--touch-target) items-center rounded-sm underline-offset-4 transition-colors hover:text-primary hover:underline',
+                    'inline-flex min-h-(--touch-target) min-w-(--touch-target) items-center justify-center rounded-sm underline-offset-4 transition-colors hover:text-primary hover:underline',
                     FOCUS_RING
                   )}
                 >

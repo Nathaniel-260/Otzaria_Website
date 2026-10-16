@@ -145,7 +145,7 @@ export default function DictaTutorialPage() {
                   <p className="mb-3">אם יש דפוס קבוע בכותרות, תוכלו להשתמש בחיפוש והחלפה:</p>
                   <ul className={PROSE.ul}>
                     <li>חפשו דפוס חוזר (למשל &quot;פרק&quot;)</li>
-                    <li>החליפו אותו ב-&quot;{'<'}h2{'>'}פרק&quot; ובסוף השורה הוסיפו &quot;{'<'}/h2{'>'}&quot;</li>
+                    <li>החליפו אותו ב-&quot;<bdi dir="ltr">{'<'}h2{'>'}</bdi>פרק&quot; ובסוף השורה הוסיפו &quot;<bdi dir="ltr">{'<'}/h2{'>'}</bdi>&quot;</li>
                     <li>בדקו שהתוצאה נכונה</li>
                   </ul>
                 </div>
@@ -200,7 +200,7 @@ export default function DictaTutorialPage() {
             <DocsSection id="notes" icon="note" title="הערות חשובות">
               <DocsCallout tone="caution" icon="warning" title="זהירות:">
                 <ul className={PROSE.ul}>
-                  <li>וודאו שהתגיות נסגרות נכון ({'<'}h1{'>'}...{'<'}/h1{'>'})</li>
+                  <li>וודאו שהתגיות נסגרות נכון (<bdi dir="ltr">{'<'}h1{'>'}...{'<'}/h1{'>'}</bdi>)</li>
                   <li>אל תשכחו את הסלש בתגית הסגירה</li>
                   <li>השתמשו ברמות נכונות (h1 לכותרת הראשית, h2 לחלוקה הבאה וכו&apos;)</li>
                 </ul>

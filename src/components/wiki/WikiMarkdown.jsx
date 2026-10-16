@@ -2,7 +2,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Link from 'next/link';
 import { headingId } from '@/lib/wiki';
-import { PROSE } from '@/components/docs/proseClasses';
+import { PROSE, SCROLL_REGION } from '@/components/docs/proseClasses';
 
 // הסגנון של כל אלמנט מגיע מ-components/docs/proseClasses (מקור אחד לכל דפי המדריכים).
 // התוכן עצמו — כפי שהגיע מהוויקי, בלי שינוי.
@@ -23,13 +23,11 @@ function SmartLink({ href = '', children }) {
   );
 }
 
-// תמונה: בתוך <p> של Markdown, ולכן span (בלוק) ולא figure. כיתוב — מה-title של התמונה, אם יש
-// (ה-alt נשאר לקורא מסך ולא מוצג פעמיים).
+// תמונה: בתוך <p> של Markdown, ולכן span (בלוק) ולא figure. ה-title נשאר מאפיין (כמו בוויקי) — לא כיתוב גלוי.
 function WikiImage({ src, alt, title }) {
   return (
     <span className={`block ${PROSE.figure}`}>
-      <img src={src} alt={alt || ''} className={PROSE.img} loading="lazy" decoding="async" />
-      {title && <span className={PROSE.caption}>{title}</span>}
+      <img src={src} alt={alt || ''} title={title} className={PROSE.img} loading="lazy" decoding="async" />
     </span>
   );
 }
@@ -60,12 +58,13 @@ const components = {
     </code>
   ),
   pre: ({ children }) => (
-    <pre dir="ltr" className={`my-6 ${PROSE.pre}`}>
+    // אזור גלילה: נגיש במקלדת (tabIndex) ובעל שם
+    <pre dir="ltr" tabIndex={0} role="region" aria-label="קוד" className={`my-6 ${PROSE.pre} ${SCROLL_REGION}`}>
       {children}
     </pre>
   ),
   table: ({ children }) => (
-    <div className={PROSE.tableWrap}>
+    <div tabIndex={0} role="region" aria-label="טבלה" className={`${PROSE.tableWrap} ${SCROLL_REGION}`}>
       <table className={PROSE.table}>{children}</table>
     </div>
   ),

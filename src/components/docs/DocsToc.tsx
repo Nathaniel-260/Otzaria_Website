@@ -3,7 +3,7 @@ import { FOCUS_RING_INSET } from '@/components/ui/focusRing'
 import DocsDisclosure from './DocsDisclosure'
 import type { TocItem } from './docsNav'
 
-function TocLinks({ items }: { items: TocItem[] }) {
+function TocLinks({ items, compact }: { items: TocItem[]; compact: boolean }) {
   return (
     <ul className="space-y-0.5">
       {items.map((item) => (
@@ -11,7 +11,9 @@ function TocLinks({ items }: { items: TocItem[] }) {
           <a
             href={item.href}
             className={cx(
-              'flex min-h-(--touch-target) items-center rounded-control border-s-2 border-transparent px-3 py-1.5 text-body-sm text-on-surface-variant transition-colors hover:border-primary hover:bg-surface-selected hover:text-on-surface lg:min-h-0',
+              'flex min-h-(--touch-target) items-center rounded-control border-s-2 border-transparent px-3 py-1.5 text-body-sm text-on-surface-variant transition-colors hover:border-primary hover:bg-surface-selected hover:text-on-surface',
+              // בצד (מסך רחב, עכבר) — שורות צפופות; במקפל (מגע) — מטרת מגע מלאה
+              compact && 'min-h-0',
               FOCUS_RING_INSET
             )}
           >
@@ -41,7 +43,7 @@ export default function DocsToc({ title, items, variant, className }: {
     return (
       <nav aria-label={title} className={className}>
         <DocsDisclosure label={title} icon="toc">
-          <TocLinks items={items} />
+          <TocLinks items={items} compact={false} />
         </DocsDisclosure>
       </nav>
     )
@@ -49,7 +51,7 @@ export default function DocsToc({ title, items, variant, className }: {
   return (
     <nav aria-label={title} className={className}>
       <p className="mb-2 px-3 text-label-md text-on-surface-variant">{title}</p>
-      <TocLinks items={items} />
+      <TocLinks items={items} compact />
     </nav>
   )
 }
