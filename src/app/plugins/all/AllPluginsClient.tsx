@@ -43,7 +43,7 @@ const FILTER_PENDING_STYLE_ID = 'plugins-filter-pending'
 const FILTER_PENDING_SCRIPT =
   `if(/[?&](q|tag|status)=/.test(location.search)){` +
   `var s=document.createElement('style');s.id='${FILTER_PENDING_STYLE_ID}';` +
-  `s.textContent='#main-content{display:none}#all-plugins-pending{display:flex}';` +
+  `s.textContent='#all-plugins-content{display:none}#all-plugins-pending{display:flex}';` +
   `document.head.appendChild(s)}`
 
 interface AllPluginsClientProps {
@@ -121,14 +121,17 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
       <OtzariaSoftwareHeader showAuth />
 
       <script dangerouslySetInnerHTML={{ __html: FILTER_PENDING_SCRIPT }} />
-      {/* מוצג (במקום main) רק בזמן שהסקריפט למעלה מזהה פרמטר סינון ב-URL */}
+      {/* ה-<main> עוטף גם את אזור ההמתנה: כך הוא מוצג תמיד, ו"דלג לתוכן" (#main-content) עובד
+          גם בזמן שהסינון מה-URL עוד לא הוחל — כולל לפני ה-hydration, כקישור עוגן רגיל */}
+      <main id="main-content" className="flex-1">
+      {/* מוצג (במקום all-plugins-content) רק בזמן שהסקריפט למעלה מזהה פרמטר סינון ב-URL */}
       <div id="all-plugins-pending" className="hidden min-h-screen flex-1 items-center justify-center">
         <div className="text-center">
           <Loader size="lg" label="טוען את כל התוספים…" />
         </div>
       </div>
 
-      <main id="main-content" className="flex-1">
+      <div id="all-plugins-content">
         {/* Page Header + Filters Section */}
         <section className="py-6 px-4 bg-white border-b border-neutral-100">
           <div className="container mx-auto max-w-6xl">
@@ -310,6 +313,7 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
             </div>
           </div>
         </section>
+      </div>
       </main>
 
       <OtzariaSoftwareFooter />
