@@ -1,6 +1,6 @@
+import InfoCard from '@/components/ui/InfoCard'
 import Section from '@/components/ui/Section'
 import SectionHeading from '@/components/ui/SectionHeading'
-import OfflineInfoCard from './OfflineInfoCard'
 
 const STEPS = [
   {
@@ -27,9 +27,9 @@ export default function HowItWorksSection() {
       <SectionHeading id="how-heading" title="איך זה עובד" subtitle="שלושה שלבים וכונן USB אחד" />
       <ol className="grid gap-3 sm:gap-4 md:grid-cols-3">
         {STEPS.map((step, index) => (
-          <OfflineInfoCard key={step.title} icon={step.icon} title={step.title} eyebrow={`שלב ${index + 1}`}>
+          <InfoCard key={step.title} as="li" className="h-full" icon={step.icon} title={step.title} eyebrow={`שלב ${index + 1}`}>
             {step.text}
-          </OfflineInfoCard>
+          </InfoCard>
         ))}
       </ol>
     </Section>

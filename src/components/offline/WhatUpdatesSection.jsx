@@ -1,7 +1,7 @@
 import IconTile from '@/components/ui/IconTile'
+import InfoCard from '@/components/ui/InfoCard'
 import Section from '@/components/ui/Section'
 import SectionHeading from '@/components/ui/SectionHeading'
-import OfflineInfoCard from './OfflineInfoCard'
 
 const MODULES = [
   {
@@ -51,7 +51,7 @@ export default function WhatUpdatesSection() {
       <SectionHeading id="updates-heading" title="מה הכלי מעדכן" />
       <ul className="grid gap-3 sm:gap-4 md:grid-cols-3">
         {MODULES.map((item) => (
-          <OfflineInfoCard key={item.title} icon={item.icon} title={item.title}>{item.text}</OfflineInfoCard>
+          <InfoCard key={item.title} as="li" className="h-full" icon={item.icon} title={item.title}>{item.text}</InfoCard>
         ))}
       </ul>
 
