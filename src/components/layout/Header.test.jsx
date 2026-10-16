@@ -115,13 +115,17 @@ describe('Header — התפריט הנייד', () => {
 })
 
 describe('Header — משתמש מחובר', () => {
-  test('קישור האווטאר נקרא לפי השם המלא והיעד, לא רק האות הראשונה', () => {
+  test('כפתור החשבון נקרא לפי השם המלא (לא רק המילה הראשונה), ובתפריט הנייד — לוח בקרה', async () => {
     session = { user: { name: 'משה כהן', role: 'user' } }
     render(<Header />)
-    const avatarLinks = screen.getAllByRole('link', { name: 'האזור האישי של משה כהן', hidden: true })
-    // אחד בשורת המחשב ואחד בתפריט הנייד (המוסתר)
-    expect(avatarLinks).toHaveLength(2)
-    avatarLinks.forEach(link => expect(link).toHaveAttribute('href', '/library/dashboard'))
+    const account = screen.getByRole('button', { name: 'החשבון של משה כהן' })
+    expect(account).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('link', { name: /התחבר/, hidden: true })).toBeNull()
+
+    await userEvent.click(getMenuButton())
+    const panel = document.getElementById(getMenuButton().getAttribute('aria-controls'))
+    expect(within(panel).getByRole('link', { name: 'לוח בקרה' })).toHaveAttribute('href', '/library/dashboard')
+    expect(within(panel).queryByRole('link', { name: /ניהול/ })).toBeNull()
   })
 
   test('מנהל רואה בתפריט הנייד גם את "ניהול" ואת "התנתק"', async () => {

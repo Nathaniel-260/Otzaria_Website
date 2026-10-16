@@ -9,11 +9,11 @@ import { useState, useEffect } from 'react'
 import { apiGet } from '@/lib/api-utils'
 import { FOCUS_RING } from '@/components/ui/focusRing'
 import { useDisclosureMenu } from '@/hooks/useDisclosureMenu'
-import LibraryAccountActions from './LibraryAccountActions'
+import AccountActions from './AccountActions'
 import LibraryMobileMenu, { LibraryMenuButton } from './LibraryMobileMenu'
 
 export default function Header() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const pathname = usePathname()
   const [unreadMessages, setUnreadMessages] = useState(0)
   const menu = useDisclosureMenu(pathname)
@@ -66,7 +66,7 @@ export default function Header() {
             </Link>
           ))}
 
-          <LibraryAccountActions session={session} unreadMessages={unreadMessages} />
+          <AccountActions session={session} status={status} unreadMessages={unreadMessages} />
         </nav>
 
         <LibraryMenuButton isOpen={menu.isOpen} buttonProps={menu.buttonProps} />
@@ -77,6 +77,7 @@ export default function Header() {
         panelProps={menu.panelProps}
         pathname={pathname}
         session={session}
+        status={status}
         unreadMessages={unreadMessages}
         onNavigate={menu.close}
       />

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { LIBRARY_NAV_LINKS } from '@/lib/navigation-constants'
 import { FOCUS_RING, FOCUS_RING_INSET } from '@/components/ui/focusRing'
-import LibraryAccountActions from './LibraryAccountActions'
+import AccountActions from './AccountActions'
 
 /**
  * כפתור התפריט בנייד (md:hidden). buttonProps מ-useDisclosureMenu: aria-expanded, aria-controls, onClick.
@@ -26,7 +26,7 @@ export function LibraryMenuButton({ isOpen, buttonProps }) {
  * נשאר ב-DOM כשהוא סגור (hidden), כדי ש-aria-controls של הכפתור יצביע תמיד על אלמנט קיים.
  * בנייד נמוך הוא גבוה מהמסך — נגלל בתוך עצמו (max-h + overflow), לא דרך הדף.
  */
-export default function LibraryMobileMenu({ isOpen, panelProps, pathname, session, unreadMessages, onNavigate }) {
+export default function LibraryMobileMenu({ isOpen, panelProps, pathname, session, status, unreadMessages, onNavigate }) {
   return (
     <nav
       {...panelProps}
@@ -56,7 +56,7 @@ export default function LibraryMobileMenu({ isOpen, panelProps, pathname, sessio
         })}
       </ul>
       <div className="mt-2 border-t border-neutral-200 px-3 pt-3">
-        <LibraryAccountActions session={session} unreadMessages={unreadMessages} compact onNavigate={onNavigate} />
+        <AccountActions session={session} status={status} unreadMessages={unreadMessages} compact onNavigate={onNavigate} />
       </div>
     </nav>
   )

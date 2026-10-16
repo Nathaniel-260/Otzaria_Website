@@ -3,11 +3,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import { MAIN_NAV_LINKS } from '@/lib/navigation-constants'
 import { FOCUS_RING, FOCUS_RING_INSET } from '@/components/ui/focusRing'
 import HeaderLogo from './HeaderLogo'
-import UserAvatarLink from './UserAvatarLink'
+import AccountActions from './AccountActions'
 import NavDropdown from './NavDropdown'
 import DonationButton, { DonationNote } from './DonationButton'
 
@@ -54,49 +54,37 @@ function MobileNavLink({ link, pathname, onNavigate }) {
 }
 
 /**
- * אזור התחברות/חשבון בכותרת — מוצג רק כש-showAuth מופעל (חנות התוספים).
- * ההתחברות חוזרת לדף הנוכחי דרך callbackUrl, וההתנתקות משאירה את המשתמש באותו דף.
+ * אזור התחברות/חשבון בכותרת — אותו רכיב כמו בכותרת הספרייה (AccountActions); כאן ההתחברות
+ * חוזרת לדף הנוכחי וההתנתקות משאירה את המשתמש בו.
  */
 function AuthActions({ pathname, compact = false, onNavigate }) {
-  const { data: session } = useSession()
-  const loginHref = `/auth/login?callbackUrl=${encodeURIComponent(pathname)}`
-
-  if (session) {
-    return (
-      <div className={compact ? 'flex items-center gap-3 p-2' : 'flex items-center gap-3'}>
-        <UserAvatarLink name={session.user.name} onNavigate={onNavigate} />
-        <button
-          onClick={() => signOut({ callbackUrl: pathname })}
-          className={`flex items-center gap-2 px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/10 transition-colors text-sm font-medium ${FOCUS_RING}`}
-        >
-          <span className="material-symbols-outlined text-lg">logout</span>
-          <span>התנתק</span>
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <Link
-      href={loginHref}
-      prefetch={false}
-      onClick={onNavigate}
-      className={`flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors shadow-sm font-medium ${FOCUS_RING} ${
-        compact ? 'justify-center text-lg' : 'text-sm'
-      }`}
-    >
-      <span className="material-symbols-outlined text-lg">login</span>
-      <span>התחבר</span>
-    </Link>
+  const { data: session, status } = useSession()
+  const actions = (
+    <AccountActions
+      session={session}
+      status={status}
+      compact={compact}
+      onNavigate={onNavigate}
+      loginCallbackUrl={pathname}
+      signOutCallbackUrl={pathname}
+    />
   )
+  // בתפריט הנייד — מופרד מהקישורים בקו, כמו בתפריט הנייד של הספרייה
+  return compact ? <div className="mt-2 border-t border-outline-variant px-3 pt-3">{actions}</div> : actions
 }
 
 /**
  * הכותרת העליונה הדביקה, משותפת לכל העמודים.
+ *
+ * מיקום הניווט קבוע בכל העמודים ובכל המצבים: רשת של שלוש עמודות (לוגו | ניווט | פעולות),
+ * והניווט ממורכז בעמודה האמצעית — כך שרוחב הלוגו (גם בזמן החלפת הגופן) ורוחב אזור הפעולות לא
+ * מזיזים אותו. אזור החשבון ברוחב קבוע (--account-slot-width) בכל מצב — טוען, אורח, מחובר —
+ * ומופיע בכל עמוד, כדי שהכותרת תהיה זהה בדף הבית, בדפי השיווק ובחנות.
+ * showAuth={false} — מסתיר את "התחבר"/החשבון, אבל שומר את המקום (בלי תזוזת ניווט בין עמודים).
  * wordmarkHandoff — דף הבית בלבד: הלוגו קבוע, ושם האתר "מגיע" בגלילה מהמילה "אוצריא"
  * שבכותרת הראשית של הגיבור (HeaderLogo).
  */
-export default function OtzariaSoftwareHeader({ showAuth = false, wordmarkHandoff = false }) {
+export default function OtzariaSoftwareHeader({ showAuth = true, wordmarkHandoff = false }) {
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const donationLink = MAIN_NAV_LINKS.find(link => link.emphasis === 'donation')
@@ -107,11 +95,13 @@ export default function OtzariaSoftwareHeader({ showAuth = false, wordmarkHandof
   // ב-animations.css, מקושר לגלילה בלי JS), כדי שהתוכן ייראה עובר מתחת לה ולא נחתך בה.
   return (
     <header className="site-header sticky top-0 z-50 w-full bg-top-bar">
-      <div className="container mx-auto flex h-16 max-w-[76rem] 2xl:max-w-[84rem] items-center justify-between gap-4 px-4 md:px-8">
-        <HeaderLogo handoff={wordmarkHandoff} />
+      <div className="container mx-auto grid h-16 max-w-[76rem] 2xl:max-w-[84rem] grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 md:px-8">
+        <div className="col-start-1 flex justify-self-start">
+          <HeaderLogo handoff={wordmarkHandoff} />
+        </div>
 
         {/* Desktop Nav */}
-        <nav className="hidden lg:flex items-center gap-1">
+        <nav className="col-start-2 hidden lg:flex items-center gap-1 whitespace-nowrap">
           {navLinks.map(link => {
             if (link.children) return <NavDropdown key={link.label} label={link.label} items={link.children} />
             const isActive = pathname === link.href
@@ -133,13 +123,11 @@ export default function OtzariaSoftwareHeader({ showAuth = false, wordmarkHandof
           })}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="col-start-3 flex items-center gap-2 justify-self-end">
           {donationLink && <DonationButton link={donationLink} />}
-          {showAuth && (
-            <div className="hidden lg:block">
-              <AuthActions pathname={pathname} />
-            </div>
-          )}
+          <div className="hidden lg:block">
+            {showAuth ? <AuthActions pathname={pathname} /> : <div aria-hidden="true" className="w-(--account-slot-width)" />}
+          </div>
 
           {/* Mobile Menu Button */}
           <button
