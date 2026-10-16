@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { prefersReducedMotion } from '@/lib/reducedMotion'
 import { computeHandoffGeometry, handoffFrame } from '@/lib/wordmarkHandoff'
 
 // useWordmarkHandoff — מחבר את שם האתר שבכותרת העליונה למילה "אוצריא" שבכותרת הראשית של
@@ -31,11 +32,6 @@ const FONT_SIZE_VAR = '--wordmark-handoff-font-size'
 function supportsScrollTimeline() {
   return typeof CSS !== 'undefined' && typeof CSS.supports === 'function' &&
     CSS.supports('animation-timeline: scroll()')
-}
-
-function prefersReducedMotion() {
-  return typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 /**

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { prefersReducedMotion } from '@/lib/reducedMotion'
 import TitleOrnament from './TitleOrnament'
 import { cx } from './cx'
 import { FOCUS_RING_INSET } from './focusRing'
@@ -10,11 +11,6 @@ import { useDialogA11y } from './useDialogA11y'
 // משך אנימציית היציאה (= --motion-duration-fast). הכניסה (--motion-duration-standard) ארוכה ממנה
 // מעט — כמו במתקין. JS צריך את המספר כדי לדעת מתי להסיר את החלון.
 const EXIT_MS = 150
-
-const prefersReducedMotion = () =>
-  typeof window === 'undefined' || typeof window.matchMedia !== 'function'
-    ? true
-    : window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 const ENTER_SCRIM = 'animate-[enter-fade_var(--motion-duration-standard)_var(--ease-enter)_backwards]'
 const EXIT_SCRIM = 'animate-[enter-fade_var(--motion-duration-fast)_var(--ease-exit)_reverse_forwards]'
@@ -53,7 +49,7 @@ export default function Dialog({ title, subtitle, onClose, children, footer, dis
 
   const requestClose = useCallback(() => {
     if (timerRef.current) return
-    if (prefersReducedMotion()) {
+    if (prefersReducedMotion(true)) {
       onClose()
       return
     }

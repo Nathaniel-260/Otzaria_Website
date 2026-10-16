@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { preload } from 'react-dom'
+import { prefersReducedMotion } from '@/lib/reducedMotion'
 
 // הספר המוזהב של אוצריא נפתח בתוך הילה חמה — גיבור דף הבית (מהמתקין: GLOW #E9B96A
 // ו-24 פריימי הפתיחה של download-assistant).
@@ -24,11 +25,6 @@ const SPRITE_SRC = '/home/golden-book-sprite.webp'
 const CLOSED_SRC = '/home/golden-book-closed.webp'
 const OPEN_SRC = '/home/golden-book.webp'
 const OPEN_DEADLINE_MS = 1500
-
-function prefersReducedMotion() {
-  return typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
 
 type Phase = 'closed' | 'opening' | 'open'
 
