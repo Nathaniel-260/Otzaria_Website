@@ -320,6 +320,11 @@
     width: max(var(--ornament-min), var(--ornament-ratio));
     max-width: 100%;
     height: 7px;
+  }
+
+  /* ממורכז כברירת מחדל; :where — ספציפיות 0, כדי שמחלקת שוליים (ms-0 בכותרת מיושרת ל-start,
+     SectionHeading) תגבר בלי תלות בסדר הכללים בשכבה */
+  :where(.title-ornament) {
     margin-inline: auto;
   }
 
