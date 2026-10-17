@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import GoldenBook from './GoldenBook'
 
 // Image מדומה: decode() מצליח או נכשל לפי הנתיב, ונרשם מה נטען
@@ -19,6 +19,11 @@ function mockReducedMotion(reduce: boolean) {
 }
 
 const book = () => screen.getByAltText('לוגו אוצריא')
+
+// הרכיב מתקדם רק דרך promises של decode() (ב-FakeImage הם מתממשים מיד). מחכים ל-macrotask
+// הבא בתוך act: עד אז כל שרשרת ה-then כבר רצה, ועדכוני ה-state נעשים בתוך act ומיושמים מיד.
+// waitFor היה תלוי בשעון (שנייה אחת כברירת מחדל), ותחת עומס זה חרג והטסט נכשל.
+const flushImageLoads = () => act(() => new Promise<void>((resolve) => { setTimeout(resolve, 0) }))
 
 describe('GoldenBook', () => {
   beforeEach(() => {
@@ -42,7 +47,8 @@ describe('GoldenBook', () => {
     mockReducedMotion(true)
     const onOpened = vi.fn()
     render(<GoldenBook onOpened={onOpened} />)
-    await waitFor(() => expect(book()).toHaveAttribute('src', '/home/golden-book.webp'))
+    await flushImageLoads()
+    expect(book()).toHaveAttribute('src', '/home/golden-book.webp')
     expect(loaded).not.toContain('/home/golden-book-sprite.webp')
     expect(onOpened).toHaveBeenCalledTimes(1)
   })
@@ -52,18 +58,17 @@ describe('GoldenBook', () => {
     vi.spyOn(performance, 'now').mockReturnValue(0)
     const onOpened = vi.fn()
     const { container } = render(<GoldenBook onOpened={onOpened} />)
-    const sprite = await waitFor(() => {
-      const el = container.querySelector('.golden-book-sprite')
-      expect(el).not.toBeNull()
-      return el as HTMLElement
-    })
+    await flushImageLoads()
+    const sprite = container.querySelector('.golden-book-sprite') as HTMLElement
+    expect(sprite).not.toBeNull()
     expect(book()).toHaveClass('opacity-0')
     expect(book()).not.toHaveClass('invisible')
     expect(sprite.style.backgroundImage).toContain('/home/golden-book-sprite.webp')
     // jsdom בלי AnimationEvent — React מאזין אז לשם עם הקידומת; שולחים את שניהם
     fireEvent.animationEnd(sprite)
     fireEvent(sprite, new Event('webkitAnimationEnd', { bubbles: true }))
-    await waitFor(() => expect(book()).toHaveAttribute('src', '/home/golden-book.webp'))
+    await flushImageLoads()
+    expect(book()).toHaveAttribute('src', '/home/golden-book.webp')
     expect(container.querySelector('.golden-book-sprite')).toBeNull()
     expect(onOpened).toHaveBeenCalledTimes(1)
   })
@@ -73,7 +78,8 @@ describe('GoldenBook', () => {
     failing.add('/home/golden-book.webp')
     const onOpened = vi.fn()
     render(<GoldenBook onOpened={onOpened} />)
-    await waitFor(() => expect(onOpened).toHaveBeenCalledTimes(1))
+    await flushImageLoads()
+    expect(onOpened).toHaveBeenCalledTimes(1)
     expect(book()).toHaveAttribute('src', '/home/golden-book-closed.webp')
   })
 
