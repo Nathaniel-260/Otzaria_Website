@@ -14,6 +14,14 @@ describe('DocsPrevNext', () => {
     expect(next).toHaveAttribute('rel', 'next')
   })
 
+  it('חיצים בכיוון הקריאה ב-RTL: "הבא" שמאלה (chevron_left), "הקודם" ימינה (chevron_right)', () => {
+    // גופן האייקונים אינו מראה חיצים ב-RTL, ולכן שם האייקון הוא הכיוון הפיזי שעל המסך
+    render(<DocsPrevNext prev={{ slug: 'tools', title: 'כלים' }} next={{ slug: 'troubleshooting', title: 'פתרון תקלות' }} />)
+    const icon = (name: RegExp) => screen.getByRole('link', { name }).querySelector('.material-symbols-outlined')
+    expect(icon(/הבא/)).toHaveTextContent('chevron_left')
+    expect(icon(/הקודם/)).toHaveTextContent('chevron_right')
+  })
+
   it('רק הבא (הדף הראשון)', () => {
     render(<DocsPrevNext prev={null} next={{ slug: 'library', title: 'הספרייה' }} />)
     expect(screen.queryByRole('link', { name: /הקודם/ })).toBeNull()

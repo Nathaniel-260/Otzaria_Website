@@ -12,8 +12,8 @@ export type Crumb = {
 
 /**
  * פירורי הלחם של אזור המדריכים: רשימה סדורה בתוך nav בעל שם. הפריט האחרון הוא הדף הנוכחי
- * (aria-current, בלי קישור). המפריד — חץ דקורטיבי בכיוון הקריאה: chevron_right, שגופן האייקונים
- * מראה בכיוון RTL (מצביע שמאלה).
+ * (aria-current, בלי קישור). המפריד — חץ דקורטיבי בכיוון הקריאה, שמאלה: chevron_left (גופן
+ * האייקונים אינו מראה חיצים ב-RTL — השם הוא הכיוון הפיזי).
  */
 export default function DocsBreadcrumbs({ items, className }: { items: Crumb[]; className?: string }) {
   return (
@@ -39,7 +39,7 @@ export default function DocsBreadcrumbs({ items, className }: { items: Crumb[]; 
                   {item.label}
                 </span>
               )}
-              {!last && <AppIcon name="chevron_right" className="text-base text-outline" />}
+              {!last && <AppIcon name="chevron_left" className="text-base text-outline" />}
             </li>
           )
         })}

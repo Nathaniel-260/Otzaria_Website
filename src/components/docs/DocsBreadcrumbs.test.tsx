@@ -18,5 +18,7 @@ describe('DocsBreadcrumbs', () => {
     const icons = container.querySelectorAll('.material-symbols-outlined')
     expect(icons).toHaveLength(1)
     expect(icons[0]).toHaveAttribute('aria-hidden', 'true')
+    // בכיוון הקריאה (שמאלה) — הגופן אינו מראה חיצים ב-RTL
+    expect(icons[0]).toHaveTextContent('chevron_left')
   })
 })

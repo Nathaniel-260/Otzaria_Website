@@ -11,8 +11,9 @@ function AdjacentCard({ item, label, direction }: { item: GuideNavItem; label: s
       rel={direction}
       className={`flex h-full items-center gap-3 ${next ? 'flex-row-reverse' : ''}`}
     >
-      {/* גופן האייקונים מראה את החיצים ב-RTL: chevron_right מוצג שמאלה ("הבא"), chevron_left ימינה ("הקודם") */}
-      <AppIcon name={next ? 'chevron_right' : 'chevron_left'} className="text-2xl text-primary" />
+      {/* גופן האייקונים (subset סטטי) אינו מראה חיצים ב-RTL — השם הוא הכיוון הפיזי:
+          "הבא" מצביע שמאלה (כיוון הקריאה), "הקודם" ימינה */}
+      <AppIcon name={next ? 'chevron_left' : 'chevron_right'} className="text-2xl text-primary" />
       <span className={`min-w-0 flex-1 ${next ? 'text-end' : ''}`}>
         <span className="block text-label-md text-on-surface-variant">{label}</span>
         <span className="block text-title-md text-on-surface">{item.title}</span>
