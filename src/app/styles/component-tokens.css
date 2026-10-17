@@ -68,6 +68,8 @@
   --card-bg: var(--color-card);
   --card-bg-hover: var(--color-card-selected);
   --card-bg-tonal: color-mix(in oklab, var(--color-tile) 40%, transparent);
+  /* אותו גוון טונלי, אטום (מורכב על רקע הדף) — לטבעת של TitleOrnament בתוך כרטיס טונלי */
+  --card-bg-tonal-solid: color-mix(in oklab, var(--color-tile) 40%, var(--color-background));
   --card-raised-ring: color-mix(in oklab, var(--color-outline-variant) 60%, transparent);
   --card-raised-shadow: var(--shadow-raised);
 
