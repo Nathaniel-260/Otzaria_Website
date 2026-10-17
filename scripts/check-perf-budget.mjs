@@ -53,6 +53,13 @@ const ASSET_BUDGETS = [
   { file: 'public/logo.png', maxKB: 35 },
   { file: 'src/app/icon.png', maxKB: 8 },
   { file: 'src/app/apple-icon.png', maxKB: 8 },
+  // דף הבית: הספר הסגור הוא תמונת ה-LCP; הרצועה היא הנכס הכבד ביותר בדף.
+  { file: 'public/home/golden-book-closed.webp', maxKB: 23 },
+  { file: 'public/home/golden-book.webp', maxKB: 41 },
+  { file: 'public/home/golden-book-sprite.webp', maxKB: 353 },
+  // גופני שם האתר (next/font/local) — נטענים בכל דף שיווקי.
+  { file: 'src/app/fonts/OTVilna-Regular.woff2', maxKB: 18 },
+  { file: 'src/app/fonts/OTVilna-Bold.woff2', maxKB: 20 },
 ]
 
 // גופן האייקונים: שמו כולל hash, ולכן מאותר לפי התחילית.
