@@ -8,7 +8,7 @@ import { narrowColumns, startsNarrowRow } from './heroStatsLayout'
 // מהגיבור שמעליה; בתוכו מספר גדול, תווית קטנה מתחתיו, וקווי הפרדה דקים בין הפריטים.
 // (נבחר מול קו הפרדה למעלה/למטה, קישוט זהב ופס טונלי — ראו CARD_CLASS.)
 // רוחב: הכרטיס הוא שורה שנייה ברשת של הגיבור, על פני שתי העמודות (HeroSection) — הקצה האחד
-// שלו הוא הקצה החיצוני של הספר, והשני הקצה החיצוני של עמודת הטקסט, כך שהוא נמצא מתחת לכל
+// שלו הוא הקצה החיצוני של הספר, והשני הקצה החיצוני של עמודת הטקסט (הפרש 0), כך שהוא נמצא מתחת לכל
 // הגיבור ובמרווח שווה משני צדיו. (קודם: רוחב קבוע משלו, max-w-4xl ממורכז על הדף — לא קשור
 // לרוחב הגיבור שמעליו.)
 // מספר הפריטים משתנה (עד ארבעה נתונים ועוד הגרסה; מקור שנכשל מוסתר), ולכן כולם תמיד בשורה אחת ברוחב שווה, והשורה
@@ -43,11 +43,13 @@ export const HERO_STATS_MIN_HEIGHT =
  *  צד משלהם, וריפוד צד עם box-content היה מרחיב את w-full מעבר למכל. */
 const CARD_PADDING = 'box-content py-5 2xl:py-6 tall:py-[calc(1.5*var(--hero-tall-rem))]'
 
-/** הכרטיס עצמו: משטח (surface) על רקע הדף, מסגרת outline-variant דקה וצל md רך. השורה
+/** הכרטיס עצמו: משטח (surface) על רקע הדף, מסגרת outline-variant דקה וצל md רך. המסגרת
+ *  inset-ring — בתוך הקופסה ולא פיקסל מחוצה לה, כך שהקצה הנראה של הכרטיס הוא בדיוק הקצה
+ *  שמיושר לגיבור (HeroSection). השורה
  *  ממורכזת בו אנכית (flex-wrap + content-center; הפריטים עצמם items-start, כך שהמספרים
  *  תמיד על קו אחד) — ה-min-h שומר מקום גם לשורה גבוהה מהתוכן בפועל. ברוחב רגיל אין שבירה:
  *  לפריטים flex-1 ו-min-w-0, והם מתכווצים לפני שהם נשברים. */
-const CARD_CLASS = `rounded-2xl bg-surface shadow-md ring-1 ring-outline-variant/60 ${CARD_PADDING}`
+const CARD_CLASS = `rounded-2xl bg-surface shadow-md inset-ring inset-ring-outline-variant/60 ${CARD_PADDING}`
 
 /** הרווח בין שתי השורות במסך צר. */
 const ROW_GAP = '[--stats-row-gap:--spacing(5)]'

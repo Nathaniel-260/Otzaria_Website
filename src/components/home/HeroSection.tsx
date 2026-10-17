@@ -35,19 +35,12 @@ const TALL_BUTTON =
   'tall:min-h-[calc(2.85*var(--hero-tall-rem))] tall:px-[calc(1.425*var(--hero-tall-rem))] tall:text-[calc(1*var(--hero-tall-rem))]'
 const TALL_ICON = 'tall:text-[calc(1.375*var(--hero-tall-rem))]'
 
-// הקצה של כרטיס המספרים בצד הספר: לא קצה התמונה אלא קצה הציור. הציור ב-golden-book.webp
-// נגמר 54px מתוך 560 לפני שולי התמונה (9.64%), ולכן הכרטיס נסוג באותו שיעור מרוחב הספר. בצד
-// השני הקצה הוא עמודת הטקסט, שהפסקה ממלאת (md:text-justify — השורה הארוכה נוגעת בקצה). כך
-// הכרטיס מיושר לקצה הנראה של התוכן משני הצדדים — אותו מרווח (אפס) מימין ומשמאל.
-const BOOK_ART_INSET = 'md:ms-[calc(var(--book-w)*0.0964)]'
-
 export default function HeroSection() {
   return (
     <section className="overflow-hidden px-4 pb-12 pt-6 sm:pt-10 md:flex md:min-h-[min(calc(100svh-var(--site-header-height)),56rem)] md:flex-col md:justify-center md:px-8 md:py-10 short:py-5 tall:min-h-[max(56rem,calc(100svh-var(--site-header-height)-var(--hero-peek)))] tall:pt-(--hero-peek)">
-      {/* --book-w: רוחב הספר בכל נקודת שבירה — על הרשת, כי ממנו נגזרים גם ההיסט של "חינם לנצח!"
-          (HeroEmblem) וגם הקצה של כרטיס המספרים (BOOK_ART_INSET) */}
-      <div className="container mx-auto grid w-full max-w-5xl items-center justify-center gap-6 md:grid-cols-[auto_minmax(0,36rem)] md:gap-x-10 md:gap-y-20 lg:gap-x-16 2xl:max-w-7xl 2xl:grid-cols-[auto_minmax(0,42rem)] 2xl:gap-x-24 2xl:gap-y-24 short:gap-y-14 tall:max-w-[calc(80*var(--hero-tall-rem))] tall:grid-cols-[auto_minmax(0,calc(42*var(--hero-tall-rem)))] tall:gap-[calc(5.7*var(--hero-tall-rem))] [--book-w:--spacing(36)] sm:[--book-w:--spacing(44)] md:[--book-w:--spacing(48)] lg:[--book-w:--spacing(56)] xl:[--book-w:--spacing(64)] 2xl:[--book-w:--spacing(80)] short:[--book-w:--spacing(40)] short:lg:[--book-w:--spacing(48)] tall:[--book-w:calc(19*var(--hero-tall-rem))]">
-        <HeroEmblem />
+      <div className="container mx-auto grid w-full max-w-5xl items-center justify-center gap-6 md:grid-cols-[auto_minmax(0,36rem)] md:gap-x-10 md:gap-y-20 lg:gap-x-16 2xl:max-w-7xl 2xl:grid-cols-[auto_minmax(0,42rem)] 2xl:gap-x-24 2xl:gap-y-24 short:gap-y-14 tall:max-w-[calc(80*var(--hero-tall-rem))] tall:grid-cols-[auto_minmax(0,calc(42*var(--hero-tall-rem)))] tall:gap-[calc(5.7*var(--hero-tall-rem))]">
+        {/* --book-w: רוחב הספר בכל נקודת שבירה — ממנו נגזר גם ההיסט של "חינם לנצח!" (HeroEmblem) */}
+        <HeroEmblem className="[--book-w:--spacing(36)] sm:[--book-w:--spacing(44)] md:[--book-w:--spacing(48)] lg:[--book-w:--spacing(56)] xl:[--book-w:--spacing(64)] 2xl:[--book-w:--spacing(80)] short:[--book-w:--spacing(40)] short:lg:[--book-w:--spacing(48)] tall:[--book-w:calc(19*var(--hero-tall-rem))]" />
 
         <div className="flex flex-col items-center text-center md:items-start md:text-start">
           {/* עטיפה ברוחב הכותרת — הקישוט נמתח לכל רוחב המילה, כמו בבלוק הכותרת של המתקין */}
@@ -84,15 +77,13 @@ export default function HeroSection() {
 
         {/* כרטיס המספרים: שורה שנייה ברשת, על פני שתי העמודות — מתחת לכל הגיבור.
             w-0 + min-w-full: הכרטיס לא תורם לגודל העמודות (הן נקבעות לפי הספר והטקסט בלבד),
-            ורק ממלא את רוחבן (פחות השוליים השקופים של תמונת הספר, BOOK_ART_INSET). המרווח
-            ממנו הוא ה-gap-y של הרשת — ברור מהכפתורים, כי הוא אזור נפרד ולא המשך שלהם (מתון
+            ורק ממלא את רוחבן: הקצה האחד של הכרטיס הוא הקצה החיצוני של הספר, והשני של עמודת
+            הטקסט (getBoundingClientRect, הפרש 0). המרווח ממנו הוא ה-gap-y של הרשת — ברור מהכפתורים, כי הוא אזור נפרד ולא המשך שלהם (מתון
             יותר במסך נמוך, short). בנייד — טור אחד, ו-mt-6 משלים את gap-6 ל-3rem. */}
         <div className="mt-6 w-full md:col-span-2 md:mt-0 md:w-0 md:min-w-full">
-          <div className={BOOK_ART_INSET}>
-            <Suspense fallback={<HeroStatsPlaceholder />}>
-              <HeroStatsLoader />
-            </Suspense>
-          </div>
+          <Suspense fallback={<HeroStatsPlaceholder />}>
+            <HeroStatsLoader />
+          </Suspense>
         </div>
       </div>
     </section>
