@@ -1,22 +1,7 @@
 /**
- * הלוגיקה הטהורה של scroll-spy בתוכן העניינים (useScrollSpy): איזה סעיף "נוכחי".
- *
- * IntersectionObserver צופה בכותרות דרך "רצועה" בראש המסך (מתחת לכותרת הדביקה, עד כ-40% מגובה
- * המסך). הסעיף הנוכחי:
- *   1. יש כותרות ברצועה — העליונה שבהן (הקורא בדיוק התחיל אותה).
- *   2. אין כותרת ברצועה (באמצע סעיף ארוך) — נשאר הקודם; אבל כותרת שיצאה מהרצועה כלפי מטה
- *      (גלילה למעלה) מחזירה את הסעיף שלפניה.
- *   3. סוף המאמר גלוי — הכותרת האחרונה שכבר נראית במסך, כדי שסעיפים קצרים בסוף הדף (שלעולם
- *      לא יגיעו לרצועה) יסומנו גם הם.
+ * הלוגיקה הטהורה של scroll-spy בתוכן העניינים (useScrollSpy): איזה סעיף "נוכחי" — הכותרת
+ * האחרונה שעברה את קו ה-40% העליונים של המסך — וגלילת הסרגל אל הפריט המודגש.
  */
-
-/** הסעיף הנוכחי לפי הכותרות שברצועה וכותרות שיצאו ממנה למטה. -1 = לפני הכותרת הראשונה. */
-export function pickActiveHeading(prev: number, { inBand, exitedBelow }: { inBand: readonly number[]; exitedBelow: readonly number[] }): number {
-  if (inBand.length > 0) return Math.min(...inBand)
-  const exited = exitedBelow.filter((index) => index <= prev)
-  if (exited.length > 0) return Math.min(...exited) - 1
-  return prev
-}
 
 /** האינדקס של הכותרת האחרונה שהחלק העליון שלה מעל limit (בפיקסלים מראש המסך); -1 אם אין. */
 export function lastHeadingAbove(tops: readonly number[], limit: number): number {

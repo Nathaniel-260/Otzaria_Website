@@ -1,24 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { anchorId, lastHeadingAbove, pickActiveHeading, scrollDeltaToReveal } from './scrollSpy'
-
-describe('pickActiveHeading', () => {
-  it('כותרות ברצועה — העליונה שבהן', () => {
-    expect(pickActiveHeading(0, { inBand: [3, 2], exitedBelow: [] })).toBe(2)
-  })
-
-  it('באמצע סעיף ארוך (אין כותרת ברצועה) — נשאר הקודם', () => {
-    expect(pickActiveHeading(4, { inBand: [], exitedBelow: [] })).toBe(4)
-  })
-
-  it('גלילה למעלה: הכותרת הנוכחית יצאה למטה — הסעיף שלפניה', () => {
-    expect(pickActiveHeading(4, { inBand: [], exitedBelow: [4] })).toBe(3)
-    expect(pickActiveHeading(0, { inBand: [], exitedBelow: [0] })).toBe(-1)
-  })
-
-  it('כותרת שיצאה למטה אבל היא אחרי הנוכחית — לא משנה', () => {
-    expect(pickActiveHeading(2, { inBand: [], exitedBelow: [5] })).toBe(2)
-  })
-})
+import { anchorId, lastHeadingAbove, scrollDeltaToReveal } from './scrollSpy'
 
 describe('lastHeadingAbove', () => {
   it('האחרונה שמעל הגבול (סעיפים קצרים בסוף הדף)', () => {

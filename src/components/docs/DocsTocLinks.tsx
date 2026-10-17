@@ -19,6 +19,8 @@ export default function DocsTocLinks({ items, compact }: { items: TocItem[]; com
   const ids = useMemo(() => items.map((item) => anchorId(item.href)), [items])
   const { active, select } = useScrollSpy(ids)
   const listRef = useRef<HTMLUListElement>(null)
+  // הגלילה הראשונה (בטעינה) — מיידית; אחר כך חלקה, אלא אם reduced-motion
+  const revealedRef = useRef(false)
 
   useEffect(() => {
     if (active < 0) return
@@ -26,9 +28,11 @@ export default function DocsTocLinks({ items, compact }: { items: TocItem[]; com
     const box = link?.closest<HTMLElement>('[data-sidebar-scroll]')
     if (!link || !box || box.scrollHeight <= box.clientHeight) return
     const delta = scrollDeltaToReveal(link.getBoundingClientRect(), box.getBoundingClientRect())
+    const first = !revealedRef.current
+    revealedRef.current = true
     if (delta === null) return
     const reduce = window.matchMedia?.(REDUCED_MOTION_QUERY).matches
-    box.scrollBy({ top: delta, behavior: reduce ? 'auto' : 'smooth' })
+    box.scrollBy({ top: delta, behavior: first || reduce ? 'auto' : 'smooth' })
   }, [active])
 
   return (
@@ -43,8 +47,8 @@ export default function DocsTocLinks({ items, compact }: { items: TocItem[]; com
               onClick={() => select(index)}
               className={cx(
                 // בלי רקע לשורה: הנוכחי — צבע ומשקל, ופס דק מעוגל בצד ההתחלה (ימין), כך שלא רק צבע מסמן
-                'relative flex min-h-(--touch-target) items-center rounded-control px-3 py-1.5 text-body-sm transition-colors',
-                compact && 'min-h-0',
+                'relative flex items-center rounded-control px-3 py-1.5 text-body-sm transition-colors',
+                compact ? 'min-h-0' : 'min-h-(--touch-target)',
                 current
                   ? 'font-semibold text-primary before:absolute before:inset-y-1.5 before:start-0 before:w-0.75 before:rounded-full before:bg-primary'
                   : 'text-on-surface-variant hover:text-on-surface',
