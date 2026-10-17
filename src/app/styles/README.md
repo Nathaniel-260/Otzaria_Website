@@ -43,7 +43,7 @@
 פסי גלילה (`effects.css`): `.custom-scrollbar` **מסתיר** את פס הגלילה (גלילה בלי פס גלוי); `.scrollbar-thin` — פס דק ומעוצב לאזור גלילה פנימי (+`.scrollbar-end-right`).
 `tooltip.css`: `.tooltip`, `.tooltip-host`, `.tooltip-bubble` (ui/Tooltip).
 `nav.css`: `.nav-dropdown*`, `.mobile-nav-group*`.
-`animations.css`: `@keyframes` + `animate-*`, וגם מחלקות של אנימציות דף הבית — `.wordmark-handoff-target`/`-flyer` ("מעבר שם האתר", `useWordmarkHandoff`), `.forever-*` (השורה המונפשת), `.golden-book-sprite` (הספר המוזהב).
+`animations.css`: `@keyframes` + `animate-*`, וגם מחלקות של אנימציות דף הבית — `.wordmark-handoff-target` ("מעבר שם האתר", `useWordmarkHandoff`), `.forever-*` (השורה המונפשת), `.golden-book-sprite` (הספר המוזהב).
 
 ## תחזוקה
 
