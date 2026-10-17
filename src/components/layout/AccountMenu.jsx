@@ -48,11 +48,17 @@ function AccountMenuButton({ name, email, unreadMessages, buttonProps }) {
       aria-label={accountButtonLabel(name, unreadMessages)}
       title={accountButtonTitle(name, email)}
       data-account-button=""
-      // ברוחב אזור החשבון בדיוק (כמו "התחבר" וה-skeleton) — לא תלוי בשם; התוכן ממורכז
-      className={cx(buttonClasses({ variant: 'tonal', size: 'header' }), 'w-(--account-slot-width) shrink-0')}
+      // ברוחב אזור החשבון בדיוק (כמו "התחבר" וה-skeleton) — לא תלוי בשם. iconOnly: בלי ריפוד צד
+      // של כפתור טקסט — התוכן (עיגול + gap + חץ) ממורכז, והריפוד שווה בשני הצדדים
+      className={cx(buttonClasses({ variant: 'tonal', size: 'header', iconOnly: true }), 'group w-(--account-slot-width) shrink-0')}
     >
       <Initial name={name} className="size-7 bg-primary text-on-primary text-[0.8rem]" />
-      <AppIcon name="expand_more" className="text-[1.1rem]" />
+      {/* החץ: תיבה ריבועית קבועה (leading-none) — ממורכז אנכית בדיוק בקו האמצע של העיגול;
+          מתהפך כשהתפריט פתוח (aria-expanded), בלי מעבר ב-reduced-motion */}
+      <AppIcon
+        name="expand_more"
+        className="flex size-5 items-center justify-center text-[1.25rem] leading-none transition-transform duration-(--motion-duration-fast) ease-out group-aria-expanded:rotate-180 motion-reduce:transition-none"
+      />
       <UnreadDot count={unreadMessages} />
     </button>
   )
