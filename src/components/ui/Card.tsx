@@ -67,23 +67,25 @@ export type CardProps = StaticCard | LinkCard | ButtonCard
  * prefetch; <a> לכתובת מלאה/עוגן), onClick → <button>. כרטיס אינטראקטיבי כולו מטרת המגע:
  * ריחוף (card-selected), טבעת פוקוס, ומחלקת group — כדי שפעולה בתוכו (group-hover:) תגיב יחד.
  * אסור לשים בתוכו קישור או כפתור נוסף (אלמנט אינטראקטיבי מקונן).
+ * data-tone / data-interactive — המצב שהרכיב בחר, לבדיקות ולכלי פיתוח (לא לעיצוב: הוא במחלקות).
  */
 export default function Card(props: CardProps) {
   const { tone, padding, className, children } = props
+  const data = (interactive: boolean) => ({ 'data-tone': tone ?? 'default', 'data-interactive': interactive ? '' : undefined })
 
   if (props.href !== undefined) {
     const { href, external = false, prefetch = false, tone: _t, padding: _p, className: _c, children: _ch, ...rest } = props
     const classes = cardClasses({ tone, padding, interactive: true, className })
     const extra = external ? { target: '_blank', rel: 'noopener noreferrer' } : null
-    if (external || isPlainAnchor(href)) return <a {...rest} {...extra} href={href} className={classes}>{children}</a>
-    return <Link {...rest} {...extra} href={href} prefetch={prefetch} className={classes}>{children}</Link>
+    if (external || isPlainAnchor(href)) return <a {...rest} {...extra} {...data(true)} href={href} className={classes}>{children}</a>
+    return <Link {...rest} {...extra} {...data(true)} href={href} prefetch={prefetch} className={classes}>{children}</Link>
   }
 
   if (props.onClick) {
     const { tone: _t, padding: _p, className: _c, children: _ch, type = 'button', ...rest } = props as ButtonCard
-    return <button {...rest} type={type} className={cardClasses({ tone, padding, interactive: true, className })}>{children}</button>
+    return <button {...rest} {...data(true)} type={type} className={cardClasses({ tone, padding, interactive: true, className })}>{children}</button>
   }
 
   const { as: Tag = 'div', tone: _t, padding: _p, className: _c, children: _ch, ...rest } = props as StaticCard
-  return <Tag {...rest} className={cardClasses({ tone, padding, className })}>{children}</Tag>
+  return <Tag {...rest} {...data(false)} className={cardClasses({ tone, padding, className })}>{children}</Tag>
 }

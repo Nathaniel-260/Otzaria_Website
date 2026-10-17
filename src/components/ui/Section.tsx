@@ -18,6 +18,7 @@ export type SectionSpacing = keyof typeof SPACING
  * labelledBy — id של כותרת האזור (aria-labelledby); בלעדיו section אינו landmark בעל שם.
  * anchor     — יעד של קישור עוגן (#download): העצירה מתחת לכותרת הדביקה (.anchor-section).
  * container  — רוחב המכל, או false כשהילדים קובעים רוחב בעצמם.
+ * data-spacing — הריפוד שנבחר, לבדיקות ולכלי פיתוח (העיצוב עצמו במחלקות).
  */
 export default function Section({
   id,
@@ -44,6 +45,7 @@ export default function Section({
       {...rest}
       id={id}
       aria-labelledby={labelledBy}
+      data-spacing={spacing}
       className={cx(anchor && 'anchor-section', 'px-(--page-gutter) md:px-(--page-gutter-md)', SPACING[spacing], className)}
     >
       {container === false ? children : <div className={containerClasses(container, containerClassName)}>{children}</div>}
