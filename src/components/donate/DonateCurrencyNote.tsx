@@ -13,7 +13,7 @@ export default function DonateCurrencyNote({ className }: { className?: string }
     >
       <AppIcon name="info" className="mt-0.5 shrink-0 text-2xl text-on-warning-container" />
       <p className="min-w-0 flex-1 text-body-md text-inherit md:text-body-lg">
-        לתשומת לבכם: עדיף לתרום בשקלים — עמלת ההמרה ממט״ח (כגון דולרים) בשירות זה גבוהה מאוד.
+        שים לב: עדיף לתרום בשקלים. עמלת ההמרה ממטבע חוץ (למשל דולרים) בשירות זה גבוהה.
       </p>
     </div>
   )

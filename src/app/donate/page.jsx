@@ -22,7 +22,7 @@ export default function DonatePage() {
           <PageHeader
             id="donate-title"
             title="תרומה לאוצריא"
-            subtitle="הפרויקט מתוחזק בהתנדבות. תרומתכם עוזרת לנו לשלם על שרתים ולהמשיך לפתח את התוכנה."
+            subtitle="הפרויקט מתוחזק בהתנדבות. תרומתך עוזרת לנו לשלם על שרתים ולהמשיך לפתח את התוכנה."
           />
           <DonateCurrencyNote className="mb-6 md:mb-8" />
           <DonateWidget title="התרומה באמצעות נדרים פלוס" />
