@@ -22,6 +22,10 @@ import { planBookOpening, readSaveData } from './goldenBookPlan'
 //
 // onOpened — נקרא פעם אחת כשהספר פתוח (סוף הרצועה, או במסלולי הגיבוי), כדי שמה שבא אחריו
 // (ForeverTagline) יתחיל בדיוק כשהפתיחה נגמרת.
+//
+// OPEN_DEADLINE_MS נמדד מתחילת הניווט (performance.now). לכן בניווט צד-לקוח חזרה לדף הבית
+// (performance.now כבר גדול) האנימציה לא מתנגנת, והספר עובר ישר לפתוח — בכוונה: מי שחוזר
+// לדף כבר ראה אותה.
 
 // הנתיב היחיד של הרצועה — גם ל-background-image (style), ולא כפול ב-animations.css
 const SPRITE_SRC = '/home/golden-book-sprite.webp'
@@ -31,12 +35,12 @@ const OPEN_DEADLINE_MS = 1500
 
 type Phase = 'closed' | 'opening' | 'open'
 
-/** טוען ומפענח תמונה; מתממש תמיד (גם בכשל — אז ההחלפה פשוט לא מחכה לפענוח) */
-function loadImage(src: string, { lowPriority = false } = {}): Promise<void> {
+/** טוען ומפענח תמונה; מתממש תמיד — true אם היא מוכנה, false בכשל */
+function loadImage(src: string, { lowPriority = false } = {}): Promise<boolean> {
   const img = new Image()
   if (lowPriority) img.fetchPriority = 'low'
   img.src = src
-  return img.decode().catch(() => {})
+  return img.decode().then(() => true, () => false)
 }
 
 export default function GoldenBook({ className = '', onOpened }: {
@@ -46,7 +50,7 @@ export default function GoldenBook({ className = '', onOpened }: {
   const [phase, setPhase] = useState<Phase>('closed')
   const onOpenedRef = useRef(onOpened)
   const openedFired = useRef(false)
-  const openReady = useRef<Promise<void> | null>(null)
+  const openReady = useRef<Promise<boolean> | null>(null)
   const mounted = useRef(true)
   useEffect(() => { onOpenedRef.current = onOpened }, [onOpened])
   useEffect(() => {
@@ -63,9 +67,15 @@ export default function GoldenBook({ className = '', onOpened }: {
     openReady.current ??= loadImage(OPEN_SRC, { lowPriority })
     return openReady.current
   }, [])
+  // אם התמונה הפתוחה לא נטענה — לא מחליפים לתמונה שבורה: נשארים על מה שמוצג (הספר הסגור,
+  // או הפריים האחרון של הרצועה), ורק ממשיכים את הרצף (onOpened)
   const showOpen = useCallback(() => {
-    loadOpen().then(() => { if (mounted.current) setPhase('open') })
-  }, [loadOpen])
+    loadOpen().then((ok) => {
+      if (!mounted.current) return
+      if (ok) setPhase('open')
+      else fireOpened()
+    })
+  }, [loadOpen, fireOpened])
 
   // מסלולי הגיבוי (reduced-motion, חיסכון בנתונים, רשת איטית, כשל) — אין רצועה שתסתיים
   useEffect(() => {
