@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import OtzariaSoftwareHeader from '@/components/layout/OtzariaSoftwareHeader'
+import NotFoundHeader from '@/components/notFound/NotFoundHeader'
 import OtzariaSoftwareFooter from '@/components/layout/OtzariaSoftwareFooter'
 import NotFoundContent from '@/components/notFound/NotFoundContent'
 
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <div className="flex min-h-screen flex-col overflow-x-clip bg-background text-on-surface">
-      <OtzariaSoftwareHeader />
+      <NotFoundHeader />
 
       <main id="main-content" className="flex flex-1 flex-col">
         <NotFoundContent />
