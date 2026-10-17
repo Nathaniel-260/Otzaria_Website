@@ -497,6 +497,11 @@
     }
   }
 
+  /* פס הגלילה בקצה החיצוני (ימין) של סרגל בצד ימין של עמוד RTL — לא בין הסרגל לתוכן.
+     המכל LTR (שם הדפדפן מצייר את הפס מימין), והתוכן שבתוכו חוזר ל-RTL. */
+  .scrollbar-end-right {
+    direction: ltr;
+  }
 
   .scrollbar-end-right > * {
     direction: rtl;
