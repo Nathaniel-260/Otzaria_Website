@@ -57,9 +57,9 @@ const ASSET_BUDGETS = [
   { file: 'public/home/golden-book-closed.webp', maxKB: 23 },
   { file: 'public/home/golden-book.webp', maxKB: 41 },
   { file: 'public/home/golden-book-sprite.webp', maxKB: 353 },
-  // גופני שם האתר (next/font/local) — נטענים בכל דף שיווקי.
+  // גופן שם האתר והכותרות (next/font/local, עם preload) — נטען בכל עמוד. OTVilna-Bold.woff2
+  // נשאר בתיקייה אבל אינו נטען (layout.tsx), ולכן אין לו תקציב; אם יחובר — להוסיף כאן.
   { file: 'src/app/fonts/OTVilna-Regular.woff2', maxKB: 18 },
-  { file: 'src/app/fonts/OTVilna-Bold.woff2', maxKB: 20 },
 ]
 
 // גופן האייקונים: שמו כולל hash, ולכן מאותר לפי התחילית.
