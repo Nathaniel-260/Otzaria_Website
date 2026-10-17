@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderToString } from 'react-dom/server'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import DownloadSectionClient from './DownloadSectionClient'
 
@@ -184,5 +185,47 @@ describe('DownloadSectionClient — נוסח החלונות', () => {
     render(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
     const dialog = openPlatform(name)
     expect(dialog.textContent).not.toMatch(/גרסה|0\.9\.98|00a0/)
+  })
+})
+
+describe('DownloadSectionClient — זיהוי המערכת (QA-04) ותקינות הכפתורים (QA-11, QA-12)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('ה-HTML מהשרת (לפני הזיהוי): טקסט ניטרלי ושומר מקום שקוף בגובה כרטיס המערכת — בלי "לא הצלחנו"', () => {
+    const html = renderToString(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
+    expect(html).toContain('הורדה למחשב ולנייד')
+    expect(html).not.toContain('לא הצלחנו')
+    const host = document.createElement('div')
+    host.innerHTML = html
+    const placeholder = host.querySelector('[data-testid="detected-platform-placeholder"]')
+    expect(placeholder).toHaveAttribute('aria-hidden', 'true')
+    expect(placeholder).toHaveClass('invisible')
+  })
+
+  it('אחרי הזיהוי: כרטיס המערכת שזוהתה במקום שומר המקום', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
+    render(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
+    expect(screen.getByText('זיהינו שאתה משתמש ב-Windows')).toBeInTheDocument()
+    expect(screen.queryByTestId('detected-platform-placeholder')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Windows/ })).toBeInTheDocument()
+  })
+
+  it('מערכת לא מזוהה: רק אחרי הבדיקה — "לא הצלחנו לזהות" וכל המערכות', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('test-agent')
+    render(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
+    expect(screen.getByText(/לא הצלחנו לזהות/)).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /Windows|Linux|Android|iOS|macOS/ })).toHaveLength(5)
+  })
+
+  it('בתוך כפתורי המערכות אין כותרות, והאייקונים מוסתרים מקוראי מסך', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('test-agent')
+    const { container } = render(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
+    expect(container.querySelector('button h1, button h2, button h3, button h4')).toBeNull()
+    for (const icon of container.querySelectorAll('button .material-symbols-outlined')) {
+      expect(icon).toHaveAttribute('aria-hidden', 'true')
+    }
+    expect(screen.getByRole('button', { name: /^Windows/ })).toBeInTheDocument()
   })
 })

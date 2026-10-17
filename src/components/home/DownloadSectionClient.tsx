@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import DownloadAssistantOptions, { AndroidAssistantNotice, hasDownloadAssistant } from './DownloadAssistantOptions'
+import AppIcon from '@/components/ui/AppIcon'
 import Card from '@/components/ui/Card'
 import Dialog from '@/components/ui/Dialog'
 import IconTile from '@/components/ui/IconTile'
@@ -38,7 +39,8 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
   // חלון ההורדה הפתוח (מפתח פלטפורמה: windows / linux / ...), או null
   const [openPlatform, setOpenPlatform] = useState<string | null>(null)
 
-  const [detectedPlatform, setDetectedPlatform] = useState<string | null>(null)
+  // undefined — עוד לא נבדק (ה-HTML מהשרת ועד ה-effect); null — נבדק ולא זוהה; אחרת — המפתח
+  const [detectedPlatform, setDetectedPlatform] = useState<string | null | undefined>(undefined)
   const [showAllPlatforms, setShowAllPlatforms] = useState(false)
 
   // זיהוי פלטפורמה אוטומטי
@@ -108,11 +110,12 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
         <Card onClick={config.onClick} className="flex w-full items-center gap-4 p-4 sm:gap-5 sm:p-6">
           <IconTile icon={config.icon} size="lg" />
           <div className="min-w-0 flex-1">
-            <h3 className="text-xl font-bold text-on-surface sm:text-2xl">{config.title}</h3>
+            {/* span ולא כותרת: צאצאי <button> הם presentational, וכותרת בתוכו אינה תקינה */}
+            <span className="block text-xl font-bold text-on-surface sm:text-2xl">{config.title}</span>
             <p className="mt-0.5 text-sm text-on-surface-variant sm:text-base">{subtitle}</p>
           </div>
           <span className="inline-flex h-12 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 font-semibold text-on-primary transition-colors group-hover:bg-primary-hover sm:px-5">
-            <span className="material-symbols-outlined">download</span>
+            <AppIcon name="download" />
             <span className="hidden sm:inline">הורדה</span>
           </span>
         </Card>
@@ -124,8 +127,8 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
       <Card onClick={config.onClick} className="flex h-full w-full flex-col gap-2 p-4 lg:p-5">
         <div className="flex w-full items-center gap-3">
           <IconTile icon={config.icon} size="md" />
-          <h3 className="min-w-0 flex-1 text-lg font-bold text-on-surface">{config.title}</h3>
-          <span className="material-symbols-outlined text-primary lg:hidden" aria-hidden="true">chevron_left</span>
+          <span className="min-w-0 flex-1 text-lg font-bold text-on-surface">{config.title}</span>
+          <AppIcon name="chevron_left" className="text-primary lg:hidden" />
         </div>
         <p className="text-sm text-on-surface-variant">{subtitle}</p>
       </Card>
@@ -138,28 +141,37 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
       <Section id="download" labelledBy="download-heading" anchor>
         <SectionHeading id="download-heading" title="הורדת התוכנה" spacing="none" className="mb-5 md:mb-6" />
 
-        {/* הצגת כפתור הורדה לפלטפורמה שזוהתה */}
-        {detectedPlatform && !showAllPlatforms ? (
+        {/* הצגת כפתור הורדה לפלטפורמה שזוהתה. עד שהזיהוי רץ (undefined — ה-HTML מהשרת) מוצג
+            אותו מבנה בדיוק, עם טקסט ניטרלי וכרטיס שקוף במקום כרטיס המערכת: כמעט כל מבקר מזוהה,
+            ולכן הגובה לא משתנה כשהזיהוי מסתיים (בלי CLS ובלי "לא הצלחנו לזהות" שגוי) */}
+        {detectedPlatform !== null && !showAllPlatforms ? (
           <div className="mx-auto max-w-2xl">
-            <p className="mb-6 text-center text-lg text-on-surface-variant">זיהינו שאתה משתמש ב-{getPlatformName(detectedPlatform)}</p>
+            <p className="mb-6 text-center text-lg text-on-surface-variant">
+              {detectedPlatform ? `זיהינו שאתה משתמש ב-${getPlatformName(detectedPlatform)}` : 'הורדה למחשב ולנייד'}
+            </p>
 
             <div className="flex flex-col items-center gap-3">
-              {renderPlatformButton(detectedPlatform, true)}
+              {detectedPlatform ? renderPlatformButton(detectedPlatform, true) : (
+                // שומר מקום בגובה כרטיס המערכת — invisible: לא נראה, לא נגיש ולא בר-מיקוד
+                <div aria-hidden="true" className="invisible w-full" data-testid="detected-platform-placeholder">
+                  {renderPlatformButton('windows', true)}
+                </div>
+              )}
 
               <button
                 type="button"
                 onClick={() => setShowAllPlatforms(true)}
                 className={TOGGLE_BUTTON}
               >
-                <span>הורדה למערכת אחרת</span>
-                <span className="material-symbols-outlined text-lg">expand_more</span>
+                <span>{detectedPlatform ? 'הורדה למערכת אחרת' : 'כל המערכות'}</span>
+                <AppIcon name="expand_more" className="text-lg" />
               </button>
             </div>
           </div>
         ) : (
           <>
             <p className="mb-8 text-center text-lg text-on-surface-variant">
-              {detectedPlatform ? 'בחר מערכת' : 'לא הצלחנו לזהות את המערכת שלך — בחר מערכת'}
+              {detectedPlatform === null ? 'לא הצלחנו לזהות את המערכת שלך — בחר מערכת' : 'בחר מערכת'}
             </p>
 
             {/* נייד: רשימה; טבלט: שתי עמודות; דסקטופ: חמישה כרטיסים אנכיים בשורה */}
@@ -178,7 +190,7 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
                   onClick={() => setShowAllPlatforms(false)}
                   className={`mx-auto ${TOGGLE_BUTTON}`}
                 >
-                  <span className="material-symbols-outlined text-lg">expand_less</span>
+                  <AppIcon name="expand_less" className="text-lg" />
                   <span>חזור להורדה ל-{getPlatformName(detectedPlatform)}</span>
                 </button>
               </div>
