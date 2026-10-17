@@ -4,10 +4,6 @@
  * ============================================================ */
 
 @layer utilities {
-  .font-frank {
-    font-family: var(--font-frank);
-  }
-
   .glass {
     background-color: color-mix(in srgb, var(--color-background) 60%, transparent);
     backdrop-filter: blur(12px);

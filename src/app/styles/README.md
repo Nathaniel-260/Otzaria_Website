@@ -26,6 +26,10 @@
 - **אין hex / rgb ברכיבים.** צבע חדש → גוון ב-`palette.css` + תפקיד ב-`colors.css`.
 - **אין צבעי Tailwind גולמיים** (`gray-*`, `blue-*`, `bg-white`) ולא רמפות המורשת (`neutral-*`, `danger-*`...) בקוד חדש — רק תפקידים.
 - שמות שמסומנים `[מיושן]` ב-`colors.css` (`accent`, `primary-container`, `surface-variant`, `on-background`) — נשמרו רק כדי לא לשבור עמודים קיימים.
+- **גופנים:** `font-display` = OT Vilna (Regular בלבד, `--font-vilna` על `<body>`, טוקן `@theme inline`);
+  `font-frank` = Frank Ruehl CLM 500/700 לדפים הישנים (`--font-frank-ruehl` על `<html>`, כדי ש-`--font-frank` יהיה תקף
+  כבר ב-`:root` — גם כ-`var()` ישיר); `font-sans`/`font-hebrew` = Assistant (`<html>`). משתנה של next/font שעליו נשען
+  טוקן `@theme` רגיל (לא inline) חייב להיות על `<html>` — אחרת הטוקן נפסל בשקט והטקסט יורש את גופן ההורה (QA-10).
 - מחלקות `text-primary-dark`, `text-foreground`, `text-on-secondary` **אינן מוגדרות** (לא עושות כלום) — בהעברת עמוד מחליפים אותן לתפקיד אמיתי.
 
 ## variants מותאמים (`layout.css`)

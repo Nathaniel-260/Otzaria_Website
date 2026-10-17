@@ -13,12 +13,20 @@ import SkipLink from '@/components/layout/SkipLink'
 import { OS_DETECT_SCRIPT } from '@/lib/detectOs'
 
 
-// preload: false — FrankRuehl (~18.6KB) משמש רק בדפים הישנים (font-frank), ולא בדף הבית;
-// כ-preload הוא התחרה ב-LCP בכל עמוד. הדפדפן מוריד אותו רק כשטקסט באמת מבקש אותו.
-// TODO(QA-10): --font-frank מוגדר ב-@theme שאינו inline (typography.css) ולכן כנראה נפסל,
-// ו-.font-frank נופל לגופן ההורה. התיקון ישנה את מראה הדפים הישנים — ממתין להחלטה.
+// Frank Ruehl CLM (Culmus, GPL-2 עם חריג לגופנים) — גופן הכותרות של הדפים הישנים (font-frank).
+// שני משקלים: Medium (500) לטקסט רגיל, ו-Bold (700) — כי כמעט כל השימושים הם font-bold. בלי
+// Bold הדפדפן היה מייצר בולד מלאכותי מה-Medium (ובנוסף font-synthesis-weight: none על
+// font-frank ב-typography.css). Bold נגזר מ-culmus-0.140 (OTF→TrueType, subset לאותם תווים
+// כמו ה-Medium) — כ-18KB כל אחד.
+// preload: false — הגופן משמש רק בדפים הישנים (הספרייה, חנות התוספים, מדריכים, תיבות דו-שיח),
+// לא בדף הבית ולא בעמודים שעוצבו מחדש. preload ב-root layout חל על כל עמוד ומתחרה ב-LCP של
+// דף הבית; בלעדיו הדפדפן מוריד רק את המשקל שטקסט מבקש בפועל (בדרך כלל רק Bold), ו-display: swap
+// מציג קודם את גופן הנפילה.
 const frankRuehl = localFont({
-  src: "./fonts/FrankRuehlCLM-Medium.woff2",
+  src: [
+    { path: "./fonts/FrankRuehlCLM-Medium.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/FrankRuehlCLM-Bold.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-frank-ruehl",
   display: "swap",
   preload: false,
@@ -66,11 +74,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // --font-assistant על <html> ולא על <body>: --font-sans/--font-hebrew (typography.css) הם
-  // טוקני @theme רגילים שמחושבים ב-:root, ושם המשתנה חייב כבר להיות מוגדר.
+  // --font-assistant ו---font-frank-ruehl על <html> ולא על <body>: --font-sans/--font-hebrew ו---font-frank
+  // (typography.css) הם טוקני @theme רגילים שמחושבים ב-:root, ושם המשתנה חייב כבר להיות מוגדר.
+  // (--font-frank משמש גם כ-var() ישיר, למשל בבורר הגופן של עורך הגהת העמודים, ולכן לא די ב-inline.)
   // suppressHydrationWarning — רק בשביל data-os, שהסקריפט שלמטה מוסיף ל-<html> לפני ה-hydration
   return (
-    <html lang="he" dir="rtl" className={assistant.variable} suppressHydrationWarning>
+    <html lang="he" dir="rtl" className={`${assistant.variable} ${frankRuehl.variable}`} suppressHydrationWarning>
       <head>
         {/* זיהוי מערכת ההפעלה → <html data-os="windows|macos|mobile|other"> (lib/detectOs.js).
             ראשון ב-head ו-inline: רץ לפני הציור הראשון, ולכן CSS (למשל in-data-[os=macos]:...)
@@ -83,7 +92,7 @@ export default function RootLayout({
         <link rel="preload" href={ICON_FONT_URL} as="font" type="font/woff2" crossOrigin="anonymous" />
         {/* חסימת שבת/יום טוב מתבצעת כעת בצד שרת ב-src/proxy.js (כולל מעבר חופשי לבוטים) */}
       </head>
-      <body className={`antialiased bg-background text-foreground font-sans ${frankRuehl.variable} ${vilna.variable}`}>
+      <body className={`antialiased bg-background text-foreground font-sans ${vilna.variable}`}>
         {/* הפריט הראשון בסדר ה-Tab בכל עמוד — מוסתר עד שמקבל פוקוס */}
         <SkipLink />
         <ErrorBoundary>

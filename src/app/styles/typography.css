@@ -1,7 +1,8 @@
 /* ============================================================
  * typography.css — טוקני טיפוגרפיה (גופנים, גדלים, משקלים וריווח)
  * שינוי טיפוגרפיה גלובלי מתבצע כאן.
- * הערה: --font-frank-ruehl ו---font-vilna מוגדרים ע"י next/font ב-layout.tsx.
+ * הערה: --font-frank-ruehl ו---font-vilna מוגדרים ע"י next/font ב-layout.tsx (--font-frank-ruehl על
+ * <html>, ‏--font-vilna על <body>).
  * ============================================================ */
 
 /* גופן התצוגה (OT Vilna Regular בלבד, בלי Bold) — לכותרות ולשם האתר, תמיד במשקל 400. אין בו לטינית,
@@ -13,7 +14,10 @@
   --font-display: var(--font-vilna), var(--font-hebrew);
 }
 
-/* גופן הגוף והממשק: Assistant (next/font/google ב-layout.tsx; --font-assistant מוגדר על <html>).
+/* --font-frank: גופן הכותרות של הדפים הישנים (Frank Ruehl CLM, ‏500 ו-700). לא inline: --font-frank-ruehl
+   מוגדר על <html>, ולכן הטוקן תקף כבר ב-:root — וכך גם var(--font-frank) ישיר עובד (בורר הגופן
+   של עורך הגהת העמודים). עד QA-10 המשתנה היה על <body>, הטוקן נפסל ב-:root, ו-font-frank הציג Assistant.
+   גופן הגוף והממשק: Assistant (next/font/google ב-layout.tsx; --font-assistant מוגדר על <html>).
    --font-sans ו---font-hebrew זהים בכוונה — שני השמות בשימוש באתר (body, font-sans, נפילת
    הלטינית של font-display). גופני המערכת נשארים כנפילה בלבד. */
 @theme {
@@ -164,8 +168,9 @@
   }
 
   /* OT Vilna נטען רק ב-Regular. בלי זה, משקל ≥600 שמתבקש בטעות על גופן התצוגה היה מקבל בולד
-     מלאכותי (הדפדפן "מעבה" את הגליפים). */
-  .font-display {
+     מלאכותי (הדפדפן "מעבה" את הגליפים). Frank Ruehl נטען ב-500 וב-700 — רשת ביטחון באותו אופן. */
+  .font-display,
+  .font-frank {
     font-synthesis-weight: none;
   }
 
