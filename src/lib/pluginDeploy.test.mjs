@@ -53,8 +53,7 @@ if [[ "$1" == restart ]]; then
   if [[ "$count" == 1 && ( "$TEST_MODE" == restart || "$TEST_MODE" == rollback_mv || "$TEST_MODE" == rollback_git ) ]]; then exit 9; fi
 fi
 `)
-  command('curl', `echo "curl $*" >> "$TEST_ROOT/trace"
-if [[ "$TEST_MODE" == health && $(cat "$TEST_APP/public/version.json") == *new* ]]; then exit 22; fi
+  command('curl', `if [[ "$TEST_MODE" == health && $(cat "$TEST_APP/public/version.json") == *new* ]]; then exit 22; fi
 if [[ "$TEST_MODE" == wrong && $(cat "$TEST_APP/public/version.json") == *new* ]]; then echo '{"version":"wrong"}'; else cat "$TEST_APP/public/version.json"; fi
 `)
   command('sleep', ':\n')
@@ -64,8 +63,8 @@ exec /bin/mv "$@"
   command('git', `if [[ "$TEST_MODE" == rollback_git && "$*" == "reset --hard $TEST_OLD" ]]; then exit 9; fi
 exec /usr/bin/git "$@"
 `)
-  const run = (...extra) => {
-    const result = spawnSync('bash', [deployScript, next, 'a'.repeat(40), app, ...extra], {
+  const run = () => {
+    const result = spawnSync('bash', [deployScript, next, 'a'.repeat(40), app], {
       env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH, TEST_ROOT: root, TEST_APP: app, TEST_MODE: mode, TEST_OLD: old },
       encoding: 'utf8', timeout: 30000,
     })
@@ -105,29 +104,6 @@ test('successful deployment installs one coherent build and preserves persistent
     assert.equal(f.read('storage/keep'), 'persistent'); assert.equal(f.read('public/uploads/keep'), 'persistent'); assert.equal(f.read('.env'), 'fixture')
     assert.equal(f.git('rev-parse', 'HEAD'), f.next); assert.deepEqual(f.stages(), [])
     assert.ok(f.trace().indexOf('npm run build') < f.trace().indexOf('pm2 stop'))
-  } finally { f.remove() }
-})
-test('the default instance is the production pm2 process on port 3000', () => {
-  const f = fixture('success')
-  try {
-    const r = f.run(); assert.equal(r.status, 0, r.stdout + r.stderr)
-    assert.match(f.trace(), /^pm2 stop otzaria-web$/m); assert.match(f.trace(), /^pm2 restart otzaria-web$/m)
-    assert.match(f.trace(), /127\.0\.0\.1:3000\/version\.json/)
-  } finally { f.remove() }
-})
-test('a second instance (preview) uses its own pm2 process and port', () => {
-  const f = fixture('success')
-  try {
-    const r = f.run('otzaria-preview', '3001'); assert.equal(r.status, 0, r.stdout + r.stderr)
-    assert.match(f.trace(), /^pm2 stop otzaria-preview$/m); assert.match(f.trace(), /^pm2 restart otzaria-preview$/m)
-    assert.match(f.trace(), /127\.0\.0\.1:3001\/version\.json/); assert.doesNotMatch(f.trace(), /otzaria-web|:3000\//)
-  } finally { f.remove() }
-})
-test('an invalid pm2 name or port is rejected before touching the checkout', () => {
-  const f = fixture('success')
-  try {
-    const r = f.run('bad name; rm', '3001'); assert.notEqual(r.status, 0); assert.match(r.stderr, /Invalid pm2/)
-    assert.equal(f.git('rev-parse', 'HEAD'), f.old); assert.equal(f.trace(), '')
   } finally { f.remove() }
 })
 test('external upload symlinks stay in the live installation and never enter the build', () => {

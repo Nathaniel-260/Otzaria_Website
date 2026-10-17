@@ -108,11 +108,6 @@ const nextConfig = {
       {
         source: '/:path*',
         headers: [
-          // אתר התצוגה המקדימה (SITE_PREVIEW=1 ב-.env שלו) — לא לאינדקס במנועי חיפוש,
-          // כדי שלא יתחרה באתר הראשי ולא יופיע בתוצאות.
-          ...(process.env.SITE_PREVIEW === '1'
-            ? [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }]
-            : []),
           // מניעת הטמעה ב-iframe (anti-clickjacking)
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           // מניעת ניחוש סוג תוכן
