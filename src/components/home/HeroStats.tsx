@@ -7,8 +7,12 @@ import { narrowColumns, startsNarrowRow } from './heroStatsLayout'
 // כרטיס רך אחד (לא כרטיס לכל נתון): משטח בהיר, מסגרת דקה וצל עדין שמבדילים את השורה
 // מהגיבור שמעליה; בתוכו מספר גדול, תווית קטנה מתחתיו, וקווי הפרדה דקים בין הפריטים.
 // (נבחר מול קו הפרדה למעלה/למטה, קישוט זהב ופס טונלי — ראו CARD_CLASS.)
+// רוחב: הכרטיס הוא שורה שנייה ברשת של הגיבור, על פני שתי העמודות (HeroSection) — הקצה האחד
+// שלו הוא הקצה החיצוני של הספר, והשני הקצה החיצוני של עמודת הטקסט, כך שהוא נמצא מתחת לכל
+// הגיבור ובמרווח שווה משני צדיו. (קודם: רוחב קבוע משלו, max-w-4xl ממורכז על הדף — לא קשור
+// לרוחב הגיבור שמעליו.)
 // מספר הפריטים משתנה (עד ארבעה נתונים ועוד הגרסה; מקור שנכשל מוסתר), ולכן כולם תמיד בשורה אחת ברוחב שווה, והשורה
-// כולה ברוחב שנגזר ממספרם (--stat-count × 13rem, לכל היותר רוחב המכל) — שני נתונים לא
+// כולה ברוחב שנגזר ממספרם (--stat-count × 16rem, לכל היותר רוחב הגיבור) — שני נתונים לא
 // "נמרחים" על כל המסך. גודל המספר נגזר מרוחב הפריט (cqi של ה-@container), כך שגם ארבעה
 // פריטים ב-360px נכנסים.
 // מספר גדול מקוצר ("5.8 מיליון", ראו formatStatParts); לקוראי מסך — המספר המדויק.
@@ -69,7 +73,7 @@ export default function HeroStats({ items, version = null, className = '' }: {
     <dl
       aria-label="אוצריא במספרים"
       style={{ '--stat-count': count, '--stat-cols': narrowColumns(count) } as CSSProperties}
-      className={`animate-enter-fade mx-auto flex w-full max-w-[calc(var(--stat-count)*13rem)] tall:max-w-[calc(var(--stat-count)*13*var(--hero-tall-rem))] flex-wrap content-center items-start ${ROW_GAP} narrow:justify-center narrow:gap-y-(--stats-row-gap) ${HERO_STATS_MIN_HEIGHT} ${CARD_CLASS} ${className}`}
+      className={`animate-enter-fade mx-auto flex w-full max-w-[calc(var(--stat-count)*16rem)] tall:max-w-[calc(var(--stat-count)*16*var(--hero-tall-rem))] flex-wrap content-center items-start ${ROW_GAP} narrow:justify-center narrow:gap-y-(--stats-row-gap) ${HERO_STATS_MIN_HEIGHT} ${CARD_CLASS} ${className}`}
     >
       {items.map((item, index) => {
         const parts = formatStatParts(item.value)
