@@ -9,7 +9,7 @@
 |------|------|-----------|----------|
 | 1. ייחוס | `palette.css` | הגוונים הגולמיים `--ref-<משפחה>-<tone>` — ערכת M3 של אוצריא (seed `#2C1B02`) + הרחבות מותג (parchment, ink, gold, rust) | רק שכבה 2 |
 | 2. תפקידים | `colors.css` (+ `theme-dark.css`) | `--color-surface`, `on-surface`, `primary`, `outline-variant`, `donation`, `success`... → מחלקות `bg-surface` וכו' | עמודים ורכיבים |
-| 3. רכיב | `component-tokens.css` | `--button-*`, `--card-*`, `--input-*`, `--nav-*`, `--dialog-*`, `--tooltip-*`, `--badge-*` | רכיבי `src/components/ui/*` |
+| 3. רכיב | `component-tokens.css` | `--button-*`, `--card-*`, `--dialog-*`, `--tooltip-*`, `--badge-*` (בשימוש); `--input-*`, `--nav-item-*`, `--nav-bar-bg` — מוגדרים אבל **עדיין לא בשימוש** (שמורים לרכיבי שדה וניווט עתידיים) | רכיבי `src/components/ui/*` |
 
 אותו עיקרון בשאר הקבצים: **סולם** (שנשאר לעמודים קיימים) + **תפקידים** (לרכיבים חדשים).
 
@@ -18,8 +18,8 @@
 | `typography.css` | `text-xs … text-9xl`, `font-display`, `font-frank` | `text-display-*`, `text-headline-*`, `text-title-*`, `text-body-*`, `text-label-*` |
 | `shape.css` | `rounded-sm … rounded-4xl` | `rounded-control`, `rounded-card`, `rounded-dialog`, `rounded-container`, `rounded-sheet`, `rounded-pill` — כולם מ-`--radius-shape` |
 | `elevation.css` | `shadow-sm … shadow-2xl` | `shadow-raised`, `shadow-menu`, `shadow-tooltip`, `shadow-dialog`, `shadow-sheet`, `shadow-overlay` |
-| `motion.css` | `ease-in/out/in-out` | `ease-standard/enter/exit`, `--motion-duration-*` (מתאפסים ב-reduced-motion) |
-| `layout.css` | `--spacing` (3.8px), `--breakpoint-*`, `max-w-6xl` | `max-w-content`, `max-w-content-wide`, `max-w-narrow`, `max-w-measure`, `--page-gutter*`, `--container-header`, `--touch-target`, `--z-*` |
+| `motion.css` | `ease-in/out/in-out` | `ease-standard/enter/exit`, `--motion-duration-*` (**לא** מתאפסים גלובלית ב-reduced-motion — כל רכיב מבטל את התזוזה שלו במפורש; ראו ההערה בראש `motion.css`) |
+| `layout.css` | `--spacing` (3.8px), `--breakpoint-*`, `max-w-6xl` | `max-w-content`, `max-w-content-wide`, `max-w-narrow`, `max-w-measure`, `--page-gutter*`, `--container-header`, `--touch-target`, `--z-*` (סקלת שכבות — לבדוק בקובץ אילו מהם בשימוש בפועל) |
 
 ## כללים קצרים
 
@@ -39,8 +39,11 @@
 
 ## מחלקות CSS משותפות
 
-`effects.css`: `.glass`, `.donation-button` (+`-lg`, `.donation-nav-link`), `.app-icon`, `.loader*` (ui/Loader), `.title-ornament`, `.anchor-section`, `.custom-scrollbar`, `.spellcheck-highlight`, `.hover-lift`.
-`nav.css`: `.nav-dropdown*`, `.mobile-nav-group*`. `animations.css`: `@keyframes` + `animate-*`.
+`effects.css`: `.glass`, `.donation-button` (+`-lg`, `.donation-nav-link`, `.donation-note`), `.donation-tip-*` (טיפ התרומה), `.donate-anim*` (`.donation-animated-icon`, אייקון התרומה המונפש), `.app-icon` (+`-donate`), `.loader*` (ui/Loader), `.title-ornament`, `.anchor-section`, `.spellcheck-highlight`, `.hover-lift`.
+פסי גלילה (`effects.css`): `.custom-scrollbar` **מסתיר** את פס הגלילה (גלילה בלי פס גלוי); `.scrollbar-thin` — פס דק ומעוצב לאזור גלילה פנימי (+`.scrollbar-end-right`).
+`tooltip.css`: `.tooltip`, `.tooltip-host`, `.tooltip-bubble` (ui/Tooltip).
+`nav.css`: `.nav-dropdown*`, `.mobile-nav-group*`.
+`animations.css`: `@keyframes` + `animate-*`, וגם מחלקות של אנימציות דף הבית — `.wordmark-handoff-target`/`-flyer` ("מעבר שם האתר", `useWordmarkHandoff`), `.forever-*` (השורה המונפשת), `.golden-book-sprite` (הספר המוזהב).
 
 ## תחזוקה
 
