@@ -15,7 +15,7 @@ import { OS_DETECT_SCRIPT } from '@/lib/detectOs'
 
 // preload: false — FrankRuehl (~18.6KB) משמש רק בדפים הישנים (font-frank), ולא בדף הבית;
 // כ-preload הוא התחרה ב-LCP בכל עמוד. הדפדפן מוריד אותו רק כשטקסט באמת מבקש אותו.
-// TODO(QA-10): ‏--font-frank מוגדר ב-@theme שאינו inline (typography.css) ולכן כנראה נפסל,
+// TODO(QA-10): --font-frank מוגדר ב-@theme שאינו inline (typography.css) ולכן כנראה נפסל,
 // ו-.font-frank נופל לגופן ההורה. התיקון ישנה את מראה הדפים הישנים — ממתין להחלטה.
 const frankRuehl = localFont({
   src: "./fonts/FrankRuehlCLM-Medium.woff2",
