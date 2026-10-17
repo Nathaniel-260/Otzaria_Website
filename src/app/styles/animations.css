@@ -142,123 +142,42 @@
   }
 
   /* ============================================================
-   * מעבר שם האתר (דף הבית): המילה "אוצריא" שבכותרת הראשית עולה ומתכווצת אל מקום שם האתר
-   * בכותרת העליונה, לצד הלוגו הקבוע. הגיאומטריה נמדדת ב-JS (src/hooks/useWordmarkHandoff.js
-   * + src/lib/wordmarkHandoff.js) ונשמרת כמשתנים על <html>; התנועה עצמה כאן — transform
-   * ו-opacity בלבד, מקושרים לגלילה.
+   * מעבר שם האתר (דף הבית): המילה "אוצריא" שבכותרת הראשית נגללת עם הדף אל מתחת לכותרת
+   * העליונה (כמו ה-large title של iOS), וכשהיא מוסתרת שם כולה — שם האתר שליד הלוגו נכנס.
+   * המצב נמדד ב-JS (src/hooks/useWordmarkHandoff.js, IntersectionObserver) ונכתב על <html>;
+   * כאן רק transition קצר של opacity ו-transform — בזמן, לא לפי הגלילה, ואותו דבר בכל הדפדפנים.
    *
    * data-wordmark-handoff על <html>:
-   *   (אין)  — לפני ה-hydration: שם האתר מוסתר בראש הדף ומופיע במקומו אחרי 16px גלילה.
-   *   css    — נמדד, ויש animation-timeline: התנועה המלאה.
-   *   js     — נמדד, בלי animation-timeline: ה-hook כותב את הערכים בכל פריים.
-   *   off    — אין כותרת ראשית בדף: שם אתר רגיל.
-   * reduced-motion: אין מעבר — המילה נשארת בגיבור, ושם האתר פשוט מוצג בכותרת.
-   * חשוב: animation (shorthand) מאפס את animation-timeline, ולכן הוא תמיד נכתב לפניו.
+   *   (אין)  — לפני ה-hydration: שם האתר מוסתר (המילה בגיבור היא השם).
+   *   hero   — המילה בגיבור נראית: שם האתר מוסתר.
+   *   docked — המילה מתחת לכותרת: שם האתר מוצג.
+   *   off    — אין כותרת ראשית בדף / אי אפשר למדוד: שם אתר רגיל.
+   * כניסה: 260ms, האטה חזקה בסוף (emphasized decelerate) ועלייה של 0.3em — "מתיישב" במקומו.
+   * יציאה: 140ms, מהירה ובלי תזוזה — לא מושכת את העין כשחוזרים לראש הדף.
+   * reduced-motion: בלי תזוזה ובלי מעבר — השם פשוט מופיע/נעלם.
    * ============================================================ */
-  .wordmark-handoff-flyer {
-    font-size: var(--wordmark-handoff-font-size, 1em);
-    transform: scale(var(--wordmark-handoff-rest, 1));
-    opacity: 0;
-    will-change: transform, opacity;
-  }
-
-  /* הסטטי מוסתר כשהמעופף פעיל, ומוצג כשאין מעבר */
   .wordmark-handoff-target {
     opacity: 0;
+    transform: translateY(0.3em);
+    transition: opacity 140ms ease-in, transform 0s linear 140ms;
   }
 
+  :root[data-wordmark-handoff='docked'] .wordmark-handoff-target,
   :root[data-wordmark-handoff='off'] .wordmark-handoff-target {
     opacity: 1;
-  }
-
-  /* אנכית + קנה מידה (המעופף, לינארי) והסחיפה האופקית (העטיפה שלו, מואצת) — בנפרד, כי
-     ל-easing יש ערך אחד לכל אנימציה. יחד: translate(x, y) scale(s) של handoffFrame */
-  @keyframes wordmark-handoff-fly {
-    from { transform: translateY(var(--wordmark-handoff-dy, 0px)) scale(1); }
-    to { transform: translateY(0px) scale(var(--wordmark-handoff-rest, 1)); }
-  }
-
-  @keyframes wordmark-handoff-drift {
-    from { transform: translateX(var(--wordmark-handoff-dx, 0px)); }
-    to { transform: translateX(0px); }
-  }
-
-  @keyframes wordmark-handoff-show {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes wordmark-handoff-hide {
-    from { opacity: 1; }
-    to { opacity: 0; }
-  }
-
-  @supports (animation-timeline: scroll()) {
-    /* לפני המדידה: הסטטי מופיע במקומו אחרי גלילה קצרה. רק בלי data-wordmark-handoff —
-       אחרת האנימציה הייתה גוברת על הערכים שה-hook כותב במסלול ה-js */
-    :root:not([data-wordmark-handoff]) .wordmark-handoff-target {
-      animation: wordmark-handoff-show linear both;
-      animation-timeline: scroll(root block);
-      animation-range: 0 16px;
-    }
-
-    /* התנועה המלאה. אינטרפולציה לינארית בכוונה: אורך המעבר (--wordmark-handoff-end) שווה
-       למרחק האנכי (כפול --wordmark-handoff-rise), כך שהמילה עולה בקצב קבוע ביחס לגלילה.
-       2px = HANDOFF_SWAP_DISTANCE: המילה שבגיבור והמעופף מתחלפים בבת אחת (steps) — אף פעם
-       לא שתי מילים, ולא שני עותקים חצי-שקופים.
-       0.85 = CROSSFADE_START: בקטע האחרון המעופף (Regular, מוקטן) דועך ושם האתר הסטטי (Regular,
-       בגודל אמיתי — חד) עולה במקומו. ה-hide ב-forwards בלבד: לפני הטווח שלו אין לו השפעה,
-       ואחרת היה דורס את ה-show */
-    :root[data-wordmark-handoff='css'] .wordmark-handoff-flyer {
-      animation: wordmark-handoff-fly linear both, wordmark-handoff-show steps(1, end) both, wordmark-handoff-hide linear forwards;
-      animation-timeline: scroll(root block), scroll(root block), scroll(root block);
-      animation-range: 0 var(--wordmark-handoff-end), 0 2px, calc(var(--wordmark-handoff-end) * 0.85) var(--wordmark-handoff-end);
-    }
-
-    /* t² = cubic-bezier(1/3, 0, 2/3, 1/3) בדיוק (driftEase ב-src/lib/wordmarkHandoff.js) */
-    :root[data-wordmark-handoff='css'] .wordmark-handoff-drift {
-      animation: wordmark-handoff-drift cubic-bezier(0.3333, 0, 0.6667, 0.3333) both;
-      animation-timeline: scroll(root block);
-      animation-range: 0 var(--wordmark-handoff-end);
-    }
-
-    :root[data-wordmark-handoff='css'] .wordmark-handoff-target {
-      animation: wordmark-handoff-show linear both;
-      animation-timeline: scroll(root block);
-      animation-range: calc(var(--wordmark-handoff-end) * 0.85) var(--wordmark-handoff-end);
-    }
-
-    :root[data-wordmark-handoff='css'] [data-wordmark-handoff-source] {
-      animation: wordmark-handoff-hide steps(1, end) both;
-      animation-timeline: scroll(root block);
-      animation-range: 0 2px;
-    }
-
-    /* הקישוט שמתחת לכותרת דועך במחצית הראשונה של המעבר (COMPANION_FADE_END) — לא נשאר
-       תלוי לבד מעל המקום שהמילה פינתה */
-    :root[data-wordmark-handoff='css'] [data-wordmark-handoff-companion] {
-      animation: wordmark-handoff-hide linear both;
-      animation-timeline: scroll(root block);
-      animation-range: 0 calc(var(--wordmark-handoff-end) * 0.5);
-    }
+    transform: none;
+    transition: opacity 260ms cubic-bezier(0.2, 0, 0, 1), transform 260ms cubic-bezier(0.2, 0, 0, 1);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .wordmark-handoff-target {
-      opacity: 1;
-      animation: none !important;
-    }
-
-    .wordmark-handoff-drift {
-      display: none;
-    }
-
-    [data-wordmark-handoff-source],
-    [data-wordmark-handoff-companion] {
-      opacity: 1 !important;
-      animation: none !important;
+    .wordmark-handoff-target,
+    :root[data-wordmark-handoff='docked'] .wordmark-handoff-target,
+    :root[data-wordmark-handoff='off'] .wordmark-handoff-target {
+      transform: none;
+      transition: none;
     }
   }
+
   /* ============================================================
    * "חינם" → "חינם לנצח!" מתחת לספר בגיבור (ForeverTagline) — פעם אחת, ונעצר.
    *

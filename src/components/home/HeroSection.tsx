@@ -44,13 +44,11 @@ export default function HeroSection() {
           {/* עטיפה ברוחב הכותרת — הקישוט נמתח לכל רוחב המילה, כמו בבלוק הכותרת של המתקין */}
           <div className="flex w-fit flex-col">
             {/* "אוצריא" — OT Vilna Regular, כשם המותג. המילה (ה-span) היא מקור "מעבר שם האתר":
-                בגלילה היא עולה ומתכווצת אל מקום שם האתר בכותרת העליונה (HeaderLogo).
-                --wordmark-handoff-rise: בנייד הספר מעליה — נגללת עם הדף (1); בשתי עמודות הספר
-                לצדה, בדרך לכותרת — עולה מהר מהדף (0.6), כדי לעבור מעליו ולא דרכו */}
+                היא נגללת עם הדף אל מתחת לכותרת העליונה, ואז שם האתר נכנס שם (HeaderLogo) */}
             <h1 className="font-display text-5xl font-normal leading-none text-on-surface sm:text-6xl lg:text-7xl 2xl:text-8xl short:lg:text-6xl tall:text-[calc(6*var(--hero-tall-rem))]">
-              <span data-wordmark-handoff-source="" className="[--wordmark-handoff-rise:1] md:[--wordmark-handoff-rise:0.6]">אוצריא</span>
+              <span data-wordmark-handoff-source="">אוצריא</span>
             </h1>
-            <TitleOrnament className="mt-5 [--ornament-ratio:100%] short:mt-3" data-wordmark-handoff-companion="" />
+            <TitleOrnament className="mt-5 [--ornament-ratio:100%] short:mt-3" />
           </div>
 
           <p className="mt-5 text-balance text-xl font-medium leading-snug text-on-surface sm:text-2xl lg:text-[1.75rem] 2xl:text-[2.125rem] short:mt-3 short:lg:text-2xl tall:text-[calc(2.125*var(--hero-tall-rem))]">
