@@ -3,54 +3,10 @@
  * ============================================================ */
 
 @layer utilities {
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-20px); }
-  }
-
-  @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 20px rgba(107, 93, 79, 0.3); }
-    50% { box-shadow: 0 0 40px rgba(107, 93, 79, 0.6); }
-  }
-
-  @keyframes shimmer {
-    0% { background-position: -1000px 0; }
-    100% { background-position: 1000px 0; }
-  }
-
   @keyframes shake {
     0%, 100% { transform: translateX(0); }
     10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
     20%, 40%, 60%, 80% { transform: translateX(5px); }
-  }
-
-  /* נענוע חד-פעמי של אייקון בריחוף (כרטיסי היכולות בדף הבית) — מקביל ל-
-     rotate: [0, -10, 10, -10, 0] של framer-motion. מאפיין rotate נפרד ולא
-     transform, כדי לא לדרוס את scale של הריחוף. */
-  @keyframes icon-wiggle {
-    0%, 100% { rotate: 0deg; }
-    25% { rotate: -10deg; }
-    50% { rotate: 10deg; }
-    75% { rotate: -10deg; }
-  }
-
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  .animate-pulse-glow {
-    animation: pulse-glow 3s ease-in-out infinite;
-  }
-
-  .animate-shimmer {
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.1) 50%,
-      transparent 100%
-    );
-    background-size: 1000px 100%;
-    animation: shimmer 3s infinite;
   }
 
   .animate-shake {
@@ -73,16 +29,8 @@
     from { opacity: 0; transform: translateY(20px); }
   }
 
-  @keyframes enter-down {
-    from { opacity: 0; transform: translateY(-20px); }
-  }
-
   @keyframes enter-scale {
     from { opacity: 0; transform: scale(0.95); }
-  }
-
-  @keyframes enter-pop {
-    from { opacity: 0; transform: scale(0) rotate(-180deg); }
   }
 
   /* הודעה שנכנסת מלמטה (toast) */
@@ -126,16 +74,8 @@
     animation: enter-up 0.6s ease-out backwards;
   }
 
-  .animate-enter-down {
-    animation: enter-down 0.6s ease-out backwards;
-  }
-
   .animate-enter-scale {
     animation: enter-scale 0.6s ease-out backwards;
-  }
-
-  .animate-enter-pop {
-    animation: enter-pop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
   }
 
   .animate-enter-toast {
@@ -166,8 +106,8 @@
     animation: pan 5s linear infinite;
   }
 
-  /* הספר המוזהב נפתח (GoldenBook): רצועה אופקית של 24 פריימים
-     (public/home/golden-book-sprite.webp). background-size 2400% = פריים אחד ברוחב
+  /* הספר המוזהב נפתח (GoldenBook): רצועה אופקית של 24 פריימים. התמונה עצמה (background-image)
+     נקבעת ב-GoldenBook.tsx — שם הנתיב היחיד שלה. background-size 2400% = פריים אחד ברוחב
      האלמנט; steps(23) עובר 0%→100% ב-23 קפיצות = 24 פריימים, 24fps כמו במתקין. */
   @keyframes golden-book-open {
     from { background-position: 0% 0; }
@@ -175,7 +115,6 @@
   }
 
   .golden-book-sprite {
-    background-image: url('/home/golden-book-sprite.webp');
     background-size: 2400% 100%;
     background-repeat: no-repeat;
     animation: golden-book-open 1s steps(23) forwards;
@@ -186,8 +125,12 @@
    * מקושר לגלילה בלי JS; דפדפן בלי animation-timeline — בלי צל, כמו קודם.
    * ============================================================ */
   @keyframes site-header-lift {
-    from { box-shadow: 0 0 0 0 rgb(46 28 8 / 0), 0 0 0 0 rgb(46 28 8 / 0); }
-    to { box-shadow: 0 1px 0 0 rgb(46 28 8 / 0.05), 0 8px 20px -10px rgb(46 28 8 / 0.28); }
+    from { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
+    to {
+      box-shadow:
+        0 1px 0 0 color-mix(in srgb, var(--color-shadow) 5%, transparent),
+        0 8px 20px -10px color-mix(in srgb, var(--color-shadow) 28%, transparent);
+    }
   }
 
   @supports (animation-timeline: scroll()) {
@@ -383,10 +326,9 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .animate-shake,
     .animate-enter-up,
-    .animate-enter-down,
     .animate-enter-scale,
-    .animate-enter-pop,
     .animate-enter-toast,
     .animate-enter-dialog,
     .animate-enter-fade,
