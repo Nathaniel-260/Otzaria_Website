@@ -28,7 +28,7 @@ describe('HeroStats', () => {
     expect(screen.getByTestId('hero-stat-version')).toHaveTextContent('0.9.98')
     // משתלבת בשורה: אותן מחלקות ערך כמו המספרים (לא primary)
     expect(screen.getByTestId('hero-stat-version').className).toBe(screen.getByTestId('hero-stat-value').parentElement?.className)
-    expect(container.querySelector('dl')?.style.getPropertyValue('--stat-count')).toBe('2')
+    expect(container.querySelectorAll('dl > div')).toHaveLength(2)
   })
 
   it('רק גרסה, בלי נתונים — עדיין מוצגת; בלי גרסה — הפריט לא קיים', () => {
