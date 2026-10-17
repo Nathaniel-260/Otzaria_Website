@@ -14,7 +14,7 @@ export function LibraryMenuButton({ isOpen, buttonProps }) {
       type="button"
       {...buttonProps}
       aria-label="תפריט"
-      className={`md:hidden flex h-12 w-12 items-center justify-center rounded-lg text-foreground hover:bg-card-selected ${FOCUS_RING}`}
+      className={`md:hidden flex h-12 w-12 items-center justify-center rounded-lg text-on-surface hover:bg-card-selected ${FOCUS_RING}`}
     >
       <span aria-hidden="true" className="material-symbols-outlined text-3xl">{isOpen ? 'close' : 'menu'}</span>
     </button>
@@ -32,7 +32,7 @@ export default function LibraryMobileMenu({ isOpen, panelProps, pathname, sessio
       {...panelProps}
       aria-label="ניווט הספרייה"
       hidden={!isOpen}
-      className="md:hidden absolute top-(--site-header-height) inset-x-0 max-h-[calc(100svh-var(--site-header-height))] overflow-y-auto overscroll-contain border-b border-neutral-200 bg-background p-3 shadow-[0_12px_24px_-12px_rgb(46_28_8/0.22)]"
+      className="md:hidden absolute top-(--site-header-height) inset-x-0 max-h-[calc(100svh-var(--site-header-height))] overflow-y-auto overscroll-contain border-b border-neutral-200 bg-background p-3 shadow-overlay"
     >
       <ul className="flex flex-col gap-0.5">
         {LIBRARY_NAV_LINKS.map(link => {
@@ -45,7 +45,7 @@ export default function LibraryMobileMenu({ isOpen, panelProps, pathname, sessio
                 onClick={onNavigate}
                 aria-current={isActive ? 'page' : undefined}
                 className={`flex items-center gap-3 rounded-lg px-3 py-3 text-base font-medium hover:bg-card-selected ${FOCUS_RING_INSET} ${
-                  isActive ? 'text-primary' : 'text-foreground'
+                  isActive ? 'text-primary' : 'text-on-surface'
                 }`}
               >
                 <span aria-hidden="true" className="material-symbols-outlined text-xl">{link.icon}</span>

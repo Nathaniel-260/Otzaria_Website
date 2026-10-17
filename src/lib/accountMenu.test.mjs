@@ -6,10 +6,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   accountButtonLabel,
+  accountButtonTitle,
   accountMenuLinks,
   adminHref,
   loginHref,
-  shortName,
   unreadMessagesLabel,
   userInitial
 } from './accountMenu.js'
@@ -28,12 +28,16 @@ test('adminHref: מפתח לדיווחי התוכנה, כל סוגי המנהל�
   assert.equal(adminHref(undefined), null)
 })
 
-test('userInitial / shortName: אות ראשונה ומילה ראשונה, עם ברירת מחדל בלי שם', () => {
+test('userInitial: אות ראשונה (גדולה באנגלית); בלי שם — null (אייקון במקומה)', () => {
   assert.equal(userInitial('  ישראל ישראלי '), 'י')
   assert.equal(userInitial('dan'), 'D')
   assert.equal(userInitial(''), null)
-  assert.equal(shortName('ישראל ישראלי'), 'ישראל')
-  assert.equal(shortName(null), 'החשבון שלי')
+})
+
+test('accountButtonTitle: שם ואימייל בשתי שורות; בלי שם — "החשבון שלי"', () => {
+  assert.equal(accountButtonTitle('ישראל ישראלי', 'a@b.co'), 'ישראל ישראלי\na@b.co')
+  assert.equal(accountButtonTitle(' דן ', ''), 'דן')
+  assert.equal(accountButtonTitle(null, 'a@b.co'), 'החשבון שלי\na@b.co')
 })
 
 test('accountButtonLabel: השם המלא, ומונה ההודעות כשיש', () => {
@@ -43,8 +47,9 @@ test('accountButtonLabel: השם המלא, ומונה ההודעות כשיש', 
   assert.equal(unreadMessagesLabel(4), ', 4 הודעות חדשות')
 })
 
-test('accountMenuLinks: לוח בקרה לכולם; ניהול רק למורשים, עם מונה', () => {
+test('accountMenuLinks: האזור האישי לכולם; ניהול רק למורשים, עם מונה', () => {
   assert.deepEqual(accountMenuLinks('user').map(l => l.href), ['/library/dashboard'])
+  assert.equal(accountMenuLinks('user')[0].label, 'האזור האישי')
   const admin = accountMenuLinks('admin', 3)
   assert.deepEqual(admin.map(l => l.href), ['/library/dashboard', '/library/admin'])
   assert.equal(admin[1].badge, 3)

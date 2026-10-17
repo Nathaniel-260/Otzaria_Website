@@ -46,7 +46,7 @@ export const FOOTER_QUICK_LINKS = [
   { href: '/', label: 'אוצריא - תוכנה', icon: 'link' },
   { href: '/library', label: 'הספרייה', icon: 'link' },
   { href: '/library/users', label: 'משתמשים', icon: 'link' },
-  { href: '/library/dashboard', label: 'איזור אישי', icon: 'link' }
+  { href: '/library/dashboard', label: 'האזור האישי', icon: 'link' }
 ]
 
 export const FOOTER_EXTERNAL_LINKS = [

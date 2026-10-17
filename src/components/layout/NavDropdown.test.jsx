@@ -51,6 +51,25 @@ describe('NavDropdown', () => {
     expect(trigger).toHaveFocus()
   })
 
+  it('Esc ברמת המסמך: תפריט שננעץ בלחיצה בלי פוקוס (Safari) נסגר, והפוקוס לא נגנב', () => {
+    const { trigger, root } = setup()
+    fireEvent.click(trigger)
+    expect(document.activeElement).toBe(document.body)
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(root).toHaveAttribute('data-dismissed', 'true')
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it('Esc שרכיב אחר כבר טיפל בו (defaultPrevented) — לא סוגר', () => {
+    const { trigger } = setup()
+    fireEvent.click(trigger)
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    event.preventDefault()
+    document.body.dispatchEvent(event)
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('חץ למטה מהכפתור — לקישור הראשון; חיצים נעים בין הקישורים במעגל', () => {
     const { trigger } = setup()
     trigger.focus()

@@ -7,14 +7,16 @@ import AccountMenu, { AccountMenuItems } from './AccountMenu'
 /**
  * אזור החשבון בכותרת — משותף לכותרת הספרייה (Header) ולכותרת האתר בחנות התוספים
  * (OtzariaSoftwareHeader showAuth), כך שהוא נראה ומתנהג אותו דבר בכל האתר.
- *   אורח   — "התחבר" (ui/Button בגודל header, כמו כפתור התרומות שלצדו).
- *   מחובר  — כפתור חשבון אחד (AccountMenu) שפותח תפריט: לוח בקרה, ניהול למורשים, התנתקות.
- *   טוען   — מקום שמור ריק (ה-session עוד לא הגיע מ-/api/auth/session).
+ *   אורח   — "התחבר" (ui/Button בגודל header, טקסט בלבד), ממלא את האזור.
+ *   מחובר  — כפתור חשבון בלי שם: עיגול האות הראשונה וחץ (AccountMenu), ממלא את האזור. השם
+ *            והאימייל — בתפריט שהוא פותח (האזור האישי, ניהול למורשים, התנתקות).
+ *   טוען   — skeleton בגודל האזור (ה-session עוד לא הגיע מ-/api/auth/session).
+ * שלושתם באותו רוחב בדיוק: גם אין קפיצה כשהמצב מתחלף, וגם אין רווח ריק בין "תרומות" לאזור
+ * (הרווח ביניהם הוא ה-gap הרגיל של השורה).
  *
- * בשורת הכותרת האזור ברוחב קבוע (--account-slot-width) בשלושת המצבים: כשה-session נטען
- * והמצב מתחלף, קישורי הניווט לא זזים (בלי layout shift). ה-session נקרא בדפדפן בלבד, ולא
- * בשרת, בכוונה — כך דפי השיווק והחנות נשארים זהים לכל המבקרים וניתנים למטמון ציבורי
- * (next.config.ts), ואין בהם HTML תלוי-משתמש.
+ * הרוחב — --account-slot-width (component-tokens.css), ותוכן האזור לא תלוי באורך השם.
+ * ה-session נקרא בדפדפן בלבד, ולא בשרת, בכוונה — כך דפי השיווק והחנות נשארים זהים לכל
+ * המבקרים וניתנים למטמון ציבורי (next.config.ts), ואין בהם HTML תלוי-משתמש.
  *
  * compact — בתוך התפריט הנייד: "התחבר" ברוחב מלא, ולמחובר — תוכן התפריט עצמו (בלי כפתור).
  * loginCallbackUrl — לאן לחזור אחרי ההתחברות (בחנות: הדף הנוכחי; בספרייה: ברירת המחדל).
@@ -54,11 +56,21 @@ export default function AccountActions({
   }
 
   return (
-    <div className="flex w-(--account-slot-width) shrink-0 items-center" data-account-slot="">
-      {loading ? null : session ? (
+    <div
+      className="flex w-(--account-slot-width) shrink-0 items-center"
+      data-account-slot=""
+      data-state={loading ? 'loading' : session ? 'user' : 'guest'}
+    >
+      {loading ? (
+        <span
+          aria-hidden="true"
+          data-account-skeleton=""
+          className="h-(--button-height-header) w-full rounded-(--button-radius) bg-surface-container-highest"
+        />
+      ) : session ? (
         <AccountMenu user={session.user} unreadMessages={unreadMessages} signOutCallbackUrl={signOutCallbackUrl} />
       ) : (
-        <Button href={loginHref(loginCallbackUrl)} onClick={onNavigate} icon="login" size="header">
+        <Button href={loginHref(loginCallbackUrl)} onClick={onNavigate} size="header" fullWidth>
           התחבר
         </Button>
       )}

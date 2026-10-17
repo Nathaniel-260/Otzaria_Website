@@ -1,5 +1,5 @@
 // בדיקות לאזור החשבון המשותף (כותרת הספרייה + כותרת האתר בחנות התוספים): אורח, טעינה,
-// מחובר (כפתור חשבון ותפריט נפתח נגיש), "ניהול" לפי תפקיד, ו-OtzariaSoftwareHeader showAuth.
+// מחובר (כפתור חשבון בלי שם ותפריט נפתח נגיש), "ניהול" לפי תפקיד, ו-OtzariaSoftwareHeader showAuth.
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -32,31 +32,36 @@ beforeEach(() => {
 })
 
 describe('AccountActions — שורת הכותרת', () => {
-  test('אורח: רק "התחבר" בגודל הכותרת, בתוך אזור ברוחב קבוע', () => {
+  test('אורח: רק "התחבר", בתוך אזור החשבון', () => {
     const { container } = render(<AccountActions session={null} status="unauthenticated" loginCallbackUrl="/plugins" />)
-    const login = screen.getByRole('link', { name: /התחבר/ })
+    const login = screen.getByRole('link', { name: 'התחבר' })
     expect(login).toHaveAttribute('href', '/auth/login?callbackUrl=%2Fplugins')
-    expect(login.className).toContain('min-h-(--button-height-header)')
-    expect(container.querySelector('[data-account-slot]').className).toContain('w-(--account-slot-width)')
+    expect(container.querySelector('[data-account-slot]')).toHaveAttribute('data-state', 'guest')
+    expect(container.querySelector('[data-account-slot]')).toContainElement(login)
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  test('טוען: מקום שמור ריק באותו רוחב — לא "התחבר" שמתחלף אחר כך', () => {
+  test('טוען: skeleton דקורטיבי בלבד — בלי "התחבר" שמתחלף אחר כך, ובלי שום דבר נגיש', () => {
     const { container } = render(<AccountActions session={null} status="loading" />)
     const slot = container.querySelector('[data-account-slot]')
-    expect(slot.className).toContain('w-(--account-slot-width)')
-    expect(slot).toBeEmptyDOMElement()
+    expect(slot).toHaveAttribute('data-state', 'loading')
+    expect(slot.querySelector('[data-account-skeleton]')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.queryByRole('link')).toBeNull()
+    expect(screen.queryByRole('button')).toBeNull()
   })
 
-  test('מחובר: כפתור חשבון אחד עם השם הקצר; התפריט סגור עד לחיצה', () => {
-    render(<AccountActions session={demoUser()} status="authenticated" />)
+  test('מחובר: כפתור חשבון אחד בלי השם בטקסט (רק האות הראשונה) — השם המלא והאימייל ב-title; התפריט סגור עד לחיצה', () => {
+    const { container } = render(<AccountActions session={demoUser()} status="authenticated" />)
+    expect(container.querySelector('[data-account-slot]')).toHaveAttribute('data-state', 'user')
     expect(screen.queryByRole('link', { name: /התחבר/ })).toBeNull()
     expect(accountButton()).toHaveAttribute('aria-expanded', 'false')
-    expect(accountButton()).toHaveTextContent('ישראל')
+    expect(accountButton()).not.toHaveTextContent('ישראל')
+    expect(accountButton()).toHaveTextContent('י')
+    expect(accountButton()).toHaveAttribute('title', 'ישראל ישראלי\ndemo@example.invalid')
     expect(accountPanel()).not.toBeVisible()
   })
 
-  test('לחיצה פותחת: שם, אימייל, לוח בקרה והתנתקות; משתמש רגיל — בלי "ניהול"', async () => {
+  test('לחיצה פותחת: שם, אימייל, האזור האישי והתנתקות; משתמש רגיל — בלי "ניהול"', async () => {
     render(<AccountActions session={demoUser()} status="authenticated" signOutCallbackUrl="/plugins/abc" />)
     await userEvent.click(accountButton())
     expect(accountButton()).toHaveAttribute('aria-expanded', 'true')
@@ -64,7 +69,7 @@ describe('AccountActions — שורת הכותרת', () => {
     expect(panel).toBeVisible()
     expect(within(panel).getByText('ישראל ישראלי')).toBeInTheDocument()
     expect(within(panel).getByText('demo@example.invalid')).toBeInTheDocument()
-    expect(within(panel).getByRole('link', { name: 'לוח בקרה' })).toHaveAttribute('href', '/library/dashboard')
+    expect(within(panel).getByRole('link', { name: 'האזור האישי' })).toHaveAttribute('href', '/library/dashboard')
     expect(within(panel).queryByRole('link', { name: /ניהול/ })).toBeNull()
 
     await userEvent.click(within(panel).getByRole('button', { name: 'התנתק' }))
@@ -83,7 +88,7 @@ describe('AccountActions — שורת הכותרת', () => {
     accountButton().focus()
     await userEvent.keyboard('{ArrowDown}')
     expect(accountButton()).toHaveAttribute('aria-expanded', 'true')
-    await vi.waitFor(() => expect(within(accountPanel()).getByRole('link', { name: 'לוח בקרה' })).toHaveFocus())
+    await vi.waitFor(() => expect(within(accountPanel()).getByRole('link', { name: 'האזור האישי' })).toHaveFocus())
     await userEvent.keyboard('{ArrowDown}')
     expect(within(accountPanel()).getByRole('link', { name: /ניהול/ })).toHaveFocus()
 
@@ -97,7 +102,7 @@ test('Tab שיוצא מהתפריט אל רכיב אחר סוגר אותו', asy
   render(<><AccountActions session={demoUser()} status="authenticated" /><button type="button">אחר</button></>)
   await userEvent.click(accountButton())
   expect(accountButton()).toHaveAttribute('aria-expanded', 'true')
-  await userEvent.tab() // לוח בקרה
+  await userEvent.tab() // האזור האישי
   await userEvent.tab() // התנתק
   await userEvent.tab() // יוצא
   expect(screen.getByRole('button', { name: 'אחר' })).toHaveFocus()
@@ -107,7 +112,10 @@ test('Tab שיוצא מהתפריט אל רכיב אחר סוגר אותו', asy
 describe('AccountActions — תפריט נייד (compact)', () => {
   test('אורח: "התחבר" ברוחב מלא', () => {
     render(<AccountActions session={null} status="unauthenticated" compact />)
-    expect(screen.getByRole('link', { name: /התחבר/ }).className).toContain('w-full')
+    const login = screen.getByRole('link', { name: 'התחבר' })
+    expect(login).toHaveAttribute('href', '/auth/login')
+    // בלי אזור החשבון של שורת הכותרת (רוחב קבוע) — בתפריט הנייד הוא ברוחב התפריט
+    expect(login.closest('[data-account-slot]')).toBeNull()
   })
 
   test('מחובר: תוכן התפריט עצמו, בלי כפתור חשבון', () => {
@@ -139,16 +147,12 @@ describe('OtzariaSoftwareHeader showAuth', () => {
     expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/plugins/abc' })
   })
 
-  test('ברירת המחדל — אזור החשבון בכל עמוד (גם בדף הבית ובדפי השיווק)', () => {
-    render(<OtzariaSoftwareHeader />)
-    expect(screen.getByRole('link', { name: /התחבר/ })).toBeInTheDocument()
-  })
-
-  test('showAuth={false} — בלי "התחבר" ובלי כפתור חשבון (המקום נשמר)', () => {
+  test('ברירת המחדל (דף הבית ודפי השיווק) — בלי אזור חשבון ובלי מקום שמור ריק', () => {
     session = demoUser()
     status = 'authenticated'
-    render(<OtzariaSoftwareHeader showAuth={false} />)
+    const { container } = render(<OtzariaSoftwareHeader />)
     expect(screen.queryByRole('link', { name: /התחבר/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /החשבון של/ })).toBeNull()
+    expect(container.querySelector('[data-account-slot]')).toBeNull()
   })
 })

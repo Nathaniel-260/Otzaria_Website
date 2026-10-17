@@ -115,7 +115,7 @@ describe('Header — התפריט הנייד', () => {
 })
 
 describe('Header — משתמש מחובר', () => {
-  test('כפתור החשבון נקרא לפי השם המלא (לא רק המילה הראשונה), ובתפריט הנייד — לוח בקרה', async () => {
+  test('כפתור החשבון נקרא לפי השם המלא (לא רק המילה הראשונה), ובתפריט הנייד — האזור האישי', async () => {
     session = { user: { name: 'משה כהן', role: 'user' } }
     render(<Header />)
     const account = screen.getByRole('button', { name: 'החשבון של משה כהן' })
@@ -124,7 +124,7 @@ describe('Header — משתמש מחובר', () => {
 
     await userEvent.click(getMenuButton())
     const panel = document.getElementById(getMenuButton().getAttribute('aria-controls'))
-    expect(within(panel).getByRole('link', { name: 'לוח בקרה' })).toHaveAttribute('href', '/library/dashboard')
+    expect(within(panel).getByRole('link', { name: 'האזור האישי' })).toHaveAttribute('href', '/library/dashboard')
     expect(within(panel).queryByRole('link', { name: /ניהול/ })).toBeNull()
   })
 

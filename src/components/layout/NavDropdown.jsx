@@ -15,7 +15,9 @@ import AppIcon from '@/components/ui/AppIcon'
  * - פוקוס מקלדת על הכפתור (focus-visible) — Tab ממשיך ישר אל הקישורים שבתוכה;
  * - לחיצה/נגיעה/Enter — מחליפה מצב: פותחת ומשאירה פתוח ("נעוץ") עד לחיצה נוספת, לחיצה
  *   מחוץ לו או Esc; כשהוא כבר פתוח (גם מריחוף או מפוקוס) — סוגרת.
- * Esc סוגר (גם כשהעכבר עדיין מעליו) ומחזיר את הפוקוס לכפתור; יציאת הפוקוס מהרכיב סוגרת.
+ * Esc סוגר (גם כשהעכבר עדיין מעליו) — מאזין ברמת document כל עוד הרשימה פתוחה, כי ב-Safari
+ * לחיצה לא ממקדת את הכפתור, ותפריט שננעץ בלחיצת עכבר לא היה מקבל את המקש. הפוקוס חוזר לכפתור
+ * רק אם הוא היה בתוך הרכיב. יציאת הפוקוס מהרכיב סוגרת.
  * חיצים: למטה מהכפתור — אל הקישור הראשון; למעלה/למטה בין הקישורים.
  *
  * @param {{ label: string, items: Array<{ href: string, label: string, icon?: string, customIcon?: string, more?: boolean }>,
@@ -43,21 +45,26 @@ export default function NavDropdown({ label, items, className = '' }) {
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [pinned])
 
+  // Esc — ברמת document כשהרשימה פתוחה (גם כשהפוקוס לא בתוך הרכיב). defaultPrevented — רכיב
+  // אחר (דיאלוג, רמז) כבר טיפל במקש
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      event.preventDefault()
+      const focusInside = rootRef.current?.contains(document.activeElement)
+      setPinned(false)
+      setFocused(false)
+      setDismissed(true)
+      if (focusInside) triggerRef.current?.focus()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
+
   const links = () => Array.from(rootRef.current?.querySelectorAll('[data-nav-dropdown-item]') ?? [])
 
-  const close = () => {
-    setPinned(false)
-    setFocused(false)
-    setDismissed(true)
-    triggerRef.current?.focus()
-  }
-
   const onKeyDown = (event) => {
-    if (event.key === 'Escape' && open) {
-      event.preventDefault()
-      close()
-      return
-    }
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
     const list = links()
     if (list.length === 0) return

@@ -33,9 +33,11 @@
   --button-icon-size-header: 1.15rem;
 
   /* ---------- אזור החשבון בכותרת (layout/AccountActions) ----------
-   * רוחב קבוע ל"התחבר" / כפתור החשבון / המקום השמור בזמן טעינת ה-session — כדי שהניווט לא
-   * יזוז כשהמצב מתחלף. מתאים לכפתור החשבון עם שם קצר (AccountMenu, השם נחתך ב-truncate). */
-  --account-slot-width: 9.5rem;
+   * רוחב אחד לשלושת המצבים — טוען (skeleton), אורח ("התחבר", טקסט בלבד), מחובר (עיגול האות +
+   * חץ, בלי שם) — וכל אחד ממלא אותו: אין קפיצה כשה-session נטען, ואין רווח ריק ליד "תרומות".
+   * 4.5rem (כ-72px): "התחבר" עם הריפוד של header צריך כ-67px, כפתור החשבון כ-64px; המרווח הקטן
+   * שנשאר — לגופן החלופי, שעשוי להיות רחב מעט יותר. */
+  --account-slot-width: 4.5rem;
 
   --button-filled-bg: var(--color-primary);
   --button-filled-bg-hover: var(--color-primary-hover);

@@ -6,18 +6,8 @@ import { signOut } from 'next-auth/react'
 import AppIcon from '@/components/ui/AppIcon'
 import { buttonClasses } from '@/components/ui/buttonStyles'
 import { cx } from '@/components/ui/cx'
-import { FOCUS_RING } from '@/components/ui/focusRing'
 import { useDisclosureMenu } from '@/hooks/useDisclosureMenu'
-import { accountButtonLabel, accountMenuLinks, shortName, unreadMessagesLabel, userInitial } from '@/lib/accountMenu'
-
-/**
- * מראה כפתור החשבון. 'tonal' — ברירת המחדל (המומלץ); השניים האחרים נשמרו כדי שאפשר יהיה
- * להחליף בשורה אחת (ראו account-button-options.html שהוכן להשוואה):
- *   tonal    — עיגול האות הראשונה (primary) + שם קצר + חץ, על רקע secondary-container.
- *   outlined — אייקון person (account_circle אינו בגופן המוקטן) + שם קצר + חץ, במסגרת (כמו כפתור outlined).
- *   icon     — עיגול האות בלבד, על רקע secondary-container.
- */
-export const ACCOUNT_BUTTON_APPEARANCES = ['tonal', 'outlined', 'icon']
+import { accountButtonLabel, accountButtonTitle, accountMenuLinks, unreadMessagesLabel, userInitial } from '@/lib/accountMenu'
 
 /** העיגול עם האות הראשונה — בצבעי הפלטה (primary / on-primary), לא בצבע אקראי לפי השם */
 function Initial({ name, className }) {
@@ -45,38 +35,23 @@ function UnreadDot({ count }) {
   )
 }
 
-function AccountMenuButton({ name, appearance, unreadMessages, buttonProps }) {
-  const label = accountButtonLabel(name, unreadMessages)
-
-  if (appearance === 'icon') {
-    return (
-      <button
-        type="button"
-        {...buttonProps}
-        aria-label={label}
-        title={name}
-        // עיגול: לא דרך buttonClasses, כדי שלא יתנגשו שני רדיוסים על אותו אלמנט
-        className={`relative flex size-(--button-height-header) items-center justify-center rounded-full bg-(--button-tonal-bg) text-(--button-tonal-fg) font-semibold transition-colors hover:bg-(--button-tonal-bg-hover) before:absolute before:left-1/2 before:top-1/2 before:size-(--touch-target) before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] ${FOCUS_RING}`}
-      >
-        <Initial name={name} className="size-full text-sm" />
-        <UnreadDot count={unreadMessages} />
-      </button>
-    )
-  }
-
-  const outlined = appearance === 'outlined'
+/**
+ * כפתור החשבון בשורת הכותרת: עיגול האות הראשונה וחץ קטן, ברוחב קבוע לגמרי — בלי השם.
+ * שם שמופיע בכותרת רק אחרי שה-session נטען משנה את רוחב השורה (או נחתך, או משאיר רווח מוזר
+ * לשם קצר), ולכן השם והאימייל נמצאים בתפריט שנפתח, ב-title (ריחוף) וב-aria-label.
+ */
+function AccountMenuButton({ name, email, unreadMessages, buttonProps }) {
   return (
     <button
       type="button"
       {...buttonProps}
-      aria-label={label}
-      title={name}
-      className={cx(buttonClasses({ variant: outlined ? 'outlined' : 'tonal', size: 'header' }), 'ps-1 pe-2')}
+      aria-label={accountButtonLabel(name, unreadMessages)}
+      title={accountButtonTitle(name, email)}
+      data-account-button=""
+      // ברוחב אזור החשבון בדיוק (כמו "התחבר" וה-skeleton) — לא תלוי בשם; התוכן ממורכז
+      className={cx(buttonClasses({ variant: 'tonal', size: 'header' }), 'w-(--account-slot-width) shrink-0')}
     >
-      {outlined
-        ? <AppIcon name="person" className="text-[1.35rem]" />
-        : <Initial name={name} className="size-7 bg-primary text-on-primary text-[0.8rem]" />}
-      <span className="max-w-[4.75rem] truncate">{shortName(name)}</span>
+      <Initial name={name} className="size-7 bg-primary text-on-primary text-[0.8rem]" />
       <AppIcon name="expand_more" className="text-[1.1rem]" />
       <UnreadDot count={unreadMessages} />
     </button>
@@ -84,7 +59,7 @@ function AccountMenuButton({ name, appearance, unreadMessages, buttonProps }) {
 }
 
 /**
- * תוכן התפריט: שם ואימייל, הקישורים (לוח בקרה, ניהול למורשים) והתנתקות.
+ * תוכן התפריט: שם ואימייל, הקישורים (האזור האישי, ניהול למורשים) והתנתקות.
  * משמש גם בתפריט הנפתח בכותרת וגם בתוך התפריט הנייד (inline). המראה — של NavDropdown
  * (.nav-dropdown-item ב-styles/nav.css), כדי ששני התפריטים בכותרת ייראו אותו דבר.
  */
@@ -143,9 +118,9 @@ export function AccountMenuItems({ user, unreadMessages = 0, signOutCallbackUrl,
  * כפתור החשבון בשורת הכותרת, ותפריט נפתח (disclosure: aria-expanded/aria-controls, Esc
  * מחזיר פוקוס לכפתור, לחיצה בחוץ סוגרת — useDisclosureMenu; חיצים למעלה/למטה בין הפריטים).
  * מחליף את עיגול האווטאר הצבעוני ואת "ניהול"/"התנתק" שהיו בשורה עצמה — כך רוחב אזור החשבון
- * קבוע, והניווט לא זז כשהמשתמש מתחבר.
+ * קבוע, ושום פריט בשורה לא זז כשהמשתמש מתחבר.
  */
-export default function AccountMenu({ user, unreadMessages = 0, appearance = 'tonal', signOutCallbackUrl }) {
+export default function AccountMenu({ user, unreadMessages = 0, signOutCallbackUrl }) {
   const pathname = usePathname()
   const menu = useDisclosureMenu(pathname)
 
@@ -168,7 +143,7 @@ export default function AccountMenu({ user, unreadMessages = 0, appearance = 'to
 
   return (
     <div
-      className="relative"
+      className="relative w-full"
       onKeyDown={onKeyDown}
       // Tab שיוצא מהכפתור ומהתפריט אל רכיב אחר — סוגר (כמו NavDropdown). relatedTarget ריק
       // (לחיצה על אזור לא-פוקוסבילי, גם בתוך התפריט) — לא; לחיצה בחוץ נסגרת ב-useDisclosureMenu
@@ -179,11 +154,11 @@ export default function AccountMenu({ user, unreadMessages = 0, appearance = 'to
     >
       <AccountMenuButton
         name={user?.name}
-        appearance={appearance}
+        email={user?.email}
         unreadMessages={unreadMessages}
         buttonProps={menu.buttonProps}
       />
-      <div {...menu.panelProps} hidden={!menu.isOpen} className="absolute end-0 top-full z-20 pt-2">
+      <div {...menu.panelProps} hidden={!menu.isOpen} className="absolute end-0 top-full z-(--z-raised) pt-2">
         <div className="nav-dropdown-list">
           <AccountMenuItems
             user={user}
