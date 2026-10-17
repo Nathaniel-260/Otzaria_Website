@@ -37,12 +37,21 @@ it('מסיר את המחוון אחרי זמן גם כשאירוע load לא ה�
   vi.useFakeTimers()
   render(<DonateWidget title="t" />)
   expect(screen.getByRole('status')).toBeTruthy()
-  act(() => { vi.advanceTimersByTime(15000) })
+  act(() => { vi.advanceTimersByTime(14999) })
+  expect(screen.getByRole('status')).toBeTruthy()
+  act(() => { vi.advanceTimersByTime(1) })
   expect(screen.queryByRole('status')).toBeNull()
 })
 
 it('מזהה iframe שנטען לפני ההידרציה (מסמך חוצה-מקור)', () => {
   const spy = vi.spyOn(HTMLIFrameElement.prototype, 'contentDocument', 'get').mockReturnValue(null)
+  render(<DonateWidget title="t" />)
+  expect(screen.queryByRole('status')).toBeNull()
+  spy.mockRestore()
+})
+
+it('מזהה iframe חוצה-מקור גם כשהגישה ל-contentDocument זורקת', () => {
+  const spy = vi.spyOn(HTMLIFrameElement.prototype, 'contentDocument', 'get').mockImplementation(() => { throw new Error('SecurityError') })
   render(<DonateWidget title="t" />)
   expect(screen.queryByRole('status')).toBeNull()
   spy.mockRestore()

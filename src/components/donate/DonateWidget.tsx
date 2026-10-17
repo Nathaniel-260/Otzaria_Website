@@ -26,7 +26,9 @@ const LOADER_FALLBACK_MS = 15000
 export default function DonateWidget({ title, className }: { title: string; className?: string }) {
   const [loaded, setLoaded] = useState(false)
 
-  // ה-iframe התחבר ל-DOM (בהידרציה — אולי אחרי שכבר נטען): מסמך חוצה-מקור = הטופס כבר הגיע
+  // ה-iframe התחבר ל-DOM (בהידרציה — אולי אחרי שכבר נטען): מסמך חוצה-מקור = הטופס כבר הגיע.
+  // (המסמך נעשה חוצה-מקור כבר בתחילת הניווט ל-nedar.im, מעט לפני load — אז המחוון עלול לרדת
+  // רגע לפני שהטופס מצויר. לא מזיק: ה-iframe לעולם לא מוסתר, והגובה שמור.)
   const checkFrame = useCallback((frame: HTMLIFrameElement | null) => {
     if (!frame) return
     try {
