@@ -213,7 +213,7 @@ export default function DevelopmentTutorialPage() {
         </DocsLayout>
       </main>
 
-      <OtzariaSoftwareFooter />
+      <OtzariaSoftwareFooter className="mt-20" />
     </div>
   )
 }

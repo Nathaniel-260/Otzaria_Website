@@ -104,7 +104,7 @@ export default async function DocsIndexPage() {
         </Section>
       </main>
 
-      <OtzariaSoftwareFooter />
+      <OtzariaSoftwareFooter className="mt-20" />
     </div>
   );
 }

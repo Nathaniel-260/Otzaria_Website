@@ -226,7 +226,7 @@ export default function DictaTutorialPage() {
         </DocsLayout>
       </main>
 
-      <OtzariaSoftwareFooter />
+      <OtzariaSoftwareFooter className="mt-20" />
     </div>
   )
 }

@@ -98,7 +98,7 @@ export default async function WikiGuidePage({ params }) {
         </DocsLayout>
       </main>
 
-      <OtzariaSoftwareFooter />
+      <OtzariaSoftwareFooter className="mt-20" />
     </div>
   );
 }

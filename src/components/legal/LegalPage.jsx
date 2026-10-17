@@ -20,7 +20,7 @@ export default function LegalPage({ title, children }) {
         </div>
       </main>
 
-      <OtzariaSoftwareFooter />
+      <OtzariaSoftwareFooter className="mt-20" />
     </div>
   )
 }

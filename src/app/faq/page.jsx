@@ -23,7 +23,7 @@ export default function FAQPage() {
         </div>
       </main>
 
-      <OtzariaSoftwareFooter />
+      <OtzariaSoftwareFooter className="mt-20" />
     </div>
   )
 }

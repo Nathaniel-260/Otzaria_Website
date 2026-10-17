@@ -2,15 +2,16 @@ import Link from 'next/link'
 
 // כותרת תחתונה בסגנון ה-topBar של האפליקציה: רקע surfaceContainerHigh, קו הפרדה דק
 // למעלה, טקסט שקט. אותה כותרת משמשת את כל הדפים הציבוריים.
+// בלי margin חיצוני: המרווח מהתוכן שמעליה — של הצרכן (className, למשל mt-20), כמו בכל רכיב משותף.
 const FOOTER_LINKS = [
   { href: '/license', label: 'רישיון' },
   { href: '/library', label: 'הספרייה המקוונת' },
   { href: '/privacy', label: 'מדיניות פרטיות' }
 ]
 
-export default function OtzariaSoftwareFooter() {
+export default function OtzariaSoftwareFooter({ className = '' }) {
   return (
-    <footer className="mt-20 border-t border-surface-variant bg-top-bar px-4 py-10">
+    <footer className={`border-t border-surface-variant bg-top-bar px-4 py-10 ${className}`}>
       <div className="container mx-auto flex max-w-6xl 2xl:max-w-7xl flex-col items-center gap-5 text-center">
         <div className="flex items-center gap-2.5">
           <img src="/logo.webp" alt="" width={28} height={28} loading="lazy" />
@@ -39,7 +40,7 @@ export default function OtzariaSoftwareFooter() {
             </Link>
           ))}
         </nav>
-        <p className="text-xs text-outline">רישיון שימוש אישי — Personal Use License 1.0</p>
+        <p className="text-xs text-on-surface-variant">רישיון שימוש אישי — Personal Use License 1.0</p>
       </div>
     </footer>
   )

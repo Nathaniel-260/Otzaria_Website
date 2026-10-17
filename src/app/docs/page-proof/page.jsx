@@ -61,7 +61,7 @@ export default async function PageProofGuidePage() {
         </div>
       </main>
 
-      <OtzariaSoftwareFooter />
+      <OtzariaSoftwareFooter className="mt-20" />
     </div>
   )
 }

@@ -15,7 +15,7 @@ export default function PluginsLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col bg-background">
       <OtzariaSoftwareHeader showAuth />
       {children}
-      <OtzariaSoftwareFooter />
+      <OtzariaSoftwareFooter className="mt-20" />
     </div>
   )
 }
