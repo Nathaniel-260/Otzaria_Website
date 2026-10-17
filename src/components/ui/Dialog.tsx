@@ -8,9 +8,10 @@ import { cx } from './cx'
 import { FOCUS_RING_INSET } from './focusRing'
 import { useDialogA11y } from './useDialogA11y'
 
-// משך אנימציית היציאה (= --motion-duration-fast). הכניסה (--motion-duration-standard) ארוכה ממנה
-// מעט — כמו במתקין. JS צריך את המספר כדי לדעת מתי להסיר את החלון.
-const EXIT_MS = 150
+// היציאה (--motion-duration-fast) קצרה מעט מהכניסה (--motion-duration-standard) — כמו במתקין.
+// החלון מוסר ב-animationend של אנימציית היציאה, כך שהמשך נקבע רק בטוקן שב-CSS. זו רשת ביטחון
+// בלבד, למקרה שהאירוע לא מגיע (האנימציה בוטלה, הלשונית ברקע) — ארוכה בהרבה מכל משך סביר.
+const EXIT_FALLBACK_MS = 600
 
 const ENTER_SCRIM = 'animate-[enter-fade_var(--motion-duration-standard)_var(--ease-enter)_backwards]'
 const EXIT_SCRIM = 'animate-[enter-fade_var(--motion-duration-fast)_var(--ease-exit)_reverse_forwards]'
@@ -47,15 +48,38 @@ export default function Dialog({ title, subtitle, onClose, children, footer, dis
   const [closing, setClosing] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const closedRef = useRef(false)
+
+  // onClose פעם אחת בלבד — גם אם גם animationend וגם רשת הביטחון מגיעים
+  const finishClose = useCallback(() => {
+    if (closedRef.current) return
+    closedRef.current = true
+    if (timerRef.current) clearTimeout(timerRef.current)
+    onClose()
+  }, [onClose])
+
   const requestClose = useCallback(() => {
-    if (timerRef.current) return
+    if (timerRef.current || closedRef.current) return
     if (prefersReducedMotion(true)) {
       onClose()
       return
     }
     setClosing(true)
-    timerRef.current = setTimeout(onClose, EXIT_MS)
-  }, [onClose])
+    timerRef.current = setTimeout(finishClose, EXIT_FALLBACK_MS)
+  }, [onClose, finishClose])
+
+  // סוף אנימציית היציאה של החלון עצמו (לא של צאצא שהאירוע שלו מבעבע אליו). מאזין native ולא
+  // onAnimationEnd של React: React בוחר שם אירוע לפי זיהוי יכולות הדפדפן (בסביבה בלי
+  // AnimationEvent — webkitAnimationEnd), וכך גם בדפדפן וגם בטסטים מאזינים לאותו animationend.
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!closing || !panel) return undefined
+    const onAnimationEnd = (event: Event) => {
+      if (event.target === panel) finishClose()
+    }
+    panel.addEventListener('animationend', onAnimationEnd)
+    return () => panel.removeEventListener('animationend', onAnimationEnd)
+  }, [closing, finishClose])
 
   useEffect(() => () => {
     if (timerRef.current) clearTimeout(timerRef.current)

@@ -40,4 +40,53 @@ describe('Dialog', () => {
     expect(onClose).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'אישור' })).toBeInTheDocument()
   })
+
+  describe('עם אנימציה (בלי reduced-motion)', () => {
+    beforeEach(() => {
+      window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia
+    })
+
+    it('הסגירה מחכה לסוף אנימציית היציאה של החלון (animationend), ו-onClose נקרא פעם אחת', () => {
+      vi.useFakeTimers()
+      try {
+        const onClose = vi.fn()
+        render(<Dialog title="הורדה" onClose={onClose}><p>תוכן</p></Dialog>)
+        fireEvent.keyDown(document, { key: 'Escape' })
+        expect(onClose).not.toHaveBeenCalled()
+        const dialog = screen.getByRole('dialog')
+        // סוף אנימציה של צאצא (מבעבע) — לא נחשב
+        fireEvent.animationEnd(screen.getByText('תוכן'))
+        expect(onClose).not.toHaveBeenCalled()
+        fireEvent.animationEnd(dialog)
+        expect(onClose).toHaveBeenCalledTimes(1)
+        // רשת הביטחון לא קוראת שוב
+        vi.runAllTimers()
+        fireEvent.animationEnd(dialog)
+        expect(onClose).toHaveBeenCalledTimes(1)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('בלי animationend (האנימציה לא רצה) — רשת הביטחון סוגרת', () => {
+      vi.useFakeTimers()
+      try {
+        const onClose = vi.fn()
+        render(<Dialog title="הורדה" onClose={onClose}><p>תוכן</p></Dialog>)
+        fireEvent.click(screen.getByRole('button', { name: 'סגירה' }))
+        expect(onClose).not.toHaveBeenCalled()
+        vi.runAllTimers()
+        expect(onClose).toHaveBeenCalledTimes(1)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('animationend של הכניסה (לפני בקשת סגירה) לא סוגר', () => {
+      const onClose = vi.fn()
+      render(<Dialog title="הורדה" onClose={onClose}><p>תוכן</p></Dialog>)
+      fireEvent.animationEnd(screen.getByRole('dialog'))
+      expect(onClose).not.toHaveBeenCalled()
+    })
+  })
 })
