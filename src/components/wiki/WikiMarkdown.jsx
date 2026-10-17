@@ -7,9 +7,15 @@ import { PROSE, SCROLL_REGION } from '@/components/docs/proseClasses';
 // הסגנון של כל אלמנט מגיע מ-components/docs/proseClasses (מקור אחד לכל דפי המדריכים).
 // התוכן עצמו — כפי שהגיע מהוויקי, בלי שינוי.
 
-// קישור פנימי → Link של Next (ניווט SPA ללא טעינת דף); חיצוני → טאב חדש
+// קישור פנימי → Link של Next (ניווט SPA ללא טעינת דף); חיצוני → טאב חדש.
+// "//host/..." הוא קישור לשרת אחר (protocol-relative), לא נתיב באתר — חיצוני, אחרת עורך בוויקי
+// יכול לשתול קישור שנראה פנימי ונפתח באותה לשונית. "/\host" — הדפדפן מפרש \ כ-/ (כלומר //host).
+export function isInternalHref(href) {
+  return href.startsWith('#') || (href.startsWith('/') && !href.startsWith('//') && !href.startsWith('/\\'));
+}
+
 function SmartLink({ href = '', children }) {
-  if (href.startsWith('/') || href.startsWith('#')) {
+  if (isInternalHref(href)) {
     return (
       <Link href={href} className={PROSE.link}>
         {children}
@@ -23,8 +29,35 @@ function SmartLink({ href = '', children }) {
   );
 }
 
+// מארחים מותרים לתמונות מהוויקי: GitHub (שם הוויקי והקבצים המצורפים שלו) והאתר עצמו. תמונה מכל
+// מארח אחר לא נטענת — אחרת עורך בוויקי יכול לשתול "פיקסל מעקב" שנטען אצל כל קורא. נתיב יחסי
+// באתר ("/...") ותמונה מוטמעת (data:image/) מותרים.
+const IMAGE_HOSTS = new Set([
+  'raw.githubusercontent.com',
+  'github.com',
+  'user-images.githubusercontent.com',
+  'private-user-images.githubusercontent.com',
+  'camo.githubusercontent.com',
+  'otzaria.org',
+  'www.otzaria.org',
+]);
+
+export function isAllowedImageSrc(src) {
+  if (typeof src !== 'string' || src === '') return false;
+  if (src.startsWith('data:image/')) return true;
+  if (isInternalHref(src) && !src.startsWith('#')) return true;
+  try {
+    const url = new URL(src);
+    return url.protocol === 'https:' && IMAGE_HOSTS.has(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 // תמונה: בתוך <p> של Markdown, ולכן span (בלוק) ולא figure. ה-title נשאר מאפיין (כמו בוויקי) — לא כיתוב גלוי.
+// תמונה ממארח לא מותר — רק טקסט החלופה שלה (בלי בקשה לשרת זר).
 function WikiImage({ src, alt, title }) {
+  if (!isAllowedImageSrc(src)) return alt ? <span>{alt}</span> : null;
   return (
     <span className={`block ${PROSE.figure}`}>
       <img src={src} alt={alt || ''} title={title} className={PROSE.img} loading="lazy" decoding="async" />
