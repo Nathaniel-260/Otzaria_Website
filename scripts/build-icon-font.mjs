@@ -41,7 +41,10 @@ const CSS_API = 'https://fonts.googleapis.com/css2'
 const MODERN_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
-const CODE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.css', '.md', '.json'])
+/** subset תקין שוקל עשרות KB; מעל זה — Google החזיר את הגופן המלא (ראו build). */
+const MAX_SUBSET_BYTES = 150 * 1024
+
+const CODE_EXTENSIONS =new Set(['.js', '.jsx', '.ts', '.tsx', '.css', '.md', '.json'])
 
 /** כל שם אפשרי של אייקון שמופיע בקוד — סריקה רחבה בכוונה (ראה collectCandidates). */
 const TOKEN_RE = /[a-z][a-z0-9_]{2,}/g
@@ -170,6 +173,14 @@ async function build() {
   const names = [...new Set([...collectCandidates(contents, universe), ...precise.keys()])].sort()
 
   const woff2 = await fetchSubset(names)
+  // כשרשימת השמות ארוכה מדי (נמדד: ~4,250 תווים ב-icon_names), Google מתעלם מה-subset
+  // ומחזיר בשקט את הגופן המלא (~320KB במקום ~35KB). עדיף להיכשל מאשר לבצע קומיט לגופן כזה.
+  if (woff2.length > MAX_SUBSET_BYTES) {
+    throw new Error(
+      `הגופן שהתקבל שוקל ${(woff2.length / 1024).toFixed(1)}KB (${names.length} שמות) — ` +
+        'כנראה Google התעלם מה-subset. יש לצמצם את רשימת השמות (הסריקה הרחבה ב-collectCandidates).'
+    )
+  }
   const hash = createHash('sha256').update(woff2).digest('hex').slice(0, 8)
   const fileName = `${FONT_BASENAME}.${hash}.woff2`
   const publicUrl = `/fonts/${fileName}`
