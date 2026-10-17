@@ -2,6 +2,9 @@ import LegalPage, { ForumContact, LegalHeading } from '@/components/legal/LegalP
 
 // אותה נקודת קצה וחלון רענון (פעם בשעה) כמו ב-/api/license, אך נטענת ישירות
 // בצד השרת כדי למנוע מסך טעינה ו-JavaScript מיותר בצד הלקוח.
+// ענף dev ולא main — בכוונה: הרישיון החדש (Personal Use License 1.0, שהדף מתאר) קיים
+// כרגע רק ב-dev, וב-main של otzaria עדיין יש GPL. לחזור ל-main (כאן, בקישורים למטה
+// וב-/api/license) אחרי שהרישיון ימוזג ל-main.
 async function fetchLicenseText() {
   try {
     const res = await fetch('https://raw.githubusercontent.com/Otzaria/otzaria/dev/LICENSE', {
