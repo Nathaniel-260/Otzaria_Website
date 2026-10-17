@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { handoffState, handoffRootMargin, HANDOFF_STATE } from './wordmarkHandoff.js'
+import { handoffState, handoffStateFromEntry, handoffRootMargin, HANDOFF_STATE } from './wordmarkHandoff.js'
 
 test('handoffState: המילה עוד נראית מתחת לכותרת (גם פיקסל אחד) — hero', () => {
   assert.equal(handoffState({ sourceBottom: 300, headerBottom: 64 }), HANDOFF_STATE.hero)
@@ -21,4 +21,15 @@ test('handoffRootMargin: מוריד את גובה הכותרת מראש ה-viewp
   assert.equal(handoffRootMargin(64), '-64px 0px 0px 0px')
   assert.equal(handoffRootMargin(63.6), '-64px 0px 0px 0px')
   assert.equal(handoffRootMargin(NaN), '-0px 0px 0px 0px')
+})
+
+test('handoffStateFromEntry: חותך את ה-root — hero; מחוץ ומעליו — docked; מחוץ ומתחתיו — hero', () => {
+  assert.equal(handoffStateFromEntry({ isIntersecting: true, sourceBottom: 61.2, rootTop: 61 }), HANDOFF_STATE.hero)
+  assert.equal(handoffStateFromEntry({ isIntersecting: false, sourceBottom: -300, rootTop: 61 }), HANDOFF_STATE.docked)
+  assert.equal(handoffStateFromEntry({ isIntersecting: false, sourceBottom: 1200, rootTop: 61 }), HANDOFF_STATE.hero)
+})
+
+test('handoffStateFromEntry: שבר הפיקסל שבין גובה הכותרת (60.8) ל-rootMargin המעוגל (61) — docked', () => {
+  // המקרה שנתקע: ה-observer דיווח "מחוץ" כשתחתית המילה ב-60.89
+  assert.equal(handoffStateFromEntry({ isIntersecting: false, sourceBottom: 60.89, rootTop: 61 }), HANDOFF_STATE.docked)
 })

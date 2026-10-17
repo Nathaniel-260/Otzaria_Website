@@ -87,8 +87,8 @@ function AuthActions({ pathname, compact = false, onNavigate }) {
  * התפריט הנייד — useDisclosureMenu (כמו בכותרת הספרייה): Esc ולחיצה בחוץ סוגרים, Esc מחזיר את
  *   הפוקוס לכפתור, aria-controls, ונסגר גם במעבר נתיב שלא עבר דרכו (חזרה בדפדפן בחנות, שם
  *   הכותרת חיה ב-layout ולא נטענת מחדש).
- * wordmarkHandoff — דף הבית בלבד: הלוגו קבוע, ושם האתר "מגיע" בגלילה מהמילה "אוצריא"
- * שבכותרת הראשית של הגיבור (HeaderLogo).
+ * wordmarkHandoff — דף הבית בלבד: הלוגו קבוע, ושם האתר נכנס כשהמילה "אוצריא" שבכותרת הראשית
+ * של הגיבור נגללת אל מתחת לכותרת (HeaderLogo).
  */
 export default function OtzariaSoftwareHeader({ showAuth = false, wordmarkHandoff = false }) {
   const pathname = usePathname()

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { HANDOFF_STATE, handoffRootMargin, handoffState } from '@/lib/wordmarkHandoff'
+import { HANDOFF_STATE, handoffRootMargin, handoffState, handoffStateFromEntry } from '@/lib/wordmarkHandoff'
 
 // useWordmarkHandoff — מחבר את שם האתר שבכותרת העליונה למילה "אוצריא" שבכותרת הראשית של
 // הגיבור (דף הבית בלבד). הלוגו עצמו קבוע בכותרת; שם האתר מוצג רק כשהמילה בגיבור כבר נגללה
@@ -46,7 +46,11 @@ export default function useWordmarkHandoff({ enabled, targetRef }) {
       observer?.disconnect()
       observer = new IntersectionObserver((entries) => {
         const entry = entries[entries.length - 1]
-        setState(handoffState({ sourceBottom: entry.boundingClientRect.bottom, headerBottom }))
+        setState(handoffStateFromEntry({
+          isIntersecting: entry.isIntersecting,
+          sourceBottom: entry.boundingClientRect.bottom,
+          rootTop: entry.rootBounds?.top
+        }))
       }, { rootMargin: handoffRootMargin(headerBottom), threshold: 0 })
       observer.observe(source)
     }

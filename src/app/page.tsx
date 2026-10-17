@@ -17,7 +17,7 @@ export const revalidate = 600
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col overflow-x-clip bg-background text-on-surface">
-      {/* wordmarkHandoff: בראש הדף שם האתר אינו בכותרת — המילה "אוצריא" שבגיבור עולה אליה בגלילה */}
+      {/* wordmarkHandoff: בראש הדף שם האתר אינו בכותרת — הוא נכנס כשהמילה "אוצריא" שבגיבור נגללת אל מתחת לכותרת */}
       <OtzariaSoftwareHeader wordmarkHandoff />
 
       <main id="main-content" className="flex-1">
