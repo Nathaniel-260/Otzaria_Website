@@ -23,7 +23,7 @@ export default function LicenseTermsSection() {
       </Card>
       <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4">
         <li className="flex">
-          <AboutLinkCard href="/license" icon="description">לרישיון הכללי של מאגר אוצריא</AboutLinkCard>
+          <AboutLinkCard href="/license" icon="description">לרישיון התוכנה</AboutLinkCard>
         </li>
         <li className="flex">
           <AboutLinkCard href="/library/license" icon="auto_stories">לרישיון הספרים הערוכים בספריית אוצריא</AboutLinkCard>

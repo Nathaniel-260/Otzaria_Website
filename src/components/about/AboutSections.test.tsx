@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import AboutHero from './AboutHero'
 import AboutLinkCard from './AboutLinkCard'
-import CommunitySection from './CommunitySection'
 import JoinCallout from './JoinCallout'
 import LibraryCollectionSection, { LIBRARY_SECTIONS } from './LibraryCollectionSection'
 import LicenseTermsSection from './LicenseTermsSection'
@@ -39,7 +38,8 @@ describe('LibraryCollectionSection', () => {
   it('h2, היקף הספרייה, וכל התחומים ברשימה לפי הסדר', () => {
     render(<LibraryCollectionSection />)
     const region = screen.getByRole('region', { name: 'ספריית אוצריא' })
-    expect(within(region).getByText('7,000 ספרים').tagName).toBe('STRONG')
+    expect(within(region).getByText('הספרייה מונה אלפי ספרים, ובהם רוב ספרי היסוד:')).toBeInTheDocument()
+    expect(region.textContent).not.toMatch(/\d,\d{3}/)
     const items = within(region).getAllByRole('listitem').map((li) => li.querySelector(':scope > span:not([aria-hidden])')?.textContent)
     expect(items).toEqual(LIBRARY_SECTIONS)
   })
@@ -87,15 +87,7 @@ describe('LicenseTermsSection', () => {
     const region = screen.getByRole('region', { name: 'תנאי השימוש במאגר' })
     expect(within(region).getByRole('note')).toHaveTextContent('ניתן לראות את פרטי הרישיון לכל טקסט באתר ספריא')
     expect(within(region).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/license', '/library/license'])
-  })
-})
-
-describe('CommunitySection', () => {
-  it('שתי הפעולות — "צפה במשתמשים" ו"התחבר לקהילה" — והיעדים שלהן', () => {
-    render(<CommunitySection />)
-    expect(screen.getByRole('region', { name: 'קהילת עורכי אוצריא' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'צפה במשתמשים' })).toHaveAttribute('href', '/library/users')
-    expect(screen.getByRole('link', { name: 'התחבר לקהילה' })).toHaveAttribute('href', '/auth/login')
+    expect(within(region).getByRole('link', { name: 'לרישיון התוכנה' })).toHaveAttribute('href', '/license')
   })
 })
 
@@ -113,9 +105,10 @@ describe('SourceQuote', () => {
 })
 
 describe('JoinCallout', () => {
-  it('h2 וכפתור "התחל לערוך" אל /library', () => {
+  it('h2 ביחיד, הסבר קצר, וכפתור "עזור לספרייה" אל /library', () => {
     render(<JoinCallout />)
-    expect(screen.getByRole('heading', { level: 2, name: 'מוכנים להצטרף אלינו?' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'התחל לערוך' })).toHaveAttribute('href', '/library')
+    expect(screen.getByRole('heading', { level: 2, name: 'רוצה לקחת חלק?' })).toBeInTheDocument()
+    expect(screen.getByText(/יש כמה דרכים לסייע: העלאת ספרים, הגהת עמודים, הוספת מידע ועוד\./)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'עזור לספרייה' })).toHaveAttribute('href', '/library')
   })
 })

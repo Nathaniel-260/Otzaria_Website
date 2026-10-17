@@ -13,18 +13,14 @@ export const LIBRARY_SECTIONS = [
   'ספרי קבלה'
 ]
 
-/** "ספריית אוצריא": היקף הספרייה (בשורת המשנה) ותחומיה ברשת כרטיסים — טור אחד בנייד, עד שלושה בדסקטופ */
+/** "ספריית אוצריא": היקף הספרייה (בשורת המשנה, בלי מספר קבוע — המספר העדכני בדף הבית) ותחומיה ברשת כרטיסים — טור אחד בנייד, עד שלושה בדסקטופ */
 export default function LibraryCollectionSection() {
   return (
     <Section labelledBy="library-heading" spacing="top">
       <SectionHeading
         id="library-heading"
         title="ספריית אוצריא"
-        subtitle={
-          <>
-            <strong className="font-bold text-on-surface">נכון לתאריך ר&quot;ח ניסן תשפ&quot;ו</strong> הספרייה כוללת כ-<strong className="font-bold text-on-surface">7,000 ספרים</strong> הכוללים את רוב ספרי היסוד:
-          </>
-        }
+        subtitle="הספרייה מונה אלפי ספרים, ובהם רוב ספרי היסוד:"
       />
       <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {LIBRARY_SECTIONS.map((section) => (

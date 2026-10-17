@@ -1,7 +1,6 @@
 import OtzariaSoftwareHeader from '@/components/layout/OtzariaSoftwareHeader'
 import OtzariaSoftwareFooter from '@/components/layout/OtzariaSoftwareFooter'
 import AboutHero from '@/components/about/AboutHero'
-import CommunitySection from '@/components/about/CommunitySection'
 import JoinCallout from '@/components/about/JoinCallout'
 import LibraryCollectionSection from '@/components/about/LibraryCollectionSection'
 import LicenseTermsSection from '@/components/about/LicenseTermsSection'
@@ -20,7 +19,6 @@ export default function AboutPage() {
         <LibraryCollectionSection />
         <SourcesSection />
         <LicenseTermsSection />
-        <CommunitySection />
         <SourceQuote quote={'"צדקתו עומדת לעד"'} explanation="זה הכותב או קונה ספרים ומשאילן לאחרים" source="(כתובות נ')" />
         <JoinCallout />
       </main>
