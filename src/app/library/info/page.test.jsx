@@ -23,5 +23,7 @@ describe('book info source refresh and bounded rendering', () => {
     await waitFor(() => expect(screen.getByText('ספר 07813')).toBeInTheDocument())
     expect(container.querySelectorAll('tbody tr')).toHaveLength(1)
     vi.restoreAllMocks()
-  })
+    // 7,814 שורות: רינדור, מעבר עמוד וסינון. בהרצה המלאה (234 קבצים במקביל) זה חרג מ-5 השניות
+    // של ברירת המחדל (נמדד: 7.1 שניות), ולכן מגבלה מפורשת.
+  }, 20000)
 })
