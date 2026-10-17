@@ -31,21 +31,31 @@ function SmartLink({ href = '', children }) {
 
 // מארחים מותרים לתמונות מהוויקי: GitHub (שם הוויקי והקבצים המצורפים שלו) והאתר עצמו. תמונה מכל
 // מארח אחר לא נטענת — אחרת עורך בוויקי יכול לשתול "פיקסל מעקב" שנטען אצל כל קורא. נתיב יחסי
-// באתר ("/...") ותמונה מוטמעת (data:image/) מותרים.
+// באתר ("/...") מותר, חוץ מ-/api/ (בקשת GET עם העוגיות של הקורא). data: — react-markdown כבר
+// מאפס אותו (urlTransform), ולכן אין לו ענף כאן.
 const IMAGE_HOSTS = new Set([
   'raw.githubusercontent.com',
   'github.com',
   'user-images.githubusercontent.com',
   'private-user-images.githubusercontent.com',
   'camo.githubusercontent.com',
+  'media.githubusercontent.com',
   'otzaria.org',
   'www.otzaria.org',
 ]);
 
 export function isAllowedImageSrc(src) {
   if (typeof src !== 'string' || src === '') return false;
-  if (src.startsWith('data:image/')) return true;
-  if (isInternalHref(src) && !src.startsWith('#')) return true;
+  if (isInternalHref(src) && !src.startsWith('#')) {
+    // הנתיב כפי שהדפדפן יבקש אותו: בלי ../ ובלי קידוד (/docs/../api או /%61pi)
+    let path;
+    try {
+      path = decodeURIComponent(new URL(src, 'https://site.invalid').pathname);
+    } catch {
+      return false;
+    }
+    return !/^\/api(?:\/|$)/i.test(path);
+  }
   try {
     const url = new URL(src);
     return url.protocol === 'https:' && IMAGE_HOSTS.has(url.hostname);

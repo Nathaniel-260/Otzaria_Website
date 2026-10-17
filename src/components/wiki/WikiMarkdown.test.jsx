@@ -26,12 +26,12 @@ describe('SmartLink', () => {
 })
 
 describe('isAllowedImageSrc', () => {
-  it('GitHub, האתר, נתיב יחסי ו-data:image — מותרים', () => {
+  it('GitHub, האתר ונתיב יחסי — מותרים', () => {
     expect(isAllowedImageSrc('https://raw.githubusercontent.com/wiki/Otzaria/otzaria/a.png')).toBe(true)
     expect(isAllowedImageSrc('https://github.com/user-attachments/assets/x')).toBe(true)
     expect(isAllowedImageSrc('https://www.otzaria.org/logo.png')).toBe(true)
     expect(isAllowedImageSrc('/logo.png')).toBe(true)
-    expect(isAllowedImageSrc('data:image/png;base64,AAAA')).toBe(true)
+    expect(isAllowedImageSrc('https://media.githubusercontent.com/media/a.png')).toBe(true)
   })
 
   it('מארח זר, http, //host ו-javascript — חסומים', () => {
@@ -40,6 +40,11 @@ describe('isAllowedImageSrc', () => {
     expect(isAllowedImageSrc('//tracker.example/p.gif')).toBe(false)
     expect(isAllowedImageSrc('https://raw.githubusercontent.com.evil.example/a.png')).toBe(false)
     expect(isAllowedImageSrc('javascript:alert(1)')).toBe(false)
+    expect(isAllowedImageSrc('data:image/png;base64,AAAA')).toBe(false)
+    expect(isAllowedImageSrc('/api/auth/signout')).toBe(false)
+    expect(isAllowedImageSrc('/API/x')).toBe(false)
+    expect(isAllowedImageSrc('/docs/../api/x')).toBe(false)
+    expect(isAllowedImageSrc('/%61pi/x')).toBe(false)
     expect(isAllowedImageSrc('')).toBe(false)
   })
 
