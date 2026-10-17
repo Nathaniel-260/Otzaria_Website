@@ -467,6 +467,35 @@
   .scrollbar-end-right {
     direction: ltr;
   }
+  /* פס גלילה שמופיע רק כשצריך אותו: בריחוף, בפוקוס מקלדת בתוך האזור, או בזמן גלילה
+     ([data-scrolling], ראו docs/DocsSidebar). בשאר הזמן האגודל שקוף — כמו בממשקים מודרניים.
+     (עם scrollbar-thin; ב-Firefox — scrollbar-color שקוף.) */
+  .scrollbar-autohide::-webkit-scrollbar-thumb {
+    background-color: transparent;
+  }
+
+  .scrollbar-autohide:hover::-webkit-scrollbar-thumb,
+  .scrollbar-autohide:focus-within::-webkit-scrollbar-thumb,
+  .scrollbar-autohide[data-scrolling]::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+  }
+
+  .scrollbar-autohide::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    .scrollbar-autohide {
+      scrollbar-color: transparent transparent;
+    }
+
+    .scrollbar-autohide:hover,
+    .scrollbar-autohide:focus-within,
+    .scrollbar-autohide[data-scrolling] {
+      scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
+  }
+
 
   .scrollbar-end-right > * {
     direction: rtl;

@@ -11,6 +11,12 @@ describe('DocsToc', () => {
     expect(screen.getByRole('link', { name: 'כלים' })).toHaveAttribute('href', '#tools')
   })
 
+  it('panel — בלי כותרת גלויה (התווית רק ב-aria-label) ובלי סימון לפני מדידה', () => {
+    const { container } = render(<DocsToc title="בעמוד זה" items={ITEMS} variant="panel" />)
+    expect(container).not.toHaveTextContent('בעמוד זה')
+    expect(container.querySelector('[aria-current]')).toBeNull()
+  })
+
   it('folded — מקפל details סגור, והתווית בכותרת שלו', () => {
     const { container } = render(<DocsToc title="תוכן עניינים" items={ITEMS} variant="folded" />)
     const details = container.querySelector('details')

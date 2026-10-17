@@ -1,36 +1,16 @@
-import { cx } from '@/components/ui/cx'
-import { FOCUS_RING_INSET } from '@/components/ui/focusRing'
 import DocsDisclosure from './DocsDisclosure'
+import DocsTocLinks from './DocsTocLinks'
 import type { TocItem } from './docsNav'
 
-function TocLinks({ items, compact }: { items: TocItem[]; compact: boolean }) {
-  return (
-    <ul className="space-y-0.5">
-      {items.map((item) => (
-        <li key={item.href}>
-          <a
-            href={item.href}
-            className={cx(
-              'flex min-h-(--touch-target) items-center rounded-control border-s-2 border-transparent px-3 py-1.5 text-body-sm text-on-surface-variant transition-colors hover:border-primary hover:bg-surface-selected hover:text-on-surface',
-              // בצד (מסך רחב, עכבר) — שורות צפופות; במקפל (מגע) — מטרת מגע מלאה
-              compact && 'min-h-0',
-              FOCUS_RING_INSET
-            )}
-          >
-            {item.label}
-          </a>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
 /**
- * תוכן העניינים של דף מדריך ("בעמוד זה" / "תוכן עניינים" — התווית של כל דף נשמרת).
+ * תוכן העניינים של דף מדריך ("בעמוד זה" / "תוכן עניינים" — התווית של כל דף נשמרת), עם scroll-spy
+ * (DocsTocLinks). תמיד בצד ימין — צד תחילת הקריאה — ולא בשוליים השמאליים, שהעין לא מגיעה אליהם.
  * variant:
- *   panel  — במסך רחב: רשימה דביקה בצד (nav בעל שם).
- *   folded — בנייד/טבלט: מקפל סגור מעל התוכן.
- * הדף מרנדר את שניהם ומסתיר כל אחד ברוחב שאינו שלו (hidden xl:block / xl:hidden).
+ *   panel  — במסך רחב: רשימה בסרגל הימני הדביק — בתוך ניווט המדריך (DocsGuideNav), מתחת לדף
+ *            הנוכחי, או לבד כשאין ניווט מדריך (דיקטה, פיתוח).
+ *   folded — בנייד/טבלט: מקפל סגור מעל התוכן (DocsDisclosure).
+ * ב-panel הרשימה יושבת ישירות על רקע הדף, בלי קופסה ובלי כותרת גלויה — התווית רק ב-aria-label.
+ * הדף מרנדר רשימה צדדית ומקפל, ומסתיר כל אחד ברוחב שאינו שלו (hidden lg:block / lg:hidden).
  */
 export default function DocsToc({ title, items, variant, className }: {
   title: string
@@ -43,15 +23,14 @@ export default function DocsToc({ title, items, variant, className }: {
     return (
       <nav aria-label={title} className={className}>
         <DocsDisclosure label={title} icon="toc">
-          <TocLinks items={items} compact={false} />
+          <DocsTocLinks items={items} compact={false} />
         </DocsDisclosure>
       </nav>
     )
   }
   return (
     <nav aria-label={title} className={className}>
-      <p className="mb-2 px-3 text-label-md text-on-surface-variant">{title}</p>
-      <TocLinks items={items} compact />
+      <DocsTocLinks items={items} compact />
     </nav>
   )
 }

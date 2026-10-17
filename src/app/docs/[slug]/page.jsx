@@ -79,7 +79,8 @@ export default async function WikiGuidePage({ params }) {
           }
           hero={<DocsHero id="docs-title" icon={iconForSlug(slug)} title={title} align="start" />}
           nav={{
-            panel: <DocsGuideNav {...navProps} variant="panel" />,
+            // "בעמוד זה" משולב בניווט, מתחת לדף הנוכחי (DocsLayout)
+            panel: (toc) => <DocsGuideNav {...navProps} variant="panel" currentChildren={toc} />,
             folded: <DocsGuideNav {...navProps} variant="folded" />,
           }}
           // תוכן העניינים מוצג רק כשיש בדף יותר מכותרת אחת
