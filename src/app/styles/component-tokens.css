@@ -82,25 +82,6 @@
   --icon-size-md: 26px;
   --icon-size-lg: 30px;
 
-  /* ---------- שדה קלט (עתידי: ui/TextField; היום ui/FormInput הישן) ---------- */
-  --input-radius: var(--radius-control);
-  --input-height: var(--touch-target);
-  --input-bg: var(--color-surface-container-lowest);
-  --input-fg: var(--color-on-surface);
-  --input-placeholder: var(--color-on-surface-variant);
-  --input-border: var(--color-outline);
-  --input-border-focus: var(--color-primary);
-  --input-border-error: var(--color-error);
-
-  /* ---------- ניווט (פריט בכותרת / בתפריט) ---------- */
-  --nav-item-radius: var(--radius-control);
-  --nav-item-fg: var(--color-on-surface-variant);
-  --nav-item-fg-hover: var(--color-on-surface);
-  --nav-item-fg-active: var(--color-primary);
-  --nav-item-bg-hover: var(--color-surface-selected);
-  --nav-item-bg-active: var(--color-surface-selected);
-  --nav-bar-bg: var(--color-top-bar);
-
   /* ---------- דיאלוג וגיליון (ui/Dialog) ---------- */
   --dialog-bg: var(--color-background);
   --dialog-radius: var(--radius-dialog);

@@ -9,7 +9,7 @@
 |------|------|-----------|----------|
 | 1. ייחוס | `palette.css` | הגוונים הגולמיים `--ref-<משפחה>-<tone>` — ערכת M3 של אוצריא (seed `#2C1B02`) + הרחבות מותג (parchment, ink, gold, rust) | רק שכבה 2 |
 | 2. תפקידים | `colors.css` (+ `theme-dark.css`) | `--color-surface`, `on-surface`, `primary`, `outline-variant`, `donation`, `success`... → מחלקות `bg-surface` וכו' | עמודים ורכיבים |
-| 3. רכיב | `component-tokens.css` | `--button-*`, `--card-*`, `--dialog-*`, `--tooltip-*`, `--badge-*` (בשימוש); `--input-*`, `--nav-item-*`, `--nav-bar-bg` — מוגדרים אבל **עדיין לא בשימוש** (שמורים לרכיבי שדה וניווט עתידיים) | רכיבי `src/components/ui/*` |
+| 3. רכיב | `component-tokens.css` | `--button-*`, `--card-*`, `--dialog-*`, `--tooltip-*`, `--badge-*`, `--account-*` (רק טוקנים שבשימוש — טוקן לרכיב עתידי נוסף יחד עם הרכיב) | רכיבי `src/components/ui/*` |
 
 אותו עיקרון בשאר הקבצים: **סולם** (שנשאר לעמודים קיימים) + **תפקידים** (לרכיבים חדשים).
 
@@ -19,7 +19,7 @@
 | `shape.css` | `rounded-sm … rounded-4xl` | `rounded-control`, `rounded-card`, `rounded-dialog`, `rounded-container`, `rounded-sheet`, `rounded-pill` — כולם מ-`--radius-shape` |
 | `elevation.css` | `shadow-sm … shadow-2xl` | `shadow-raised`, `shadow-menu`, `shadow-tooltip`, `shadow-dialog`, `shadow-sheet`, `shadow-overlay` |
 | `motion.css` | `ease-in/out/in-out` | `ease-standard/enter/exit`, `--motion-duration-*` (**לא** מתאפסים גלובלית ב-reduced-motion — כל רכיב מבטל את התזוזה שלו במפורש; ראו ההערה בראש `motion.css`) |
-| `layout.css` | `--spacing` (3.8px), `--breakpoint-*`, `max-w-6xl` | `max-w-content`, `max-w-content-wide`, `max-w-narrow`, `max-w-measure`, `--page-gutter*`, `--container-header`, `--touch-target`, `--z-*` (סקלת שכבות — לבדוק בקובץ אילו מהם בשימוש בפועל) |
+| `layout.css` | `--spacing` (3.8px), `--breakpoint-*`, `max-w-6xl` | `max-w-content`, `max-w-content-wide`, `max-w-narrow`, `max-w-measure`, `--page-gutter*`, `--touch-target`, `--z-*` (סקלת שכבות: raised, below-header, sticky, overlay, legacy-modal, skip) |
 
 ## כללים קצרים
 

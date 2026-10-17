@@ -456,7 +456,7 @@ export default function BookPage() {
     {/* יעד "דלג לתוכן". כותרת העמוד בתוך ה-<main> (כותרת הספר, לא banner נוסף), ודבוקה
         מתחת לכותרת הספרייה הדביקה (Header: h-16 = --site-header-height) ולא עליה */}
     <main id="main-content" className="flex flex-col flex-grow">
-    <header className="glass-strong border-b border-surface-variant sticky top-(--site-header-height) z-40">
+    <header className="glass-strong border-b border-surface-variant sticky top-(--site-header-height) z-(--z-below-header)">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link 

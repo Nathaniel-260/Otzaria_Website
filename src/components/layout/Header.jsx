@@ -43,7 +43,7 @@ export default function Header() {
   // הרקע מגיע מ-glass-strong (--color-background ב-95%, effects.css) — טוקן סמנטי שמתחלף בערכה
   // הכהה. ה-bg-white/80 שהיה כאן לא חל בפועל (glass-strong גובר עליו), ולכן הוסר בלי שינוי חזותי.
   return (
-    <header className="sticky top-0 z-50 w-full glass-strong border-b border-neutral-200 backdrop-blur-md">
+    <header className="sticky top-0 z-(--z-sticky) w-full glass-strong border-b border-neutral-200 backdrop-blur-md">
       <div className="mx-auto flex h-16 w-full max-w-[1800px] items-center justify-between px-2 sm:px-3 md:px-4 xl:px-8">
         {/* קישור הלוגו מופיע בכל דף ואינו מצדיק prefetch */}
         <Link href="/library" prefetch={false} className={`flex items-center gap-2 lg:gap-3 rounded-lg hover:opacity-80 transition-opacity ${FOCUS_RING}`}>

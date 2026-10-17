@@ -22,7 +22,7 @@
     align-items: center;
     gap: calc(var(--spacing) * 0.5);
     padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3) calc(var(--spacing) * 2) calc(var(--spacing) * 2);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-control);
     background-color: var(--color-secondary-container);
     color: var(--color-on-secondary-container);
     font-size: var(--text-sm);
@@ -59,7 +59,7 @@
     position: absolute;
     inset-inline-start: 0;
     top: 100%;
-    z-index: 10;
+    z-index: var(--z-raised);
     padding-top: var(--nav-dropdown-bridge);
     opacity: 0;
     visibility: hidden;
@@ -109,9 +109,9 @@
   .nav-dropdown-list {
     width: var(--nav-dropdown-width);
     padding: calc(var(--spacing) * 1.5);
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius-container);
     background-color: var(--color-surface);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-outline-variant) 70%, transparent), var(--shadow-lg);
+    box-shadow: var(--shadow-menu);
   }
 
   .nav-dropdown-item {
@@ -120,7 +120,7 @@
     gap: calc(var(--spacing) * 3);
     min-height: 2.75rem; /* מטרת מגע 44px */
     padding-inline: calc(var(--spacing) * 3);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-control);
     color: var(--color-on-surface);
     font-size: var(--text-sm);
     line-height: var(--text-sm--line-height);

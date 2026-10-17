@@ -32,7 +32,7 @@ import Loader from '@/components/ui/Loader'
 // מרענן את הדף במקום להפיל אותו ל-error boundary.
 function ModalLoadingOverlay() {
   return (
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[calc(var(--z-legacy-modal)_-_1)] flex items-center justify-center bg-black/50 p-4">
       <Loader size="lg" tone="current" showLabel={false} className="text-white" />
     </div>
   )

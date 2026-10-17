@@ -31,14 +31,11 @@
    * surface-selected — כרטיס/פריט בריחוף או בבחירה (cardSelectionOverlay). */
   --color-background: var(--ref-parchment-95);
   --color-surface: var(--ref-neutral-98);
-  --color-surface-container-lowest: var(--ref-neutral-100);
   --color-surface-container-low: var(--ref-neutral-96);
   --color-surface-container: var(--ref-neutral-94);
   --color-surface-container-high: var(--ref-neutral-92);
   --color-surface-container-highest: var(--ref-neutral-90);
   --color-surface-selected: var(--ref-parchment-96);
-  --color-inverse-surface: var(--ref-neutral-20);
-  --color-inverse-on-surface: var(--ref-neutral-95);
   /* top-bar — הכותרת העליונה, הפוטר והתפריט הנייד: tone אחד מתחת לרקע הדף. באפליקציה
      topBarBackground = surfaceContainerHigh (tone 92) מול panelBackground (L* 94.2); באתר הדף
      הובהר (L* 95.5), ולכן גם הכותרת עלתה ל-tone 93 — אותו מרווח בהירות (כ-2.4 L*), כך שהיא
@@ -65,7 +62,6 @@
   --color-on-primary: var(--ref-neutral-100);
   --color-primary-hover: var(--ref-state-primary-hover);
   --color-primary-pressed: var(--ref-state-primary-pressed);
-  --color-inverse-primary: var(--ref-primary-80);
 
   /* ---------------- משני / טונלי (secondary) ----------------
    * secondary-container — אריח אייקון, כפתור טונלי, פריט ניווט מודגש. */
@@ -78,12 +74,10 @@
   --color-glow: var(--ref-gold-78);       /* הילה ונקודת הקישוט — דקורטיבי בלבד, לא לטקסט */
 
   /* ---------------- תרומה ----------------
-   * מלא: donation + on-donation (לבן עליו 7.6:1).
+   * donation — צבע התרומה (קו המסגרת בריחוף, הילת הריחוף; לבן עליו 7.6:1).
    * טונלי (הכפתור בכותרת ובסוף דף הבית): רקע חלוד-בהיר, טקסט חלוד. הטקסט על הרקע 6.1:1,
    * ובריחוף 5.2:1 — מעל AA. המסגרת דקורטיבית (הטקסט מזהה). */
   --color-donation: var(--ref-rust-36);
-  --color-donation-hover: var(--ref-rust-31);
-  --color-on-donation: var(--ref-neutral-100);
   --color-donation-container: var(--ref-rust-91);
   --color-donation-container-hover: var(--ref-rust-86);
   --color-on-donation-container: var(--ref-rust-36);
@@ -92,22 +86,19 @@
   /* ---------------- מצבים (status) ----------------
    * error מהפלטה של אוצריא (M3). success / warning / info — עדיין אין להם גוון הרמוני
    * בפלטה, ולכן הם מצביעים על הרמפות הקיימות (אותם ערכים שה-/library כבר משתמש בהם),
-   * בגוונים שעוברים AA: X על surface-container-lowest/surface ≥ 4.5:1, on-X-container על
-   * X-container ≥ 7:1. החלפה לגוונים הרמוניים (למשל tertiary לזית) — שאלה פתוחה, שינוי שורה. */
+   * בגוונים שעוברים AA: X על surface ≥ 4.5:1, on-X-container על X-container ≥ 7:1. החלפה
+   * לגוונים הרמוניים (למשל tertiary לזית) — שאלה פתוחה, שינוי שורה.
+   * מוגדרים רק התפקידים שבשימוש: תפקיד M3 שאין לו צרכן (inverse-*, surface-container-lowest,
+   * on-warning, info...) נמחק, ומוסיפים אותו (כאן וב-theme-dark.css) יחד עם הרכיב שצריך אותו. */
   --color-error: var(--ref-error-40);
   --color-on-error: var(--ref-neutral-100);
   --color-error-container: var(--ref-error-90);
   --color-on-error-container: var(--ref-error-30);
   --color-success: var(--color-success-700);
-  --color-on-success: var(--ref-neutral-100);
   --color-success-container: var(--color-success-100);
   --color-on-success-container: var(--color-success-900);
-  --color-warning: var(--color-warning-700);
-  --color-on-warning: var(--ref-neutral-100);
   --color-warning-container: var(--color-warning-100);
   --color-on-warning-container: var(--color-warning-900);
-  --color-info: var(--color-info-700);
-  --color-on-info: var(--ref-neutral-100);
   --color-info-container: var(--color-info-100);
   --color-on-info-container: var(--color-info-900);
 
@@ -120,6 +111,9 @@
    * להגדיר אותו מחדש גם על אותו אלמנט. */
   --color-focus-ring: var(--color-primary);
   --color-scrim: var(--color-on-surface);
+  /* shadow — צבע הצל החם (בשקיפות שקובע הצרכן: color-mix(in srgb, var(--color-shadow) 22%,
+     transparent)). בערכה הכהה — שחור; צל חום על רקע כהה נראה כהילה בוצית. */
+  --color-shadow: var(--ref-ink-12);
 
   /* ---------------- כינויים [רכיב] ---------------- */
   --color-card: var(--color-surface);                          /* [רכיב] AppSurfaces.card */

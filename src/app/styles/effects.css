@@ -49,7 +49,7 @@
 
   .donation-button:hover {
     background-color: var(--color-donation-container-hover);
-    box-shadow: inset 0 0 0 1px var(--color-donation), 0 4px 12px -6px rgb(140 59 31 / 0.45);
+    box-shadow: inset 0 0 0 1px var(--color-donation), 0 4px 12px -6px color-mix(in srgb, var(--color-donation) 45%, transparent);
   }
 
   /* טבעת הפוקוס האחידה של האתר (ui/focusRing.ts), כמו שאר פריטי הכותרת */
