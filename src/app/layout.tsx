@@ -13,10 +13,15 @@ import SkipLink from '@/components/layout/SkipLink'
 import { OS_DETECT_SCRIPT } from '@/lib/detectOs'
 
 
+// preload: false — FrankRuehl (~18.6KB) משמש רק בדפים הישנים (font-frank), ולא בדף הבית;
+// כ-preload הוא התחרה ב-LCP בכל עמוד. הדפדפן מוריד אותו רק כשטקסט באמת מבקש אותו.
+// TODO(QA-10): ‏--font-frank מוגדר ב-@theme שאינו inline (typography.css) ולכן כנראה נפסל,
+// ו-.font-frank נופל לגופן ההורה. התיקון ישנה את מראה הדפים הישנים — ממתין להחלטה.
 const frankRuehl = localFont({
   src: "./fonts/FrankRuehlCLM-Medium.woff2",
   variable: "--font-frank-ruehl",
   display: "swap",
+  preload: false,
 });
 
 // OT Vilna — Levi Chyrek / Otzar Fonts; התקבל אישור שימוש באתר.
@@ -69,7 +74,9 @@ export default function RootLayout({
       <head>
         {/* זיהוי מערכת ההפעלה → <html data-os="windows|macos|mobile|other"> (lib/detectOs.js).
             ראשון ב-head ו-inline: רץ לפני הציור הראשון, ולכן CSS (למשל in-data-[os=macos]:...)
-            מציג את מה שמתאים למערכת בלי קפיצה, והדף עצמו זהה לכולם (מטמון ציבורי) */}
+            מציג את מה שמתאים למערכת בלי קפיצה, והדף עצמו זהה לכולם (מטמון ציבורי).
+            CSP: כרגע script-src כולל 'unsafe-inline'. אם יוסר בעתיד — להוסיף ל-script-src
+            hash מסוג 'sha256-…' של OS_DETECT_SCRIPT (תוכן סטטי, ולכן hash יציב) */}
         <script dangerouslySetInnerHTML={{ __html: OS_DETECT_SCRIPT }} />
         {/* גופן האייקונים מוגש מקומית כ-subset (scripts/build-icon-font.mjs) ומוצהר
             ב-styles/icon-font.css. ה-preload מקדים את הבקשה לפרסור ה-CSS. */}

@@ -117,6 +117,8 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
   return (
     <div className="flex flex-1 flex-col">
 
+      {/* CSP: כרגע script-src כולל 'unsafe-inline'. אם יוסר בעתיד — להוסיף ל-script-src hash
+          מסוג 'sha256-…' של FILTER_PENDING_SCRIPT (תוכן סטטי, ולכן hash יציב) */}
       <script dangerouslySetInnerHTML={{ __html: FILTER_PENDING_SCRIPT }} />
       {/* ה-<main> עוטף גם את אזור ההמתנה: כך הוא מוצג תמיד, ו"דלג לתוכן" (#main-content) עובד
           גם בזמן שהסינון מה-URL עוד לא הוחל — כולל לפני ה-hydration, כקישור עוגן רגיל */}
