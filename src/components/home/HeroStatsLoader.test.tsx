@@ -6,7 +6,7 @@ vi.mock('@/lib/githubReleases', () => ({ getAppDownloads: release }))
 vi.mock('@/lib/homeStats/sources', () => ({
   HOME_STATS_SOURCE_TIMEOUT_MS: 3000,
   getLibraryStats: async () => ({ books: 7367, links: null }),
-  getAppDownloads: async () => 73152,
+  getAppDownloadCount: async () => 73152,
   getPublicPluginsCount: async () => null
 }))
 afterEach(() => vi.restoreAllMocks())

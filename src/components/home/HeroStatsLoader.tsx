@@ -12,7 +12,7 @@
 // שמתמלאת חלקים-חלקים נראית לא יציבה — ולכל המאוחר אחרי הזמן הזה, בלי המקור האיטי.
 // הגרסה מוגבלת כאן ולא ב-stableDownloads: אזור ההורדה צריך את אותה שליפה עד סופה, וההגבלה
 // רק מפסיקה לחכות לה בשורה הזו (השליפה המשותפת ממשיכה).
-import { getLibraryStats, getAppDownloads, getPublicPluginsCount, HOME_STATS_SOURCE_TIMEOUT_MS } from '@/lib/homeStats/sources'
+import { getLibraryStats, getAppDownloadCount, getPublicPluginsCount, HOME_STATS_SOURCE_TIMEOUT_MS } from '@/lib/homeStats/sources'
 import { buildStatItems, withTimeout } from '@/lib/homeStats/homeStats'
 import HeroStats from './HeroStats'
 import { getStableDownloads } from './stableDownloads'
@@ -21,7 +21,7 @@ import { splitVersion } from './downloadVersion'
 export default async function HeroStatsLoader({ className = '' }: { className?: string }) {
   const [library, downloads, plugins, release] = await Promise.all([
     getLibraryStats(),
-    getAppDownloads(),
+    getAppDownloadCount(),
     getPublicPluginsCount(),
     withTimeout(getStableDownloads(), HOME_STATS_SOURCE_TIMEOUT_MS, null)
   ])
