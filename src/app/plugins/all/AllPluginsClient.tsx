@@ -43,7 +43,7 @@ import StorePageHeader from '@/components/plugins/StorePageHeader'
 import ResultsHeading from '@/components/plugins/listing/ResultsHeading'
 import StatusSelect from '@/components/plugins/listing/StatusSelect'
 import TagFilterChips from '@/components/plugins/listing/TagFilterChips'
-import { FIELD_LABEL } from '@/components/plugins/listing/fieldStyles'
+import { FIELD_LABEL_COMPACT } from '@/components/ui/fieldStyles'
 import { filterPlugins, extractSortedTags } from '@/lib/pluginFilter'
 import type { PluginCardData } from '@/components/plugins/types'
 import Loader from '@/components/ui/Loader'
@@ -174,7 +174,7 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
           <Card padding="md" className="flex flex-col gap-5">
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_14rem]">
               <div>
-                <label htmlFor={SEARCH_INPUT_ID} className={FIELD_LABEL}>חיפוש</label>
+                <label htmlFor={SEARCH_INPUT_ID} className={FIELD_LABEL_COMPACT}>חיפוש</label>
                 {/* key: הרכבה מחדש אחרי קריאת ה-URL (כדי שתיבת החיפוש תציג את ?q=), ואחרי "נקה סינון" */}
                 <PluginSearchBox
                   key={`${urlStateReady ? 'url' : 'initial'}-${resetCount}`}

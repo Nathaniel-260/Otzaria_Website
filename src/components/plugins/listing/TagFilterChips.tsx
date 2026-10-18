@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type FocusEvent } from 'react'
 import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
-import { FIELD_LABEL } from './fieldStyles'
+import { FIELD_LABEL_COMPACT } from '@/components/ui/fieldStyles'
 
 /** גובה התחלתי (לפני המדידה, וב-HTML מהשרת): בערך 3 שורות שבבים — כדי שלא תהיה קפיצה */
 const INITIAL_COLLAPSED_HEIGHT = 136
@@ -84,7 +84,7 @@ export default function TagFilterChips({
 
   return (
     <div className={className}>
-      <p id={labelId} className={FIELD_LABEL}>{label}</p>
+      <p id={labelId} className={FIELD_LABEL_COMPACT}>{label}</p>
       {/* עוטף הקיפול (max-height + overflow) והרשימה עצמה בתוכו — כדי שאפשר יהיה למדוד את גובהה המלא */}
       <div
         id={listId}

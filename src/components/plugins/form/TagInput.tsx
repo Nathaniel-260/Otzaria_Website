@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button'
 import AppIcon from '@/components/ui/AppIcon'
 import { cx } from '@/components/ui/cx'
 import { FOCUS_RING } from '@/components/ui/focusRing'
-import { FIELD_LABEL, fieldClasses } from './fieldStyles'
+import { FIELD_LABEL, fieldClasses } from '@/components/ui/fieldStyles'
 
 /**
  * שדה תגיות: שדה טקסט + "הוסף", ומתחת התגיות שנוספו כשבבים עם כפתור הסרה.

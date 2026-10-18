@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { cx } from '@/components/ui/cx'
 import { FieldError, RequiredMark } from './FormField'
-import { CHECKBOX, fieldA11yProps } from './fieldStyles'
+import { CHECKBOX, fieldA11yProps } from '@/components/ui/fieldStyles'
 
 /**
  * תיבת סימון עם תווית לחיצה לכל הרוחב (מטרת מגע גדולה): [☐] [אייקון] טקסט + הסבר.

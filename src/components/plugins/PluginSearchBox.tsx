@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { tokenizeHebrew } from '@/lib/hebrewSearchNormalize'
 import AppIcon from '@/components/ui/AppIcon'
 import { cx } from '@/components/ui/cx'
+import { FIELD_ICON_GLYPH, fieldClasses, fieldIconClasses } from '@/components/ui/fieldStyles'
 import PluginImage from '@/components/plugins/PluginImage'
 import type { Plugin } from '@/components/plugins/types'
 
@@ -85,21 +86,8 @@ const DEBOUNCE_MS = 250
 const MIN_QUERY_LENGTH = 2
 const SUGGESTIONS_LIMIT = 6
 
-// מראה השדה (component-tokens.css → --field-*): מסגרת outline, ריחוף, ובפוקוס מסגרת primary
-// בעובי 2px. אייקון חיפוש בצד ההתחלה (ימין), ולכן ריפוד ההתחלה גדול מריפוד הסוף.
-const FIELD_BASE = cx(
-  'w-full rounded-(--field-radius) border border-(--field-border) bg-(--field-bg) pe-4 text-(--field-fg)',
-  'placeholder:text-(--field-placeholder) transition-colors hover:border-(--field-border-hover)',
-  'focus:border-(--field-border-focus) focus:outline-1 focus:-outline-offset-2 focus:outline-(--field-border-focus)'
-)
-const FIELD_SIZE = {
-  lg: 'min-h-(--field-height-lg) ps-13 text-body-lg',
-  md: 'min-h-(--field-height-md) ps-11 text-body-md'
-} as const
-const ICON_SIZE = {
-  lg: 'start-4 text-[1.5rem]',
-  md: 'start-3.5 text-[1.25rem]'
-} as const
+// מראה השדה — ui/fieldStyles (מקור אחד לכל שדות האתר). אייקון החיפוש בעוטף ולא על הגליף: לגליף יש
+// direction: ltr (base.css), ו-start-* עליו היה מצייר אותו בשמאל.
 
 interface PluginSearchBoxProps {
   placeholder?: string
@@ -129,6 +117,8 @@ export default function PluginSearchBox({
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const abortRef = useRef<AbortController | null>(null)
+  // הצעות רק אחרי הקלדה: ערך התחלתי (defaultValue, למשל ?q= ב"כל התוספים") לא פותח רשימה מעצמו
+  const typedRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const trimmed = value.trim()
@@ -137,6 +127,7 @@ export default function PluginSearchBox({
 
   // שינוי ערך: מתחת לאורך המינימלי מנקים את ההצעות מיד (בלי לחכות ל-debounce)
   const handleChange = (next: string) => {
+    typedRef.current = true
     setValue(next)
     if (next.trim().length < MIN_QUERY_LENGTH) {
       abortRef.current?.abort()
@@ -148,7 +139,7 @@ export default function PluginSearchBox({
 
   // הצעות חיות: debounce + ביטול בקשות שעברו
   useEffect(() => {
-    if (trimmed.length < MIN_QUERY_LENGTH) return
+    if (!typedRef.current || trimmed.length < MIN_QUERY_LENGTH) return
     const timer = setTimeout(async () => {
       abortRef.current?.abort()
       const controller = new AbortController()
@@ -238,10 +229,9 @@ export default function PluginSearchBox({
 
   return (
     <div ref={containerRef} className="relative w-full">
-      <AppIcon
-        name="search"
-        className={cx('pointer-events-none absolute top-1/2 -translate-y-1/2 text-on-surface-variant', ICON_SIZE[size])}
-      />
+      <span className={fieldIconClasses(size, 'start')} aria-hidden="true">
+        <AppIcon name="search" className={FIELD_ICON_GLYPH} />
+      </span>
       <input
         id={inputId}
         type="search"
@@ -258,7 +248,7 @@ export default function PluginSearchBox({
         onFocus={() => {
           if (trimmed.length >= MIN_QUERY_LENGTH && suggestions.length > 0) setOpen(true)
         }}
-        className={cx(FIELD_BASE, FIELD_SIZE[size])}
+        className={fieldClasses({ size, withIcon: true })}
       />
 
       {open && (

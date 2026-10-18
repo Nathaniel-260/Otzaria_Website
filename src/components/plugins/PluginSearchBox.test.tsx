@@ -58,6 +58,22 @@ describe('PluginSearchBox', () => {
     expect(push).toHaveBeenCalledWith('/plugins/p1')
   })
 
+  it('ערך התחלתי (defaultValue) לא פותח הצעות ולא שולח בקשה — רק הקלדה', async () => {
+    render(<PluginSearchBox defaultValue="תפילה" />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('אייקון החיפוש בעוטף (לא על הגליף, שהוא ltr)', () => {
+    const { container } = render(<PluginSearchBox />)
+    const glyph = container.querySelector('.material-symbols-outlined') as HTMLElement
+    expect(glyph.className).not.toMatch(/\bstart-/)
+    expect((glyph.parentElement as HTMLElement).className).toMatch(/\bstart-/)
+  })
+
   it('onSubmit — Enter בלי בחירה מפעיל סינון מקומי במקום ניווט', async () => {
     const onSubmit = vi.fn()
     const user = userEvent.setup()

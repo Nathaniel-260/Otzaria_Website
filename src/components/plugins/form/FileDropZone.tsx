@@ -4,7 +4,7 @@ import { useState, type ChangeEvent, type DragEvent, type ReactNode } from 'reac
 import IconTile from '@/components/ui/IconTile'
 import { cx } from '@/components/ui/cx'
 import { FieldError, RequiredMark } from './FormField'
-import { FIELD_HINT, fieldA11yProps, fieldHintId } from './fieldStyles'
+import { FIELD_HINT, fieldA11yProps, fieldHintId } from '@/components/ui/fieldStyles'
 
 /** כפתור "בחירת קובץ" של הדפדפן — בצורת כפתור tonal קטן (ui/Button) */
 const FILE_INPUT = cx(

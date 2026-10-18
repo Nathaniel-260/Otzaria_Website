@@ -2,7 +2,7 @@
 
 import { useId } from 'react'
 import AppIcon from '@/components/ui/AppIcon'
-import { FIELD_ICON_GLYPH, FIELD_LABEL, fieldClasses, fieldIconClasses } from './fieldStyles'
+import { FIELD_ICON_GLYPH, FIELD_LABEL_COMPACT, fieldClasses, fieldIconClasses } from '@/components/ui/fieldStyles'
 
 /** אפשרויות סינון הסטטוס — הנוסח הקיים בדף "כל התוספים" */
 export const STATUS_OPTIONS = [
@@ -31,7 +31,7 @@ export default function StatusSelect({
   const id = useId()
   return (
     <div className={className}>
-      <label htmlFor={id} className={FIELD_LABEL}>{label}</label>
+      <label htmlFor={id} className={FIELD_LABEL_COMPACT}>{label}</label>
       <div className="relative">
         <select
           id={id}

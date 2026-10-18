@@ -11,7 +11,7 @@ import FileDropZone from '@/components/plugins/form/FileDropZone'
 import TagInput from '@/components/plugins/form/TagInput'
 import CheckboxField from '@/components/plugins/form/CheckboxField'
 import { IconPreview, ScreenshotPreviews, SelectedFile } from '@/components/plugins/form/FilePreviews'
-import { fieldA11yProps, fieldClasses } from '@/components/plugins/form/fieldStyles'
+import { fieldA11yProps, fieldClasses } from '@/components/ui/fieldStyles'
 import { useDialog } from '@/components/providers/DialogContext'
 import { MIN_SUPPORTED_APP_VERSION, formatPluginStatus } from '@/lib/pluginStatus'
 

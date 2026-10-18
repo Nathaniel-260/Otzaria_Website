@@ -6,7 +6,7 @@ import TagInput from './TagInput'
 import CheckboxField from './CheckboxField'
 import FormNote from './FormNote'
 import { SelectedFile, ScreenshotPreviews } from './FilePreviews'
-import { fieldA11yProps } from './fieldStyles'
+import { fieldA11yProps } from '@/components/ui/fieldStyles'
 
 describe('FormField', () => {
   it('תווית מחוברת, כוכבית חובה דקורטיבית, הסבר ושגיאה מקושרים לשדה', () => {

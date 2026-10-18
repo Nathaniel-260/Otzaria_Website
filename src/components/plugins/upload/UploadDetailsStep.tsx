@@ -3,7 +3,7 @@
 import { Fragment, type ReactNode } from 'react'
 import FormField from '@/components/plugins/form/FormField'
 import FormNote from '@/components/plugins/form/FormNote'
-import { fieldA11yProps, fieldClasses } from '@/components/plugins/form/fieldStyles'
+import { fieldA11yProps, fieldClasses } from '@/components/ui/fieldStyles'
 import ManifestSummary from './ManifestSummary'
 import UploadStep from './UploadStep'
 import { UPLOAD_FIELD_IDS, type UploadPluginForm } from './useUploadPluginForm'

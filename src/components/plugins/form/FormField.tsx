@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import AppIcon from '@/components/ui/AppIcon'
 import { cx } from '@/components/ui/cx'
-import { FIELD_ERROR, FIELD_HINT, FIELD_LABEL, fieldErrorId, fieldHintId } from './fieldStyles'
+import { FIELD_ERROR, FIELD_HINT, FIELD_LABEL, fieldErrorId, fieldHintId } from '@/components/ui/fieldStyles'
 
 /** כוכבית "חובה" — בצבע השגיאה, דקורטיבית (הפקד עצמו נושא aria-required) */
 export function RequiredMark() {

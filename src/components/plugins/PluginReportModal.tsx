@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
 import AppIcon from '@/components/ui/AppIcon'
 import FormField from '@/components/plugins/form/FormField'
-import { FIELD_LABEL, fieldA11yProps, fieldClasses } from '@/components/plugins/form/fieldStyles'
+import { FIELD_LABEL, fieldA11yProps, fieldClasses } from '@/components/ui/fieldStyles'
 
 // חלון קופץ לדיווח לבעל התוסף מתוך דף התוסף באתר.
 // משתמש באותה נקודת קצה שמשמשת את תוכנת אוצריא (POST /api/plugin-reports).

@@ -14,6 +14,9 @@ export const CUSTOM_ICONS = {
  * DonateAnimatedIcon — SVG ב-currentColor ובגודל 1em, כמו כאן). המונפשים מיובאים במפורש רק
  * במקום שבו הם מוצגים, ולא דרך AppIcon, כדי שלא ייכנסו לכל חבילה שמשתמשת באייקון.
  *
+ * מיקום: לגליף יש direction: ltr (base.css — נדרש לליגטורה), ולכן מחלקות לוגיות עליו (start-*, end-*,
+ * ms-*, me-*) מתהפכות ונמדדות משמאל. למקם אייקון — על עוטף (span) שיורש rtl, לא על AppIcon עצמו.
+ *
  * @param {{ name?: string, custom?: keyof typeof CUSTOM_ICONS, className?: string }} props
  */
 export default function AppIcon({ name, custom, className = '' }) {
