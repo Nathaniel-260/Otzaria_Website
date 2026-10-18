@@ -3,6 +3,7 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDialog } from '@/components/providers/DialogContext'
+import type { DialogReturnFocus } from '@/components/ui/useDialogA11y'
 import { MIN_SUPPORTED_APP_VERSION } from '@/lib/pluginStatus'
 import { getErrorMessage } from '@/lib/errors'
 import { MAX_PLUGIN_BYTES, MAX_IMAGE_BYTES, MAX_SCREENSHOTS, ALLOWED_IMAGE_MIMES } from '@/lib/pluginLimits'
@@ -46,7 +47,7 @@ export function useUploadPluginForm() {
   const router = useRouter()
   const { showAlert, showMessage } = useDialog() as {
     showAlert: (title: string, message: string) => void
-    showMessage: (title: string, message: string) => Promise<void>
+    showMessage: (title: string, message: string, confirmText?: string, options?: { returnFocus?: DialogReturnFocus }) => Promise<void>
   }
   const [loading, setLoading] = useState(false)
   const [reportsConsent, setReportsConsentState] = useState(false)
@@ -252,8 +253,13 @@ export function useUploadPluginForm() {
     } catch (error: unknown) {
       // showMessage: דיאלוג מודאלי חוסם, נשאר על המסך עד שהמשתמש לוחץ אישור,
       // כך שהודעות שגיאה רב-שורתיות (למשל פירוט ולידציה מול ה-SDK) ייקראו במלואן.
-      await showMessage('שגיאה בהעלאת התוסף', getErrorMessage(error, 'שגיאה בהעלאת התוסף'))
-      if (focusField) document.getElementById(UPLOAD_FIELD_IDS[focusField])?.focus()
+      // שגיאת ולידציה — בסגירת ההודעה הפוקוס עובר לשדה השגוי (ולא חוזר לכפתור השליחה). דרך
+      // returnFocus ולא focus() אחרי ה-await: החלון מוסר מה-DOM רק אחרי אנימציית היציאה, ואז
+      // useDialogA11y מחזיר את הפוקוס — כך שפוקוס שהוזז קודם לכן היה נדרס.
+      const field = focusField
+      await showMessage('שגיאה בהעלאת התוסף', getErrorMessage(error, 'שגיאה בהעלאת התוסף'), undefined, {
+        returnFocus: field ? () => document.getElementById(UPLOAD_FIELD_IDS[field]) : undefined
+      })
     } finally {
       setLoading(false)
     }

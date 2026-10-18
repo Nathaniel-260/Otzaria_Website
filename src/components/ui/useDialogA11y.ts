@@ -32,15 +32,24 @@ export function isTopDialog(panel: HTMLElement | null): boolean {
  *   לשבת על אותו צומת, ואז stopPropagation מתוך handler של React לא מונע מהמאזין הזה לרוץ.
  * - גלילת הדף ברקע ננעלת (עם פיצוי על רוחב פס הגלילה, כדי שהדף לא "יקפוץ").
  * - חלונות מקוננים: רק העליון במחסנית מגיב למקלדת (ראו openPanels).
- * - בסגירה (unmount) הפוקוס חוזר לאלמנט שהיה ממוקד לפני הפתיחה — בדרך כלל הכפתור שפתח.
+ * - בסגירה (unmount) הפוקוס חוזר לאלמנט שהיה ממוקד לפני הפתיחה — בדרך כלל הכפתור שפתח. returnFocus
+ *   מחליף את היעד הזה (אלמנט, או פונקציה שנקראת ברגע הסגירה); null/undefined — חזרה למי שפתח.
  *
  * panelRef צריך להצביע על אלמנט עם tabIndex={-1}, כדי שאפשר יהיה למקד אותו עצמו.
  */
-export function useDialogA11y(panelRef: RefObject<HTMLElement | null>, onEscape: () => void) {
-  // הפונקציה מתחלפת בכל רינדור; ref מונע הרשמה מחדש של המאזין בכל פעם
+export type DialogReturnFocus = HTMLElement | null | (() => HTMLElement | null | undefined)
+
+export function useDialogA11y(
+  panelRef: RefObject<HTMLElement | null>,
+  onEscape: () => void,
+  { returnFocus }: { returnFocus?: DialogReturnFocus } = {}
+) {
+  // הפונקציות מתחלפות בכל רינדור; ref מונע הרשמה מחדש של המאזין בכל פעם
   const onEscapeRef = useRef(onEscape)
+  const returnFocusRef = useRef(returnFocus)
   useEffect(() => {
     onEscapeRef.current = onEscape
+    returnFocusRef.current = returnFocus
   })
 
   useEffect(() => {
@@ -98,7 +107,8 @@ export function useDialogA11y(panelRef: RefObject<HTMLElement | null>, onEscape:
       if (index !== -1) openPanels.splice(index, 1)
       body.style.overflow = prevOverflow
       body.style.paddingRight = prevPaddingRight
-      opener?.focus({ preventScroll: true })
+      const target = typeof returnFocusRef.current === 'function' ? returnFocusRef.current() : returnFocusRef.current
+      ;(target ?? opener)?.focus({ preventScroll: true })
     }
   }, [panelRef])
 }

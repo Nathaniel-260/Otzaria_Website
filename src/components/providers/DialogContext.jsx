@@ -52,7 +52,9 @@ export function DialogProvider({ children }) {
 
   // showMessage: דיאלוג מודאלי חוסם בלי auto-close, עם כפתור אישור יחיד.
   // מיועד להודעות שגיאה ארוכות שצריך לקרוא במלואן (לעומת showAlert שהוא toast קצר).
-  const showMessage = useCallback((title, message, confirmText = 'אישור') => {
+  // options.returnFocus — לאן הפוקוס עובר כשהחלון נסגר (אלמנט, או פונקציה שנקראת ברגע הסגירה),
+  // במקום הכפתור שפתח אותו; למשל השדה השגוי אחרי שגיאת ולידציה. ראו useDialogA11y.
+  const showMessage = useCallback((title, message, confirmText = 'אישור', { returnFocus } = {}) => {
     clearAutoCloseTimer()
     clearCloseTimer()
     return new Promise((resolve) => {
@@ -66,6 +68,7 @@ export function DialogProvider({ children }) {
         onCancel: () => resolve(),
         confirmText,
         cancelText: '',
+        returnFocus,
         timestamp: Date.now()
       })
     })
@@ -208,6 +211,7 @@ export function DialogProvider({ children }) {
             labelledBy={dialogIds.title}
             describedBy={dialogIds.message}
             onEscape={closeDialog}
+            returnFocus={dialogConfig.returnFocus}
             onClick={e => {
               e.stopPropagation();
               if (isAlert) closeDialog();
@@ -279,7 +283,7 @@ export function DialogProvider({ children }) {
  * לחלון ונלכד בו (גם כשהוא נפתח מעל ui/Dialog: רק החלון העליון מגיב ל-Tab/Esc), Esc סוגר (כמו "ביטול"),
  * והפוקוס חוזר בסגירה לאלמנט שפתח.
  */
-function DialogBox({ isAlert, className, labelledBy, describedBy, onEscape, onClick, children }) {
+function DialogBox({ isAlert, className, labelledBy, describedBy, onEscape, returnFocus, onClick, children }) {
   if (isAlert) {
     return (
       <div role="status" aria-live="polite" data-dialog-context="" className={className} onClick={onClick}>
@@ -288,15 +292,15 @@ function DialogBox({ isAlert, className, labelledBy, describedBy, onEscape, onCl
     )
   }
   return (
-    <ModalDialogBox className={className} onEscape={onEscape} onClick={onClick} labelledBy={labelledBy} describedBy={describedBy}>
+    <ModalDialogBox className={className} onEscape={onEscape} returnFocus={returnFocus} onClick={onClick} labelledBy={labelledBy} describedBy={describedBy}>
       {children}
     </ModalDialogBox>
   )
 }
 
-function ModalDialogBox({ className, onEscape, onClick, labelledBy, describedBy, children }) {
+function ModalDialogBox({ className, onEscape, returnFocus, onClick, labelledBy, describedBy, children }) {
   const panelRef = useRef(null)
-  useDialogA11y(panelRef, onEscape)
+  useDialogA11y(panelRef, onEscape, { returnFocus })
   return (
     <div
       ref={panelRef}

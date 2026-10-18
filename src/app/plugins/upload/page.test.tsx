@@ -43,12 +43,16 @@ describe('/plugins/upload (מחובר — ה-proxy מפנה אורח להתחב�
   it('שליחה בלי קובץ: אותה הודעת שגיאה בחלון, גם ליד השדה, ובלי פנייה לשרת', async () => {
     const { container } = render(<UploadPluginPage />)
     fireEvent.submit(container.querySelector('form')!)
-    await waitFor(() => expect(showMessage).toHaveBeenCalledWith('שגיאה בהעלאת התוסף', 'חובה לצרף קובץ תוסף'))
+    await waitFor(() => expect(showMessage).toHaveBeenCalledWith('שגיאה בהעלאת התוסף', 'חובה לצרף קובץ תוסף', undefined, {
+      returnFocus: expect.any(Function)
+    }))
     expect(fetchSpy).not.toHaveBeenCalled()
     const fileInput = screen.getByLabelText(/קובץ תוסף/)
     await waitFor(() => expect(fileInput).toHaveAttribute('aria-invalid', 'true'))
     expect(fileInput).toHaveAccessibleDescription(expect.stringContaining('חובה לצרף קובץ תוסף'))
-    expect(fileInput).toHaveFocus()
+    // בסגירת ההודעה הפוקוס עובר לשדה השגוי (useDialogA11y קורא ל-returnFocus), לא לכפתור השליחה
+    const [, , , options] = showMessage.mock.calls[0] as unknown as [string, string, undefined, { returnFocus: () => HTMLElement | null }]
+    expect(options.returnFocus()).toBe(fileInput)
   })
 
   it('קובץ בסיומת שגויה: הודעה (כמו קודם) + שגיאה ליד השדה, והשדה מתאפס', async () => {

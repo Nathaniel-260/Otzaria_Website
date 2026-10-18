@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { DialogProvider, useDialog } from './DialogContext'
@@ -72,5 +72,44 @@ describe('DialogContext — חלון אישור', () => {
     await screen.findByRole('alertdialog')
     await user.keyboard('{Enter}')
     expect(onResult).toHaveBeenCalledWith(true)
+  })
+})
+
+function MessageHarness({ withReturnFocus }) {
+  const { showMessage } = useDialog()
+  return (
+    <>
+      <input aria-label="שדה שגוי" id="bad-field" />
+      <button
+        type="button"
+        onClick={() => showMessage('שגיאה', 'חסר שדה', undefined, withReturnFocus
+          ? { returnFocus: () => document.getElementById('bad-field') }
+          : undefined)}
+      >
+        שלח
+      </button>
+    </>
+  )
+}
+
+describe('DialogContext — showMessage', () => {
+  it('returnFocus: בסגירה (אחרי שהחלון מוסר) הפוקוס עובר ליעד ולא לכפתור שפתח', async () => {
+    const user = userEvent.setup()
+    render(<DialogProvider><MessageHarness withReturnFocus /></DialogProvider>)
+    await user.click(screen.getByRole('button', { name: 'שלח' }))
+    await screen.findByRole('alertdialog', { name: 'שגיאה' })
+    await user.click(screen.getByRole('button', { name: 'אישור' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(screen.getByRole('textbox', { name: 'שדה שגוי' })).toHaveFocus()
+  })
+
+  it('בלי returnFocus — הפוקוס חוזר לכפתור שפתח', async () => {
+    const user = userEvent.setup()
+    render(<DialogProvider><MessageHarness /></DialogProvider>)
+    await user.click(screen.getByRole('button', { name: 'שלח' }))
+    await screen.findByRole('alertdialog', { name: 'שגיאה' })
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(screen.getByRole('button', { name: 'שלח' })).toHaveFocus()
   })
 })
