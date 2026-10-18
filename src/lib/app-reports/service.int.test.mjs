@@ -12,7 +12,7 @@ import { startMongo } from '../corrections/testing/mongo.js';
 import { FakeIssuesGitHub } from './testing/fake-github.js';
 import { handleAppReportPost } from './handler.js';
 import { MAX_BODY_BYTES, MAX_MINIDUMP_BYTES } from './validation.js';
-import { runAppReportsSync, contactReporter, listReports, getReportDetail, loadReportFile, loadReportImage, loadPublicImage, unsubscribeByToken, ingestInboundReply } from './service.js';
+import { runAppReportsSync, contactReporter, listReports, getReportDetail, loadReportFile, loadReportImage, loadContactImage, loadPublicImage, unsubscribeByToken, ingestInboundReply } from './service.js';
 import { handleInboundEmailPost } from './inbound-handler.js';
 import { parseReplyAddress } from './inbound.js';
 import { getAppReportsConfig } from './config.js';
@@ -311,7 +311,7 @@ test('ניהול: המייל חוזר רק למנהל כללי; רשימה עם 
 test('יצירת קשר: 404 לדיווח חסר, 422 בלי מייל, שליחה ושמירה בהיסטוריה', async (t) => {
   if (db.skip) return t.skip(db.skip);
   const sent = [];
-  const deps = { sendContactMail: async (m) => { sent.push(m); return { sent: true }; } };
+  const deps = { config, fetchImpl: gh.fetch, sendContactMail: async (m) => { sent.push(m); return { sent: true }; } };
   const user = { id: String(new mongoose.Types.ObjectId()), name: 'מפתח' };
   const noMail = await post(crash());
   const withMail = await post(manual());
@@ -328,6 +328,17 @@ test('יצירת קשר: 404 לדיווח חסר, 422 בלי מייל, שליח�
   assert.equal(doc.contactLog.length, 1);
   assert.equal(doc.contactLog[0].byName, 'מפתח');
   assert.equal(doc.contactLog[0].subject, 'שאלה');
+  const comment = gh.comments.at(-1);
+  assert.equal(comment.issue, withMail.body.issueNumber);
+  assert.ok(comment.body.includes('נשלח מייל למדווח'));
+  assert.ok(comment.body.includes('נושא: שאלה'));
+  assert.ok(comment.body.includes('> אפשר פרטים?'));
+  assert.equal(comment.body.includes('reporter@example.com'), false);
+
+  // GitHub נופל — הפנייה עדיין מצליחה
+  const ghDown = await contactReporter({ reportId: withMail.body.reportId, subject: 'ש', message: 'ה', user },
+    { ...deps, fetchImpl: async () => { throw new Error('down'); } });
+  assert.equal(ghDown.status, 200);
 
   const failing = await contactReporter({ reportId: withMail.body.reportId, subject: 'ש', message: 'ה', user }, { sendContactMail: async () => ({ sent: false }) });
   assert.equal(failing.status, 502);
@@ -437,6 +448,224 @@ test('תשובה במייל: GitHub נכשל → נשמרת כממתינה, וה
   doc = await AppReport.findOne({ reportId: rep.body.reportId }).lean();
   assert.equal(doc.contactLog.at(-1).issueComment, 'posted');
   assert.equal(gh.comments.length, 1);
+});
+
+const replyPng = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 5, 5]);
+const replyJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 6]);
+const replyImages = () => [
+  { fileName: 'image.png', mimeType: 'image/png', data: replyPng.toString('base64') },
+  { fileName: 'b.jpg', mimeType: 'image/jpeg', data: replyJpeg.toString('base64') },
+  { fileName: 'x.png', mimeType: 'image/png', data: Buffer.from('<svg/>').toString('base64') },
+];
+const imageDeps = (over = {}) => inboundDeps({ saveFile, deleteFile, ...over });
+
+test('תשובה במייל עם תמונות: נשמרות ב-GridFS, מוטמעות ב-issue, וכפילות לא שומרת שוב', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const rep = await post(manual());
+  const to = await contactWithReply(rep.body.reportId);
+  const filesBefore = files.size;
+
+  const r = await ingestInboundReply(inbound(to, { images: replyImages(), attachments: 1 }), imageDeps());
+  assert.equal(r.body.status, 'stored');
+  assert.equal(files.size, filesBefore + 2);
+  const entry = (await AppReport.findOne({ reportId: rep.body.reportId }).lean()).contactLog.at(-1);
+  assert.deepEqual(entry.images.map((i) => [i.mimeType, i.fileName, i.size]), [['image/png', 'image.png', replyPng.length], ['image/jpeg', 'b.jpg', replyJpeg.length]]);
+  assert.deepEqual(files.get(String(entry.images[0].gridfsId)).buf, replyPng);
+  assert.equal(entry.attachments, 2);
+
+  const comment = gh.comments.at(-1).body;
+  for (const img of entry.images) {
+    assert.match(img.publicToken, /^[A-Za-z0-9_-]{32}$/);
+    assert.ok(comment.includes(`/api/app-reports/images/${img.publicToken})`));
+  }
+  assert.ok(comment.includes('_צורפו למייל 2 קבצים נוספים — לא פורסמו._'));
+  assert.deepEqual((await loadPublicImage(entry.images[1].publicToken, readFile)).buffer, replyJpeg);
+
+  const index = 1;
+  const admin = await loadContactImage(rep.body.reportId, index, 0, readFile);
+  assert.deepEqual(admin.buffer, replyPng);
+  assert.equal(admin.filename, 'reply-2-image-1.png');
+  for (const [e, i] of [[0, 0], [index, 2], ['x', 0], [index, -1]]) assert.equal(await loadContactImage(rep.body.reportId, e, i, readFile), null);
+
+  const { report } = await getReportDetail(rep.body.reportId, 'admin');
+  assert.deepEqual(report.contactLog.at(-1).images, [
+    { size: replyPng.length, mimeType: 'image/png', fileName: 'image.png' },
+    { size: replyJpeg.length, mimeType: 'image/jpeg', fileName: 'b.jpg' },
+  ]);
+  assert.doesNotMatch(JSON.stringify(report), new RegExp(entry.images[0].publicToken));
+
+  const again = await ingestInboundReply(inbound(to, { images: replyImages() }), imageDeps());
+  assert.equal(again.body.status, 'duplicate');
+  assert.equal(files.size, filesBefore + 2);
+  assert.equal(gh.comments.length, 1);
+});
+
+test('תשובה במייל עם תמונות: כתובת זרה — נשמרות לצוות בלי טוקן ציבורי ובלי פרסום', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const rep = await post(manual());
+  const to = await contactWithReply(rep.body.reportId);
+  const commentsBefore = gh.comments.length;
+  const r = await ingestInboundReply(inbound(to, { from: 'stranger@example.org', images: replyImages() }), imageDeps());
+  assert.equal(r.body.status, 'stored');
+  const entry = (await AppReport.findOne({ reportId: rep.body.reportId }).lean()).contactLog.at(-1);
+  assert.equal(entry.issueComment, 'held');
+  assert.equal(entry.images.length, 2);
+  assert.ok(entry.images.every((i) => !i.publicToken));
+  assert.equal(gh.comments.length, commentsBefore);
+  assert.deepEqual((await loadContactImage(rep.body.reportId, 1, 1, readFile)).buffer, replyJpeg);
+});
+
+test('תשובה במייל עם תמונות: רק צילום שהודבק מעל הציטוט מתפרסם; תמונת הציטוט לא נשמרת', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const rep = await post(manual());
+  const to = await contactWithReply(rep.body.reportId);
+  const filesBefore = files.size;
+  const html = '<div>הנה<img src="cid:ii_new"></div><div class="gmail_quote">On Mon, Oct 5, 2026 at 10:00 AM X wrote:<blockquote><img src="cid:ii_old"></blockquote></div>';
+  const inline = (buf, contentId) => ({ fileName: `${contentId}.png`, mimeType: 'image/png', data: buf.toString('base64'), inline: true, contentId });
+  const r = await ingestInboundReply(inbound(to, { html, images: [inline(replyPng, 'ii_new'), inline(replyJpeg, 'ii_old')] }), imageDeps());
+  assert.equal(r.body.status, 'stored');
+  assert.equal(files.size, filesBefore + 1);
+  const entry = (await AppReport.findOne({ reportId: rep.body.reportId }).lean()).contactLog.at(-1);
+  assert.deepEqual(entry.images.map((i) => i.fileName), ['ii_new.png']);
+  assert.equal(entry.attachments, 0);
+  const comment = gh.comments.at(-1).body;
+  assert.ok(comment.includes(`/api/app-reports/images/${entry.images[0].publicToken})`));
+  assert.doesNotMatch(comment, /תמונה 2|צורפו/);
+});
+
+test('תשובה במייל עם תמונות: משלוח כפול במקביל שומר עותק אחד; כשל בשמירה מנקה ומחזיר 500', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const rep = await post(manual());
+  const to = await contactWithReply(rep.body.reportId);
+  const filesBefore = files.size;
+  const results = await Promise.all([1, 2].map(() => ingestInboundReply(inbound(to, { images: replyImages() }), imageDeps())));
+  assert.deepEqual(results.map((x) => x.body.status).sort(), ['duplicate', 'stored']);
+  assert.equal(files.size, filesBefore + 2);
+  assert.equal((await AppReport.findOne({ reportId: rep.body.reportId }).lean()).contactLog.length, 2);
+
+  let saves = 0;
+  const failing = async (...args) => { saves += 1; if (saves === 2) throw new Error('disk full'); return saveFile(...args); };
+  const r = await ingestInboundReply(inbound(to, { messageId: '<m9@x>', images: replyImages() }), imageDeps({ saveFile: failing }));
+  assert.equal(r.status, 500);
+  assert.equal(files.size, filesBefore + 2);
+  assert.equal((await AppReport.findOne({ reportId: rep.body.reportId }).lean()).contactLog.length, 2);
+});
+
+for (const committed of [false, true]) {
+  test(`reply image references: update ${committed ? 'commits but acknowledgement is lost' : 'fails before writing'}; retry keeps one copy`, async (t) => {
+    if (db.skip) return t.skip(db.skip);
+    const rep = await post(manual());
+    const to = await contactWithReply(rep.body.reportId);
+    const filesBefore = files.size;
+    const payload = inbound(to, { images: replyImages() });
+    const updateOne = AppReport.updateOne.bind(AppReport);
+    let failNext = true;
+    t.mock.method(AppReport, 'updateOne', async (filter, update, ...args) => {
+      if (failNext && update.$push?.contactLog) {
+        failNext = false;
+        if (committed) await updateOne(filter, update, ...args);
+        throw new Error('reply reference update failed');
+      }
+      return updateOne(filter, update, ...args);
+    });
+    const request = new Request('http://localhost/api/app-reports/inbound-email', {
+      method: 'POST', headers: { authorization: 'Bearer inbound-secret' }, body: JSON.stringify(payload),
+    });
+    const failed = await handleInboundEmailPost(request, { ...imageDeps(), connectDB: async () => {} });
+    assert.equal(failed.status, 500);
+    assert.equal(files.size, filesBefore + (committed ? 2 : 0));
+    const beforeRetry = await AppReport.findOne({ reportId: rep.body.reportId }).lean();
+    assert.equal(beforeRetry.contactLog.filter((c) => c.direction === 'in').length, committed ? 1 : 0);
+    if (committed) {
+      for (const ref of beforeRetry.contactLog.at(-1).images) {
+        assert.ok(files.has(String(ref.gridfsId)), 'committed images must survive a lost acknowledgement');
+        assert.ok(await loadPublicImage(ref.publicToken, readFile));
+      }
+    }
+    const retry = await ingestInboundReply(payload, imageDeps());
+    assert.equal(retry.status, 200);
+    assert.equal(retry.body.status, committed ? 'duplicate' : 'stored');
+    assert.equal(files.size, filesBefore + 2);
+    const doc = await AppReport.findOne({ reportId: rep.body.reportId }).lean();
+    const replies = doc.contactLog.filter((c) => c.direction === 'in');
+    assert.equal(replies.length, 1);
+    for (const ref of replies[0].images) assert.ok(files.has(String(ref.gridfsId)));
+  });
+}
+
+test('reply update failure cleans only its own images when a concurrent duplicate has committed', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const rep = await post(manual());
+  const to = await contactWithReply(rep.body.reportId);
+  const filesBefore = files.size;
+  const updateOne = AppReport.updateOne.bind(AppReport);
+  let writes = 0;
+  let releaseLoser;
+  const winnerStored = new Promise((resolve) => { releaseLoser = resolve; });
+  t.mock.method(AppReport, 'updateOne', async (filter, update, ...args) => {
+    if (update.$push?.contactLog) {
+      writes += 1;
+      if (writes === 1) {
+        await winnerStored;
+        throw new Error('concurrent delivery update failed');
+      }
+      try {
+        return await updateOne(filter, update, ...args);
+      } finally {
+        releaseLoser();
+      }
+    }
+    return updateOne(filter, update, ...args);
+  });
+  const results = await Promise.allSettled([1, 2].map(() => ingestInboundReply(inbound(to, { images: replyImages() }), imageDeps())));
+  assert.equal(results.filter((r) => r.status === 'fulfilled' && r.value.body.status === 'stored').length, 1);
+  assert.equal(results.filter((r) => r.status === 'rejected').length, 1);
+  assert.equal(files.size, filesBefore + 2);
+  const doc = await AppReport.findOne({ reportId: rep.body.reportId }).lean();
+  const replies = doc.contactLog.filter((c) => c.direction === 'in');
+  assert.equal(replies.length, 1);
+  for (const ref of replies[0].images) assert.ok(files.has(String(ref.gridfsId)));
+});
+
+test('reply update failure preserves images if checking committed references also fails', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const rep = await post(manual());
+  const to = await contactWithReply(rep.body.reportId);
+  const filesBefore = files.size;
+  const updateOne = AppReport.updateOne.bind(AppReport);
+  const exists = AppReport.exists.bind(AppReport);
+  t.mock.method(AppReport, 'updateOne', async (filter, update, ...args) => {
+    if (update.$push?.contactLog) {
+      await updateOne(filter, update, ...args);
+      throw new Error('lost write acknowledgement');
+    }
+    return updateOne(filter, update, ...args);
+  });
+  t.mock.method(AppReport, 'exists', (filter) => {
+    if (filter['contactLog.images.gridfsId']) {
+      return { read: async () => { throw new Error('verification unavailable'); } };
+    }
+    return exists(filter);
+  });
+  await assert.rejects(ingestInboundReply(inbound(to, { images: replyImages() }), imageDeps()), /lost write acknowledgement/);
+  assert.equal(files.size, filesBefore + 2);
+  const doc = await AppReport.findOne({ reportId: rep.body.reportId }).lean();
+  for (const ref of doc.contactLog.at(-1).images) assert.ok(files.has(String(ref.gridfsId)));
+});
+
+test('נתיב inbound-email: תמונה גדולה מהתקרה הישנה (2MB) נקלטת', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const rep = await post(manual());
+  const to = await contactWithReply(rep.body.reportId);
+  const big = Buffer.concat([replyPng, Buffer.alloc(3 * 1024 * 1024)]);
+  const req = new Request('http://localhost/api/app-reports/inbound-email', {
+    method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer inbound-secret' },
+    body: JSON.stringify(inbound(to, { images: [{ fileName: 'big.png', mimeType: 'image/png', data: big.toString('base64') }] })),
+  });
+  const res = await handleInboundEmailPost(req, { config: replyConfig, fetchImpl: gh.fetch, connectDB: async () => {}, saveFile, deleteFile });
+  assert.equal(res.status, 200);
+  const entry = (await AppReport.findOne({ reportId: rep.body.reportId }).lean()).contactLog.at(-1);
+  assert.equal(entry.images[0].size, big.length);
 });
 
 test('נתיב inbound-email: סוד חסר/שגוי, גוף שבור, וקליטה תקינה', async (t) => {
