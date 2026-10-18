@@ -24,7 +24,7 @@ import type { TagSuggestionSource } from './usePluginTagSuggestions'
  *   (כל הקטעים נהפכים לתגיות). Enter או "הוסף" מוסיפים את מה שבשדה. Enter לא שולח את הטופס.
  * - כל תגית מנורמלת (רווחים, גרשיים) ולא נוספת פעמיים — src/lib/pluginTags.js, אותו נרמול כמו בשרת.
  * - suggestions: תגיות קיימות בחנות מוצעות בזמן ההקלדה (combobox: aria-activedescendant, חצים,
- *   Enter בוחר, Esc סוגר את הרשימה בלי לסגור חלון שהשדה בתוכו). המאגר נטען בפוקוס הראשון.
+ *   Enter בוחר, Esc סוגר את הרשימה בלי לסגור חלון שהשדה בתוכו — preventDefault, ראו useDialogA11y). המאגר נטען בפוקוס הראשון.
  * הרשימה עצמה בידי ההורה (tags / onTagsChange); הטקסט שבהקלדה — כאן.
  */
 export default function TagInput({ id, label, tags, onTagsChange, suggestions, placeholder, maxLength = TAG_MAX_LENGTH }: {
@@ -118,9 +118,10 @@ export default function TagInput({ id, label, tags, onTagsChange, suggestions, p
       event.preventDefault()
       add()
     } else if (event.key === 'Escape' && open) {
-      // סוגר רק את רשימת ההצעות — לא את החלון שהשדה בתוכו (המאזין של Dialog על document)
+      // סוגר רק את רשימת ההצעות — לא את החלון שהשדה בתוכו: useDialogA11y מדלג על Esc שסומן
+      // ב-preventDefault. (לא stopPropagation: ב-Next ה-root של React הוא document, אותו צומת שעליו
+      // יושב המאזין של החלון, כך שהעצירה תלויה במקום שבו React מאזין — למשל פורטל או לא.)
       event.preventDefault()
-      event.stopPropagation()
       setDismissed(true)
       setActiveIndex(-1)
     }

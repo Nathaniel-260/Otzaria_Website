@@ -26,7 +26,10 @@ export function isTopDialog(panel: HTMLElement | null): boolean {
 /**
  * התנהגות נגישה בסיסית של חלון מודאלי, בלי עיצוב:
  * - פוקוס עובר לחלון בפתיחה, ו"נלכד" בתוכו (Tab / Shift+Tab מסתובבים בין הפקדים שבו).
- * - Esc קורא ל-onEscape.
+ * - Esc קורא ל-onEscape — אלא אם רכיב פנימי כבר "בלע" אותו (event.preventDefault()), למשל רשימת
+ *   הצעות של combobox או תפריט שנסגרים ב-Esc. preventDefault ולא stopPropagation הוא החוזה: ב-Next
+ *   ה-root של React הוא document עצמו (hydrateRoot(document)), כך שמאזין React ומאזין זה יכולים
+ *   לשבת על אותו צומת, ואז stopPropagation מתוך handler של React לא מונע מהמאזין הזה לרוץ.
  * - גלילת הדף ברקע ננעלת (עם פיצוי על רוחב פס הגלילה, כדי שהדף לא "יקפוץ").
  * - חלונות מקוננים: רק העליון במחסנית מגיב למקלדת (ראו openPanels).
  * - בסגירה (unmount) הפוקוס חוזר לאלמנט שהיה ממוקד לפני הפתיחה — בדרך כלל הכפתור שפתח.
@@ -59,6 +62,8 @@ export function useDialogA11y(panelRef: RefObject<HTMLElement | null>, onEscape:
       // חלון אחר נפתח מעליי — הוא מטפל במקלדת
       if (!isTopDialog(panel)) return
       if (event.key === 'Escape') {
+        // רכיב פנימי כבר טיפל ב-Esc (סגר את הרשימה/התפריט שלו) — החלון נשאר פתוח
+        if (event.defaultPrevented) return
         event.preventDefault()
         onEscapeRef.current()
         return

@@ -32,6 +32,8 @@ export function useDisclosureMenu(resetKey) {
 
     const onKeyDown = (event) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return
+      // Esc "נבלע" כאן — חלון מודאלי (useDialogA11y) לא ייסגר יחד עם התפריט
+      event.preventDefault()
       const active = document.activeElement
       const focusInside = panelRef.current?.contains(active) || buttonRef.current?.contains(active)
       setIsOpen(false)

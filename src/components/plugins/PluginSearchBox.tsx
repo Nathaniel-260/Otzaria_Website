@@ -219,6 +219,8 @@ export default function PluginSearchBox({
         submit()
       }
     } else if (e.key === 'Escape') {
+      // רשימה פתוחה — Esc סוגר רק אותה (preventDefault: חלון מודאלי שמסביב לא ייסגר, ראו useDialogA11y)
+      if (open) e.preventDefault()
       setOpen(false)
       setActiveIndex(-1)
     }

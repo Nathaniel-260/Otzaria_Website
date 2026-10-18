@@ -25,6 +25,19 @@ describe('Dialog', () => {
     expect(onClose).toHaveBeenCalledTimes(2)
   })
 
+  it('Esc שרכיב פנימי כבר בלע (preventDefault) — החלון נשאר פתוח', () => {
+    const onClose = vi.fn()
+    render(
+      <Dialog title="עריכה" onClose={onClose}>
+        <input aria-label="שדה" onKeyDown={(e) => { if (e.key === 'Escape') e.preventDefault() }} />
+      </Dialog>
+    )
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'שדה' }), { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('Tab נלכד בתוך החלון: מהפקד האחרון חוזרים לראשון', () => {
     render(<Dialog title="ח" onClose={() => {}}><button>ראשון</button><button>אחרון</button></Dialog>)
     screen.getByRole('button', { name: 'אחרון' }).focus()

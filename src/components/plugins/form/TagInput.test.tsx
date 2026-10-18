@@ -165,25 +165,21 @@ describe('TagInput — הצעות (combobox)', () => {
     expect(input()).toHaveFocus()
   })
 
-  it('Esc סוגר את הרשימה בלי שהאירוע יגיע לחלון שמסביב; Esc נוסף כבר עובר הלאה', () => {
-    const onDocumentKey = vi.fn()
-    document.addEventListener('keydown', onDocumentKey)
-    try {
-      render(<Harness suggestions={source()} />)
-      fireEvent.focus(input())
-      fireEvent.change(input(), { target: { value: 'כלי' } })
-      expect(screen.getByRole('listbox')).toBeInTheDocument()
-      fireEvent.keyDown(input(), { key: 'Escape' })
-      expect(screen.queryByRole('listbox')).toBeNull()
-      expect(onDocumentKey).not.toHaveBeenCalled()
-      fireEvent.keyDown(input(), { key: 'Escape' })
-      expect(onDocumentKey).toHaveBeenCalledTimes(1)
-      // הקלדה נוספת פותחת שוב
-      fireEvent.change(input(), { target: { value: 'כלי ע' } })
-      expect(screen.getByRole('listbox')).toBeInTheDocument()
-    } finally {
-      document.removeEventListener('keydown', onDocumentKey)
-    }
+  it('Esc סוגר את הרשימה ומסמן preventDefault (החלון שמסביב לא ייסגר); Esc נוסף לא מסומן', () => {
+    render(<Harness suggestions={source()} />)
+    fireEvent.focus(input())
+    fireEvent.change(input(), { target: { value: 'כלי' } })
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    const first = createEvent.keyDown(input(), { key: 'Escape' })
+    fireEvent(input(), first)
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(first.defaultPrevented).toBe(true)
+    const second = createEvent.keyDown(input(), { key: 'Escape' })
+    fireEvent(input(), second)
+    expect(second.defaultPrevented).toBe(false)
+    // הקלדה נוספת פותחת שוב
+    fireEvent.change(input(), { target: { value: 'כלי ע' } })
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
   })
 
   it('יציאה מהשדה סוגרת את הרשימה', () => {
