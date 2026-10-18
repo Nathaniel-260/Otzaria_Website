@@ -39,14 +39,19 @@ export function resetTagSuggestionCache() {
   poolPromise = null
 }
 
+const noop = () => {}
+
 /**
- * התגיות הקיימות בחנות, להצעה בזמן ההקלדה. נטען בעצלתיים — רק כשהמשתמש מגיע לשדה (load מ-onFocus),
- * לא בטעינת הדף.
+ * התגיות הקיימות בחנות, להצעה בזמן ההקלדה.
+ * - initialPool — מאגר שכבר נטען בשרת (עמוד ההעלאה, unstable_cache): משמש כמו שהוא, בלי בקשה.
+ * - בלעדיו (null/undefined — חלון העריכה, או כישלון בשרת) — נטען בעצלתיים מ-/api/plugins, רק כשהמשתמש
+ *   מגיע לשדה (load מ-onFocus), לא בטעינת הדף.
  */
-export function usePluginTagSuggestions(): TagSuggestionSource {
+export function usePluginTagSuggestions(initialPool?: TagCount[] | null): TagSuggestionSource {
   const [pool, setPool] = useState<TagCount[]>([])
   const load = useCallback(() => {
     fetchPool().then(setPool, () => {})
   }, [])
+  if (initialPool) return { pool: initialPool, load: noop }
   return { pool, load }
 }

@@ -4,10 +4,18 @@ import TagInput from '@/components/plugins/form/TagInput'
 import { usePluginTagSuggestions } from '@/components/plugins/form/usePluginTagSuggestions'
 import UploadStep from './UploadStep'
 import type { UploadPluginForm } from './useUploadPluginForm'
+import type { TagCount } from '@/components/plugins/listing/TagFilterChips'
 
-/** שלב 3 — תגיות (לא חובה). תגיות קיימות בחנות מוצעות בזמן ההקלדה */
-export default function UploadTagsStep({ form, step }: { form: UploadPluginForm; step: number }) {
-  const suggestions = usePluginTagSuggestions()
+/**
+ * שלב 3 — תגיות (לא חובה). תגיות קיימות בחנות מוצעות בזמן ההקלדה — מהמאגר שנטען בשרת (tagPool),
+ * ואם אין (null) — נטען בפוקוס הראשון.
+ */
+export default function UploadTagsStep({ form, step, tagPool = null }: {
+  form: UploadPluginForm
+  step: number
+  tagPool?: TagCount[] | null
+}) {
+  const suggestions = usePluginTagSuggestions(tagPool)
   return (
     <UploadStep id="upload-step-tags" step={step} title="תגיות">
       <TagInput

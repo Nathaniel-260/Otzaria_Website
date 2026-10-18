@@ -8,12 +8,21 @@ const showMessage = vi.fn(() => Promise.resolve())
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
 vi.mock('@/components/providers/DialogContext', () => ({ useDialog: () => ({ showAlert, showMessage }) }))
 
-import UploadPluginPage from './page'
+// page.tsx (Server Component): unstable_cache שקוף, ו-DB מדומה — רק שדה tags של התוספים הציבוריים
+const findPlugins = vi.fn()
+vi.mock('next/cache', () => ({ unstable_cache: (fn: () => unknown) => fn }))
+vi.mock('@/lib/db', () => ({ default: vi.fn(async () => {}) }))
+vi.mock('@/models/Plugin', () => ({
+  default: { find: (...args: unknown[]) => ({ select: (fields: string) => ({ lean: () => findPlugins(args, fields) }) }) }
+}))
+
+import UploadPluginPage from './UploadPluginPageClient'
+import UploadPluginServerPage from './page'
 
 const fetchSpy = vi.fn()
 
 beforeEach(() => {
-  push.mockReset(); showAlert.mockReset(); showMessage.mockClear(); fetchSpy.mockReset()
+  push.mockReset(); showAlert.mockReset(); showMessage.mockClear(); fetchSpy.mockReset(); findPlugins.mockReset()
   vi.stubGlobal('fetch', fetchSpy)
 })
 afterEach(() => vi.unstubAllGlobals())
@@ -80,5 +89,29 @@ describe('/plugins/upload (מחובר — ה-proxy מפנה אורח להתחב�
     expect(screen.getAllByRole('button', { name: 'הסרת התגית מילון' })).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'הסרת התגית מילון' }))
     expect(screen.queryByRole('button', { name: 'הסרת התגית מילון' })).toBeNull()
+  })
+
+  it('מאגר התגיות נטען בשרת (רק שדה tags) ומוצע בשדה — בלי להוריד את /api/plugins', async () => {
+    findPlugins.mockResolvedValue([{ tags: ['מילון', 'כלי עזר'] }, { tags: ['מילון'] }])
+    render(await UploadPluginServerPage())
+    expect(findPlugins).toHaveBeenCalledWith([expect.objectContaining({ isApproved: true, isHidden: false })], 'tags -_id')
+    const input = screen.getByRole('combobox', { name: /הוסף תגית/ })
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'מיל' } })
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['מילון (2)'])
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('כישלון בשרת — השדה טוען את ההצעות בעצמו בפוקוס (fallback ל-/api/plugins)', async () => {
+    findPlugins.mockRejectedValue(new Error('db down'))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify([{ tags: ['חיפוש'] }]), { status: 200 }))
+    try {
+      render(await UploadPluginServerPage())
+      fireEvent.focus(screen.getByRole('combobox', { name: /הוסף תגית/ }))
+      await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith('/api/plugins'))
+    } finally {
+      consoleError.mockRestore()
+    }
   })
 })

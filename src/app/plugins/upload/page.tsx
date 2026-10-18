@@ -1,30 +1,42 @@
-'use client'
+// העלאת תוסף חדש לחנות. מוגן בהתחברות ב-proxy (src/lib/protected-routes.js) — אורח מופנה לדף
+// ההתחברות לפני שהעמוד נטען. העמוד עצמו לא קורא session: הנתון היחיד שנטען כאן — מאגר התגיות
+// הקיימות בחנות — ציבורי וזהה לכל צופה.
+//
+// מאגר התגיות (להצעות בשדה התגיות): נשלף בשרת רק עם שדה tags של התוספים הציבוריים (כ-2KB אחרי
+// חישוב), במקום שהדפדפן יוריד את כל /api/plugins (מאות KB) רק כדי לחלץ ממנו תגיות.
+// מטמון: כמו plugins/all — Data Cache עם תגית PLUGINS_PUBLIC (ביטול מיידי מכל route שמשנה תוסף)
+// + חלון גיבוי קצר. ראו src/lib/cacheTags.js.
+import { unstable_cache as nextCache } from 'next/cache'
+import dbConnect from '@/lib/db'
+import PluginModel from '@/models/Plugin'
+import { PUBLIC_PLUGIN_FILTER } from '@/lib/pluginStore'
+import { buildTagSuggestionPool } from '@/lib/pluginTags'
+import { CACHE_TAGS, REVALIDATE_SECONDS } from '@/lib/cacheTags'
+import type { TagCount } from '@/components/plugins/listing/TagFilterChips'
+import UploadPluginPageClient from './UploadPluginPageClient'
 
-import Section from '@/components/ui/Section'
-import StorePageHeader from '@/components/plugins/StorePageHeader'
-import UploadPluginForm from '@/components/plugins/upload/UploadPluginForm'
-import { useUploadPluginForm } from '@/components/plugins/upload/useUploadPluginForm'
+// ליטרל מספרי בכוונה — ראו plugins/all/page.tsx. לעדכן יחד עם REVALIDATE_SECONDS.PLUGINS_PUBLIC.
+export const revalidate = 600
 
-/**
- * העלאת תוסף חדש לחנות. מוגן בהתחברות ב-proxy (src/lib/protected-routes.js) — אורח מופנה
- * לדף ההתחברות לפני שהעמוד נטען. הלוגיקה (קריאת manifest.json, בדיקות הקבצים, השליחה
- * ל-/api/plugins/upload) — ב-useUploadPluginForm; הטופס עצמו — ב-components/plugins/upload/.
- */
-export default function UploadPluginPage() {
-  const form = useUploadPluginForm()
+async function loadTagPoolUncached(): Promise<TagCount[]> {
+  await dbConnect()
+  const plugins = await PluginModel.find(PUBLIC_PLUGIN_FILTER).select('tags -_id').lean()
+  // אותו חישוב כמו בצד הלקוח (usePluginTagSuggestions) — נרמול, איחוד כתיבים ומיון לפי שכיחות
+  return buildTagSuggestionPool(plugins) as TagCount[]
+}
 
-  return (
-    <main id="main-content" className="flex-1">
-      <StorePageHeader
-        titleId="upload-plugin-title"
-        container="narrow"
-        breadcrumbs={[{ label: 'חנות התוספים', href: '/plugins' }, { label: 'העלאת תוסף' }]}
-        title="העלאת תוסף חדש"
-        subtitle="מלא את הפרטים הבאים כדי להעלות תוסף לחנות. התוסף יעבור אישור מנהל לפני שיופיע בחנות."
-      />
-      <Section spacing="none" container="narrow">
-        <UploadPluginForm form={form} />
-      </Section>
-    </main>
-  )
+const loadTagPool = nextCache(loadTagPoolUncached, ['plugins-tag-pool'], {
+  tags: [CACHE_TAGS.PLUGINS_PUBLIC],
+  revalidate: REVALIDATE_SECONDS.PLUGINS_PUBLIC
+})
+
+export default async function UploadPluginPage() {
+  // כישלון (DB לא זמין) — null: השדה טוען את ההצעות בעצמו בפוקוס, כמו בחלון העריכה
+  let tagPool: TagCount[] | null = null
+  try {
+    tagPool = await loadTagPool()
+  } catch (error) {
+    console.error('Error loading plugin tag pool:', error)
+  }
+  return <UploadPluginPageClient tagPool={tagPool} />
 }
