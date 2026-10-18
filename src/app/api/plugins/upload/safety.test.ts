@@ -106,3 +106,16 @@ describe('plugin submission fails closed', () => {
     expect((await PUT(request(), context)).status).toBe(400); expectNoWrites()
   })
 })
+
+describe('tags are normalized before the design-tag gate', () => {
+  // כתיב "מנוקד" של התגית הרשמית (רווח כפול, RLM) כבר לא עוקף את בדיקת העיצוב — הוא מנורמל אליה קודם
+  for (const route of ['upload', 'edit'] as const) {
+    it(`${route}: a spaced/marked variant of the design tag is still gated`, async () => {
+      const tags = JSON.stringify([`${String.fromCharCode(0x200f)}מראה  תואם לאוצריא `, 'כלי עזר, גימטריא'])
+      const res = route === 'upload' ? await POST(request({ tags })) : await PUT(request({ tags }), context)
+      expect(res.status).toBe(400)
+      expect((await res.json()).error).toContain('לא ניתן להוסיף את התגית "מראה תואם לאוצריא"')
+      expectNoWrites()
+    })
+  }
+})

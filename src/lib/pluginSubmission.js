@@ -1,6 +1,7 @@
 import path from 'path'
 import { buildVersionEntries } from './pluginCompatibility'
 import { ratingFieldsForPublic } from './pluginRating'
+import { TAG_MAX_COUNT, TAG_MAX_LENGTH, normalizeTagList } from './pluginTags.js'
 
 export const PLUGIN_LIMITS = {
   // שם התוסף מוצג בראש לשונית התוסף ב"כלים" — מעבר ל-14 תווים גולש מהכרטיסייה.
@@ -11,7 +12,7 @@ export const PLUGIN_LIMITS = {
   author: 100,
   compatibleWith: 100,
   homepage: 500,
-  tag: 40
+  tag: TAG_MAX_LENGTH
 }
 
 // קבועי הסטטוס/התאימות עצמם חיים במודול בטוח-ללקוח (ראו ההסבר שם) —
@@ -57,11 +58,11 @@ export function parseJsonArrayField(value, fieldName) {
   return parsed
 }
 
+// התגיות שנשלחו בטופס (העלאה/עריכה) → רשימה נקייה: פיצול לפי פסיק/נקודה-פסיק/ירידת שורה,
+// נרמול עדין (רווחים, גרשיים) והסרת כפילויות — ראו src/lib/pluginTags.js. אותו מבנה (מערך
+// מחרוזות) ואותה תקרה כמו קודם; רק הערכים נקיים.
 export function normalizeTags(rawTags) {
-  return rawTags
-    .map(tag => String(tag).trim())
-    .filter(Boolean)
-    .slice(0, 30)
+  return normalizeTagList(rawTags).slice(0, TAG_MAX_COUNT)
 }
 
 export function assertPluginTextLimits(data) {
