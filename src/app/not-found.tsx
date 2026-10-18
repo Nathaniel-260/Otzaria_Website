@@ -1,5 +1,9 @@
 import Link from 'next/link'
 
+export const metadata = {
+  title: 'הדף לא נמצא | אוצריא',
+}
+
 export default function NotFound() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-surface via-background to-surface-variant">

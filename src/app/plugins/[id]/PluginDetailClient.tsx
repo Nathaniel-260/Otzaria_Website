@@ -2,8 +2,9 @@
 
 // חלק הלקוח של דף התוסף. הנתונים מגיעים כ-initialPlugin מה-Server Component
 // (page.tsx) — כך שהתוכן נמצא ב-HTML הראשוני ואין קפיצת פריסה אחרי fetch.
-// כשהשרת לא רינדר (תוסף מושהה, שדורש בדיקת session; או מזהה/גרסה לא
-// נמצאו) initialPlugin=null, והדף טוען מ-/api/plugins/[id] כמו קודם.
+// כשהשרת לא רינדר (תוסף מושהה, שדורש בדיקת session; או שגיאת DB זמנית)
+// initialPlugin=null, והדף טוען מ-/api/plugins/[id] כמו קודם. תוסף שאינו
+// קיים כלל מטופל כבר בשרת (notFound) ולא מגיע לכאן.
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'

@@ -62,6 +62,11 @@ const loadAllPlugins = nextCache(loadAllPluginsUncached, ['plugins-all'], {
   revalidate: REVALIDATE_SECONDS.PLUGINS_PUBLIC
 })
 
+export const metadata = {
+  title: 'כל התוספים | חנות התוספים של אוצריא',
+  description: 'רשימת כל התוספים לתוכנת אוצריא, עם חיפוש וסינון לפי תגית וסטטוס.',
+}
+
 export default async function AllPluginsPage() {
   let plugins: PluginCardData[] = []
   try {

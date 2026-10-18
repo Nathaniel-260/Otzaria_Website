@@ -18,7 +18,8 @@ const frankRuehl = localFont({
 
 export const metadata: Metadata = {
   title: "אוצריא",
-  description: "פלטפורמה משותפת לעריכה ושיתוף",
+  // ברירת מחדל לדפים שלא מגדירים תיאור משלהם
+  description: "אוצריא – תוכנה חופשית לקריאה וללימוד ספרי קודש, עם ספרייה תורנית רחבה וחיפוש מהיר.",
   // האייקונים נקבעים על ידי app/icon.png ו-app/apple-icon.png (מוסיף Next hash
   // ו-cache ארוך). קודם הוגש כאן logo.svg — 1.68MB דחוסים כ-favicon.
 };
