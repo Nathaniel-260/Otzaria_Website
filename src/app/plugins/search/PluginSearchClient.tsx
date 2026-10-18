@@ -16,16 +16,18 @@
 // אותו מחדש בשרת בכל הקשה (חיפוש כפול, וצריכת אסימוני rate limit).
 
 import { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
 import { useDirectInstall } from '@/components/plugins/useDirectInstall'
 import { useDialog } from '@/components/providers/DialogContext'
-import { highlightMatches } from '@/components/plugins/PluginSearchBox'
-import { formatPluginStatus } from '@/lib/pluginStatus'
-import DirectInstallButton from '@/components/plugins/DirectInstallButton'
-import Breadcrumbs from '@/components/plugins/Breadcrumbs'
+import StorePageHeader from '@/components/plugins/StorePageHeader'
+import PluginResultRow, { PluginResultRowSkeleton } from '@/components/plugins/listing/PluginResultRow'
+import { fieldClasses, fieldIconClasses } from '@/components/plugins/listing/fieldStyles'
+import AppIcon from '@/components/ui/AppIcon'
+import Button from '@/components/ui/Button'
+import Chip from '@/components/ui/Chip'
+import EmptyState from '@/components/ui/EmptyState'
+import Section from '@/components/ui/Section'
 import type { PluginSearchResult, PluginCategorySummary } from '@/components/plugins/types'
 import { SEARCH_PAGE_SIZE, type PluginSearchResponse } from './searchConfig'
-import Loader from '@/components/ui/Loader'
 
 const SEARCH_DEBOUNCE_MS = 300
 const PAGE_SIZE = SEARCH_PAGE_SIZE
@@ -182,213 +184,128 @@ export default function PluginSearchClient({ initialQuery, initialResults }: Plu
     }
   }
 
-  const canDirectInstall = (plugin: PluginSearchResult) =>
-    Boolean(plugin.supportsDirectInstall && plugin.downloadUrl)
-
   const hasQuery = Boolean(trimmedInput)
   const showZeroResults = hasQuery && !searching && executedQuery && results.length === 0
+  const titleId = 'plugin-search-title'
 
   return (
     <div className="flex flex-1 flex-col">
 
       <main id="main-content" className="flex-1">
-        {/* Search Header */}
-        <section className="py-8 px-4 bg-white border-b border-neutral-100">
-          <div className="container mx-auto max-w-4xl">
-            {/* פירורי לחם */}
-            <Breadcrumbs
-              className="flex items-center gap-2 text-sm text-on-surface/60 mb-4"
-              items={[{ label: 'חנות התוספים', href: '/plugins' }, { label: 'חיפוש' }]}
-            />
-            <h1 className="text-3xl font-bold text-on-surface mb-5">חיפוש תוספים</h1>
+        <StorePageHeader
+          titleId={titleId}
+          container="narrow"
+          breadcrumbs={[{ label: 'חנות התוספים', href: '/plugins' }, { label: 'חיפוש' }]}
+          title="חיפוש תוספים"
+        >
+          {/* לא PluginSearchBox: כאן אין הצעות — התוצאות עצמן מתעדכנות מתחת (debounce משלו).
+              השם הנגיש — כותרת העמוד ("חיפוש תוספים"), שצמודה לשדה */}
+          <div className="relative">
+            <AppIcon name="search" className={fieldIconClasses('lg', 'start')} />
             <input
               type="search"
-              placeholder="חפשו תוסף לפי שם, תיאור או נושא..."
+              aria-labelledby={titleId}
+              enterKeyHint="search"
+              placeholder="חפש תוסף לפי שם, תיאור או נושא..."
               value={inputValue}
               onChange={(e) => handleInputChange(e.target.value)}
               autoFocus={!initialQuery}
-              className="w-full px-6 py-4 text-lg border border-neutral-200 rounded-2xl shadow-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
+              className={fieldClasses({ size: 'lg', withIcon: true })}
             />
           </div>
-        </section>
+        </StorePageHeader>
 
         {/* Results */}
-        <section className="py-10 px-4">
-          <div className="container mx-auto max-w-4xl">
-            {!hasQuery ? (
-              <div className="text-center py-16 px-4 bg-white rounded-2xl border border-neutral-100">
-                <span className="material-symbols-outlined text-5xl text-primary/40 mb-4 inline-block">search</span>
-                <h2 className="text-2xl font-bold text-on-surface mb-3">מה מחפשים?</h2>
-                <p className="text-on-surface/60 leading-relaxed">
-                  הקלידו למעלה שם תוסף, תיאור או נושא — התוצאות יופיעו כאן מיד.
-                </p>
-              </div>
-            ) : searching && results.length === 0 ? (
-              // שלד טעינה — שורות תוצאה מהבהבות
-              <div className="space-y-4 animate-pulse">
+        <Section spacing="none" container="narrow" className="pb-14 md:pb-20">
+          {!hasQuery ? (
+            <EmptyState
+              icon="search"
+              title="מה מחפשים?"
+              description="הקלד למעלה שם תוסף, תיאור או נושא — התוצאות יופיעו כאן מיד."
+            />
+          ) : searching && results.length === 0 ? (
+            // שלד טעינה — שורות באותו מבנה כמו שורת תוצאה
+            <div role="status">
+              <span className="sr-only">טוען...</span>
+              <div className="flex flex-col gap-3 md:gap-4">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-36 bg-neutral-200 rounded-2xl"></div>
+                  <PluginResultRowSkeleton key={i} />
                 ))}
               </div>
-            ) : showZeroResults ? (
-              <div className="text-center py-16 px-4 bg-white rounded-2xl border border-neutral-100">
-                <h2 className="text-2xl font-bold text-on-surface mb-3">
-                  לא נמצאו תוספים עבור &apos;{executedQuery}&apos;
-                </h2>
-                <p className="text-on-surface/60 leading-relaxed mb-6">
-                  נסו ניסוח אחר, או עיינו ברשימה המלאה של כל התוספים.
-                </p>
-                <Link
-                  href="/plugins/all"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors mb-6"
-                >
-                  <span>לכל התוספים</span>
-                  <span aria-hidden="true">←</span>
-                </Link>
-                {categories.length > 0 && (
-                  <div>
-                    <p className="text-sm font-bold text-on-surface/50 mb-3">או עיינו לפי קטגוריה:</p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {categories.slice(0, 3).map(category => (
-                        <Link
-                          key={category.id}
-                          href={`/plugins/category/${category.slug}`}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-surface hover:bg-primary/10 rounded-full text-sm font-medium text-on-surface/70 hover:text-primary transition-colors"
-                        >
-                          {category.icon && (
-                            <span className="material-symbols-outlined text-base">{category.icon}</span>
-                          )}
-                          <span>{category.name}</span>
-                        </Link>
-                      ))}
-                    </div>
+            </div>
+          ) : showZeroResults ? (
+            <EmptyState
+              role="status"
+              icon="search_off"
+              title={<>לא נמצאו תוספים עבור &apos;{executedQuery}&apos;</>}
+              description="נסה ניסוח אחר, או עיין ברשימה המלאה של כל התוספים."
+              actions={
+                <Button href="/plugins/all" variant="tonal" iconEnd="chevron_left">
+                  לכל התוספים
+                </Button>
+              }
+            >
+              {categories.length > 0 && (
+                <div className="border-t border-outline-variant pt-6">
+                  <p className="mb-3 text-label-md text-on-surface-variant">או עיין לפי קטגוריה:</p>
+                  <div className="flex flex-wrap justify-center gap-x-2 gap-y-2.5">
+                    {categories.slice(0, 3).map(category => (
+                      <Chip
+                        key={category.id}
+                        href={`/plugins/category/${category.slug}`}
+                        icon={category.icon || undefined}
+                        count={category.pluginCount}
+                      >
+                        {category.name}
+                      </Chip>
+                    ))}
                   </div>
-                )}
-              </div>
-            ) : (
-              <>
-                {/* מונה תוצאות */}
-                {executedQuery && (
-                  <div className="mb-6">
-                    <p className="text-on-surface/70 text-lg">
-                      נמצאו <span className="font-bold text-on-surface">{total}</span> תוספים עבור &apos;{executedQuery}&apos;
-                    </p>
-                    {relaxed && (
-                      <p className="text-sm text-on-surface/50 mt-1">
-                        לא נמצאו התאמות מדויקות לכל המילים — תוצאות קרובות:
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* רשימה אנכית — סדר הדירוג חשוב */}
-                <div className="space-y-4">
-                  {results.map((plugin, resultIndex) => (
-                    <article
-                      key={plugin.id}
-                      className="flex flex-col sm:flex-row gap-5 bg-white rounded-2xl border border-neutral-100 p-5 hover:shadow-lg transition-shadow"
-                    >
-                      {/* תמונת מיני */}
-                      <Link href={`/plugins/${plugin.id}`} className="shrink-0">
-                        <img
-                          src={plugin.image || '/logo.webp'}
-                          alt={plugin.name}
-                          // התוצאה הראשונה (בדרך כלל ה-LCP) — מיד ובעדיפות גבוהה, לא lazy
-                          loading={resultIndex === 0 ? 'eager' : 'lazy'}
-                          fetchPriority={resultIndex === 0 ? 'high' : undefined}
-                          decoding="async"
-                          className="w-full sm:w-28 h-36 sm:h-28 rounded-xl object-cover bg-gradient-to-br from-primary/5 to-secondary/5"
-                        />
-                      </Link>
-
-                      {/* פרטים */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <Link href={`/plugins/${plugin.id}`}>
-                            <h2 className="text-xl font-bold text-on-surface hover:text-primary transition-colors">
-                              {highlightMatches(plugin.name, executedQuery)}
-                            </h2>
-                          </Link>
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">
-                            {formatPluginStatus(plugin.status)}
-                          </span>
-                        </div>
-                        <p className="text-on-surface/70 text-sm leading-relaxed line-clamp-2 mb-3">
-                          {plugin.shortDescription}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {plugin.tags?.slice(0, 4).map(tag => (
-                            <span
-                              key={tag}
-                              className="px-2 py-1 bg-surface rounded-full text-xs text-on-surface/60"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                          {plugin.categories?.map(category => (
-                            <Link
-                              key={category.slug}
-                              href={`/plugins/category/${category.slug}`}
-                              className="px-2 py-1 bg-primary/5 border border-primary/15 rounded-full text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-                            >
-                              {category.name}
-                            </Link>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* פעולות */}
-                      <div className="flex sm:flex-col gap-2 sm:w-44 shrink-0 sm:justify-center">
-                        <a
-                          href={plugin.downloadUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex-1 sm:flex-none px-4 py-2.5 bg-primary/90 text-white rounded-full text-sm font-bold text-center hover:bg-primary transition-colors"
-                        >
-                          הורדה
-                        </a>
-                        {canDirectInstall(plugin) && (
-                          <DirectInstallButton
-                            pluginId={plugin.id}
-                            installState={installState}
-                            onInstall={() => install(plugin)}
-                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white border border-primary/20 text-primary rounded-full text-sm font-bold hover:bg-primary/5 transition-colors text-center disabled:cursor-default disabled:opacity-80"
-                          />
-                        )}
-                        <Link
-                          href={`/plugins/${plugin.id}`}
-                          className="hidden sm:block text-center text-sm font-bold text-primary hover:underline"
-                        >
-                          לפרטים מלאים
-                        </Link>
-                      </div>
-                    </article>
-                  ))}
                 </div>
+              )}
+            </EmptyState>
+          ) : (
+            <>
+              {/* מונה תוצאות — שורה שקטה מעל הרשימה; מוכרז בכל חיפוש */}
+              {executedQuery && (
+                <div className="mb-5 md:mb-6" aria-live="polite">
+                  <p className="text-body-md text-on-surface-variant">
+                    נמצאו <span className="font-bold text-on-surface tabular-nums">{total.toLocaleString('he-IL')}</span> תוספים עבור &apos;<span className="text-on-surface">{executedQuery}</span>&apos;
+                  </p>
+                  {relaxed && (
+                    <p className="mt-1 text-body-sm text-on-surface-variant">
+                      לא נמצאו התאמות מדויקות לכל המילים — תוצאות קרובות:
+                    </p>
+                  )}
+                </div>
+              )}
 
-                {/* טען עוד */}
-                {results.length < total && (
-                  <div className="mt-8 text-center">
-                    <button
-                      onClick={loadMore}
-                      disabled={loadingMore}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-primary/20 text-primary rounded-xl font-bold hover:bg-primary/5 transition-colors disabled:opacity-60"
-                    >
-                      {loadingMore ? (
-                        <>
-                          <Loader size="inline" decorative className="text-base" />
-                          <span>טוען...</span>
-                        </>
-                      ) : (
-                        <span>טען עוד ({total - results.length} נוספים)</span>
-                      )}
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </section>
+              {/* רשימה אנכית — סדר הדירוג חשוב */}
+              <ol aria-labelledby={titleId} aria-busy={searching || undefined} className="flex flex-col gap-3 md:gap-4">
+                {results.map((plugin, resultIndex) => (
+                  <li key={plugin.id}>
+                    <PluginResultRow
+                      plugin={plugin}
+                      query={executedQuery}
+                      installState={installState}
+                      onInstall={install}
+                      // התוצאה הראשונה (בדרך כלל ה-LCP) — מיד ובעדיפות גבוהה, לא lazy
+                      priority={resultIndex === 0}
+                    />
+                  </li>
+                ))}
+              </ol>
+
+              {/* טען עוד */}
+              {results.length < total && (
+                <div className="mt-8 flex justify-center">
+                  <Button variant="tonal" onClick={loadMore} loading={loadingMore}>
+                    {loadingMore ? 'טוען...' : `טען עוד (${(total - results.length).toLocaleString('he-IL')} נוספים)`}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </Section>
       </main>
     </div>
   )
