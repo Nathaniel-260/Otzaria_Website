@@ -14,7 +14,7 @@ import { stepIndex } from './carouselModel'
  * ממשיכה מהתמונה שבה נסגר. חצים: ימינה = הקודמת, שמאלה = הבאה (RTL), עם חזרה מעגלית.
  */
 const CONTROL = cx(
-  'flex size-12 items-center justify-center rounded-full bg-surface/15 text-white transition-colors hover:bg-surface/30',
+  'flex size-12 items-center justify-center rounded-full bg-surface/15 text-on-scrim transition-colors hover:bg-surface/30',
   FOCUS_RING
 )
 
@@ -91,7 +91,7 @@ export default function ScreenshotLightbox({ screenshots, index, onIndexChange, 
       </button>
       <div
         aria-live="polite"
-        className="absolute inset-x-0 bottom-4 mx-auto w-fit rounded-full bg-surface/15 px-3 py-1 text-label-md text-white tabular-nums"
+        className="absolute inset-x-0 bottom-4 mx-auto w-fit rounded-full bg-surface/15 px-3 py-1 text-label-md text-on-scrim tabular-nums"
       >
         <span dir="ltr">{index + 1} / {count}</span>
       </div>

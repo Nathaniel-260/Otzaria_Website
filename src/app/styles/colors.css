@@ -111,12 +111,14 @@
   /* ---------------- תשתית אינטראקציה ----------------
    * focus-ring — טבעת הפוקוס של כל רכיב (outline 2px, offset 2px; ראו component-tokens.css).
    * scrim — שכבת ההחשכה מאחורי דיאלוג (בשקיפות שקובע הרכיב, למשל bg-scrim/45).
+   * on-scrim — טקסט/אייקון ישירות על ה-scrim (פקדי התצוגה המוגדלת של צילומי מסך, טוען מעל scrim).
    * שים לב: כינוי (var) כמו focus-ring מחושב פעם אחת, על :root, ומשם עובר בירושה כערך סופי.
    * לכן ערכה כהה עובדת רק כשהיא מוחלת על :root עצמו (כמו ב-theme-dark.css). אם בעתיד יוחל
    * data-theme="dark" על תת-עץ בלבד, focus-ring (וכל כינוי אחר כאן) יישאר בצבע הבהיר — וצריך
    * להגדיר אותו מחדש גם על אותו אלמנט. */
   --color-focus-ring: var(--color-primary);
   --color-scrim: var(--color-on-surface);
+  --color-on-scrim: var(--ref-neutral-100);
   /* shadow — צבע הצל החם (בשקיפות שקובע הצרכן: color-mix(in srgb, var(--color-shadow) 22%,
      transparent)). בערכה הכהה — שחור; צל חום על רקע כהה נראה כהילה בוצית. */
   --color-shadow: var(--ref-ink-12);

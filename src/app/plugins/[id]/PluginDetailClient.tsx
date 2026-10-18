@@ -41,7 +41,7 @@ export type { Plugin } from '@/components/plugins/detail/types'
 function ModalLoadingOverlay() {
   return (
     <div className="fixed inset-0 z-[calc(var(--z-legacy-modal)_-_1)] flex items-center justify-center bg-scrim/45 p-4">
-      <Loader size="lg" tone="current" showLabel={false} className="text-white" />
+      <Loader size="lg" tone="current" showLabel={false} className="text-on-scrim" />
     </div>
   )
 }

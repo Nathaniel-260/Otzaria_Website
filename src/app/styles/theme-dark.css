@@ -74,6 +74,7 @@
 
   --color-top-bar: var(--ref-neutral-17);
   --color-scrim: var(--ref-neutral-0);
+  --color-on-scrim: var(--ref-neutral-100);
   --color-shadow: var(--ref-neutral-0);
   /* זהב הקישוט — בכהה מספיק בהיר כמו שהוא (78 על רקע 6); מוגדר כאן במפורש כדי שכל תפקיד
      ב-colors.css יופיע בשתי הערכות */
