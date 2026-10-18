@@ -99,7 +99,8 @@ describe('DialogContext — showMessage', () => {
     await user.click(screen.getByRole('button', { name: 'שלח' }))
     await screen.findByRole('alertdialog', { name: 'שגיאה' })
     await user.click(screen.getByRole('button', { name: 'אישור' }))
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    // החלון מוסר אחרי טיימר של 300ms — זמן המתנה נדיב למכונה עמוסה
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull(), { timeout: 5000 })
     expect(screen.getByRole('textbox', { name: 'שדה שגוי' })).toHaveFocus()
   })
 
@@ -109,7 +110,8 @@ describe('DialogContext — showMessage', () => {
     await user.click(screen.getByRole('button', { name: 'שלח' }))
     await screen.findByRole('alertdialog', { name: 'שגיאה' })
     await user.keyboard('{Escape}')
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    // החלון מוסר אחרי טיימר של 300ms — זמן המתנה נדיב למכונה עמוסה
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull(), { timeout: 5000 })
     expect(screen.getByRole('button', { name: 'שלח' })).toHaveFocus()
   })
 })
