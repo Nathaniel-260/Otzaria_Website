@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import NavDropdown from './NavDropdown'
 
@@ -85,5 +85,28 @@ describe('NavDropdown', () => {
     fireEvent.click(trigger)
     fireEvent.pointerDown(document.body)
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('חץ למטה אחרי Esc ממקד את הקישור רק אחרי שהפאנל הוצג מחדש', () => {
+    const { trigger, root } = setup()
+    fireEvent.click(trigger)
+    const first = screen.getByRole('link', { name: 'העלה ספר חדש' })
+    first.focus()
+    fireEvent.keyDown(first, { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+    expect(root).toHaveAttribute('data-open', 'false')
+
+    // jsdom אינו מיישם visibility: hidden; דפדפן מסרב למקד את הקישור במצב הזה.
+    const focus = first.focus.bind(first)
+    const spy = vi.spyOn(first, 'focus').mockImplementation(() => {
+      if (root.dataset.open === 'true' && root.dataset.dismissed !== 'true') focus()
+    })
+    try {
+      fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+      expect(trigger).toHaveAttribute('aria-expanded', 'true')
+      expect(first).toHaveFocus()
+    } finally {
+      spy.mockRestore()
+    }
   })
 })

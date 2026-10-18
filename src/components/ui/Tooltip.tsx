@@ -35,8 +35,14 @@ export default function Tooltip({ content, children, className, bubbleClassName 
   const tipId = useId()
   const hostRef = useRef<HTMLSpanElement>(null)
   const bubbleRef = useRef<HTMLSpanElement>(null)
+  const hoveredRef = useRef(false)
   const [dismissed, setDismissed] = useState(false)
   const reset = () => setDismissed(false)
+  const dismissOnEscape = useCallback((event: { key: string; defaultPrevented: boolean; preventDefault(): void }) => {
+    if (dismissed || event.key !== 'Escape' || event.defaultPrevented) return
+    event.preventDefault()
+    setDismissed(true)
+  }, [dismissed])
 
   const place = useCallback(() => {
     const host = hostRef.current
@@ -57,6 +63,15 @@ export default function Tooltip({ content, children, className, bubbleClassName 
     return () => window.removeEventListener('resize', place)
   }, [place])
 
+  // בריחוף הפוקוס עשוי להיות במקום אחר, ולכן Esc חייב להיקלט גם מחוץ לרכיב.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (hoveredRef.current) dismissOnEscape(event)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [dismissOnEscape])
+
   const trigger = isValidElement(children)
     ? cloneElement(children, {
       'aria-describedby': cx(children.props['aria-describedby'], tipId) || undefined
@@ -68,11 +83,17 @@ export default function Tooltip({ content, children, className, bubbleClassName 
       ref={hostRef}
       className={cx('tooltip-host', className)}
       data-tip-dismissed={dismissed ? 'true' : undefined}
-      onPointerEnter={place}
+      onPointerEnter={(event) => {
+        hoveredRef.current = event.pointerType === 'mouse'
+        place()
+      }}
       onFocus={place}
-      onPointerLeave={reset}
+      onPointerLeave={() => {
+        hoveredRef.current = false
+        reset()
+      }}
       onBlur={reset}
-      onKeyDown={(event) => { if (event.key === 'Escape') setDismissed(true) }}
+      onKeyDown={dismissOnEscape}
     >
       {trigger}
       <span className="tooltip" role="tooltip" id={tipId}>

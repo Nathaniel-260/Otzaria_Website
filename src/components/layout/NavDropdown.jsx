@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import AppIcon from '@/components/ui/AppIcon'
 
 /**
@@ -28,12 +28,20 @@ export default function NavDropdown({ label, items, className = '' }) {
   const panelId = useId()
   const rootRef = useRef(null)
   const triggerRef = useRef(null)
+  const pendingFocusRef = useRef(null)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const [pinned, setPinned] = useState(false)
   // Esc גובר על ריחוף/פוקוס עד שהעכבר יוצא או שהפוקוס עוזב
   const [dismissed, setDismissed] = useState(false)
   const open = !dismissed && (hovered || focused || pinned)
+
+  // visibility: hidden מונע פוקוס בדפדפן. ממקדים רק אחרי שמצב הפתיחה הוחל על ה-DOM.
+  useLayoutEffect(() => {
+    const target = pendingFocusRef.current
+    pendingFocusRef.current = null
+    if (open) target?.focus()
+  }, [open])
 
   // לחיצה מחוץ לרכיב סוגרת את המצב הנעוץ
   useEffect(() => {
@@ -73,7 +81,10 @@ export default function NavDropdown({ label, items, className = '' }) {
     setDismissed(false)
     setFocused(true)
     if (index === -1) {
-      if (event.key === 'ArrowDown') list[0].focus()
+      if (event.key === 'ArrowDown') {
+        if (open) list[0].focus()
+        else pendingFocusRef.current = list[0]
+      }
       return
     }
     const step = event.key === 'ArrowDown' ? 1 : -1
