@@ -4,7 +4,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { filterPlugins, extractSortedTags, countTags, rankTags, popularTags, searchTags, isCompatibilityTag } from './pluginFilter.js'
+import { filterPlugins, countTags, rankTags, popularTags, searchTags, isCompatibilityTag } from './pluginFilter.js'
 
 function plugin(overrides = {}) {
   return {
@@ -76,18 +76,6 @@ test('filterPlugins סובלני לתוסף בלי שדה tags', () => {
   assert.deepEqual(filterPlugins(plugins, { searchQuery: 'א' }), plugins)
   assert.deepEqual(filterPlugins(plugins, { activeTag: 'all' }), plugins)
   assert.deepEqual(filterPlugins(plugins, { activeTag: 'משהו' }), [])
-})
-
-test('extractSortedTags מאחד תגיות כפולות וממיין א"ב עברי', () => {
-  const plugins = [
-    plugin({ tags: ['ב', 'א'] }),
-    plugin({ tags: ['א', 'ג'] })
-  ]
-  assert.deepEqual(extractSortedTags(plugins), ['א', 'ב', 'ג'])
-})
-
-test('extractSortedTags מחזיר מערך ריק כשאין תגיות', () => {
-  assert.deepEqual(extractSortedTags([plugin(), plugin()]), [])
 })
 
 test('countTags סופר תוספים לכל תגית (כפילות באותו תוסף — פעם אחת)', () => {

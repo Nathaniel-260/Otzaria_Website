@@ -1,4 +1,4 @@
-import Badge, { badgeToneClasses, type BadgeSize, type BadgeTone } from '@/components/ui/Badge'
+import Badge, { type BadgeSize, type BadgeTone } from '@/components/ui/Badge'
 import { formatPluginStatus } from '@/lib/pluginStatus'
 
 export type PluginStatus = 'stable' | 'beta' | 'experimental'
@@ -19,14 +19,6 @@ export const STATUS_TONES: Record<PluginStatus, BadgeTone> = {
 
 export function statusTone(status: PluginStatus | string): BadgeTone {
   return STATUS_TONES[status as PluginStatus] ?? 'neutral'
-}
-
-/**
- * תאימות לאחור: מחלקות הצבע של התג, לצרכן שעוטף אותן ב-span משלו. קוד חדש — <StatusBadge>.
- * @deprecated השתמשו ב-<StatusBadge status={...} />
- */
-export function statusBadgeClass(status: PluginStatus | string): string {
-  return badgeToneClasses(statusTone(status))
 }
 
 export default function StatusBadge({ status, size = 'sm', className }: {

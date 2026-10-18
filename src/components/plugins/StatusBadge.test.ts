@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { statusBadgeClass, statusTone, STATUS_TONES, LIFECYCLE_BADGES } from './StatusBadge'
-import { badgeToneClasses } from '@/components/ui/Badge'
+import { statusTone, STATUS_TONES, LIFECYCLE_BADGES } from './StatusBadge'
 
 describe('statusTone', () => {
   it('maps each release status to a badge tone, from quiet to prominent', () => {
@@ -15,14 +14,6 @@ describe('statusTone', () => {
 
   it('covers every release status', () => {
     expect(Object.keys(STATUS_TONES).sort()).toEqual(['beta', 'experimental', 'stable'])
-  })
-})
-
-describe('statusBadgeClass (תאימות לאחור)', () => {
-  it('returns the Badge tone classes of the status', () => {
-    expect(statusBadgeClass('stable')).toBe(badgeToneClasses('primary'))
-    expect(statusBadgeClass('experimental')).toBe(badgeToneClasses('warning'))
-    expect(statusBadgeClass('nope')).toBe(badgeToneClasses('neutral'))
   })
 })
 

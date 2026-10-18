@@ -28,15 +28,6 @@ export function filterPlugins(plugins, { searchQuery = '', statusFilter = 'all',
   return filtered
 }
 
-// כל התגיות הקיימות ברשימת תוספים, ממוינות א"ב עברי — חולץ מאותו דף.
-export function extractSortedTags(plugins) {
-  const tags = new Set()
-  plugins.forEach(plugin => {
-    plugin.tags?.forEach(tag => tags.add(tag))
-  })
-  return Array.from(tags).sort((a, b) => a.localeCompare(b, 'he'))
-}
-
 // כמה תוספים משויכים לכל תגית — Map של תגית → מספר. תגית כפולה באותו תוסף נספרת פעם אחת.
 export function countTags(plugins) {
   const counts = new Map()
