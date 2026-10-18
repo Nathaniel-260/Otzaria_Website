@@ -99,7 +99,10 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
   // האתר לא נצבעת קודם הרשימה המלאה.
   useLayoutEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    // קריאה חד-פעמית של ה-URL אחרי hydration (הדף סטטי)
+    // קריאה חד-פעמית של ה-URL אחרי hydration (הדף סטטי). setState כאן מכוון: זה סנכרון ממערכת
+    // חיצונית (ה-URL), שאינה זמינה ברינדור השרת, והתזמון (layout effect — לפני הצביעה) הוא מה שמונע
+    // את הבהוב הרשימה המלאה. initializer של useState היה רץ גם בשרת ושובר את ה-hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearchQuery(params.get('q') || '')
     setStatusFilter(params.get('status') || 'all')
     setActiveTag(params.get('tag') || 'all')

@@ -18,7 +18,10 @@ describe('EmptyState', () => {
 
   it('as="h1" לעמוד שכולו המצב הריק, ו-role="status" להכרזה אחרי סינון', () => {
     render(<EmptyState as="h1" role="status" title="הקטגוריה לא נמצאה" />)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('הקטגוריה לא נמצאה')
+    const heading = screen.getByRole('heading', { level: 1 })
+    expect(heading).toHaveTextContent('הקטגוריה לא נמצאה')
+    // כותרת עמוד — בגופן התצוגה, כמו שאר ה-h1 באתר
+    expect(heading.className).toContain('font-display')
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 

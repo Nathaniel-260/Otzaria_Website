@@ -37,7 +37,17 @@ export default function EmptyState({
   const body = (
     <>
       <IconTile icon={icon} size="lg" />
-      <Heading id={id} className="mt-5 text-balance text-title-lg text-on-surface">{title}</Heading>
+      {/* h1 (העמוד כולו הוא המצב — "הקטגוריה לא נמצאה") — כמו כל כותרת עמוד באתר: גופן התצוגה, 400.
+          h2/h3 — כותרת כרטיס (Assistant). */}
+      <Heading
+        id={id}
+        className={cx(
+          'mt-5 text-balance text-on-surface',
+          Heading === 'h1' ? 'font-display text-headline-md md:text-headline-lg' : 'text-title-lg'
+        )}
+      >
+        {title}
+      </Heading>
       {description && (
         <p className="mt-2 max-w-measure text-balance text-body-md text-on-surface-variant">{description}</p>
       )}
