@@ -123,6 +123,8 @@ function Carousel({ screenshots, className }: CarouselProps) {
   const showDots = count <= MAX_DOTS
 
   const onPointerDown = (event: ReactPointerEvent) => {
+    // נגיעה/לחיצה חדשה — אחרי החלקה הדפדפן לרוב לא שולח click, כך שהדגל היה נשאר ובולע את הבאה
+    suppressClick.current = false
     if (event.pointerType === 'mouse') return
     pointerStart.current = { x: event.clientX, y: event.clientY }
   }

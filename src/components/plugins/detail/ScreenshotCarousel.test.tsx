@@ -101,6 +101,29 @@ describe('ScreenshotCarousel', () => {
     expect(currentSlide()).toHaveAttribute('aria-label', 'תמונה 2 מתוך 3')
   })
 
+  it('אחרי החלקה (בלי click מהדפדפן) — הנגיעה הבאה פותחת את התצוגה המוגדלת', async () => {
+    render(<ScreenshotCarousel screenshots={shots} />)
+    const frame = track().parentElement as HTMLElement
+    fireEvent.pointerDown(frame, { pointerType: 'touch', clientX: 100, clientY: 100 })
+    fireEvent.pointerUp(frame, { pointerType: 'touch', clientX: 200, clientY: 105 })
+    expect(currentSlide()).toHaveAttribute('aria-label', 'תמונה 2 מתוך 3')
+    // נגיעה רגילה: pointerdown + pointerup באותו מקום, ואז click
+    const shot = screen.getByRole('button', { name: 'צילום מסך 2' })
+    fireEvent.pointerDown(shot, { pointerType: 'touch', clientX: 150, clientY: 100 })
+    fireEvent.pointerUp(shot, { pointerType: 'touch', clientX: 150, clientY: 100 })
+    fireEvent.click(shot)
+    expect(await screen.findByRole('dialog', { name: 'צילומי מסך' })).toBeInTheDocument()
+  })
+
+  it('click שמגיע מיד אחרי החלקה נבלע (לא פותח תצוגה מוגדלת)', () => {
+    render(<ScreenshotCarousel screenshots={shots} />)
+    const frame = track().parentElement as HTMLElement
+    fireEvent.pointerDown(frame, { pointerType: 'touch', clientX: 100, clientY: 100 })
+    fireEvent.pointerUp(frame, { pointerType: 'touch', clientX: 200, clientY: 105 })
+    fireEvent.click(screen.getByRole('button', { name: 'צילום מסך 2' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('רשימה חדשה (עריכה בעמוד) — חוזרת לתמונה הראשונה, בלי מצב שבור מהרשימה הקודמת', async () => {
     const user = userEvent.setup()
     const { container, rerender } = render(<ScreenshotCarousel screenshots={shots} />)
