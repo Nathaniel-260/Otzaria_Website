@@ -276,11 +276,13 @@ export default function PluginSearchBox({
               )}
             >
               <PluginImage src={plugin.image} size="sm" />
-              <div className="min-w-0">
-                <div className="truncate text-label-lg text-on-surface">
+              {/* טקסט של המפתח — אולי באנגלית: dir="auto" מסדר את הסימנים, והיישור נשאר לימין כמו
+                  ב-PluginResultRow */}
+              <div className="min-w-0 flex-1">
+                <div dir="auto" className="truncate text-right text-label-lg text-on-surface">
                   {highlightMatches(plugin.name, trimmed)}
                 </div>
-                <div className="truncate text-body-sm text-on-surface-variant">
+                <div dir="auto" className="truncate text-right text-body-sm text-on-surface-variant">
                   {plugin.shortDescription}
                 </div>
               </div>

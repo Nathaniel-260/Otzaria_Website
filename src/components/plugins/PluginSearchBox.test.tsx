@@ -54,6 +54,12 @@ describe('PluginSearchBox', () => {
     })
     const listbox = await screen.findByRole('listbox', { name: 'הצעות' })
     expect(listbox.querySelectorAll('[role="option"]')).toHaveLength(2)
+    // שם ותיאור של המפתח (אולי באנגלית) — dir="auto", מיושרים לימין כמו ב-PluginResultRow
+    const [name, description] = Array.from(listbox.querySelectorAll('[role="option"] [dir="auto"]'))
+    expect(name).toHaveTextContent('יוצר דפי תפילה')
+    expect(description).toHaveTextContent('תיאור')
+    expect(name).toHaveClass('text-right')
+    expect(description).toHaveClass('text-right')
     await user.keyboard('{ArrowDown}{Enter}')
     expect(push).toHaveBeenCalledWith('/plugins/p1')
   })
