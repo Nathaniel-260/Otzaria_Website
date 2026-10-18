@@ -1,23 +1,32 @@
 'use client'
 
-import { useEffect, useId, useRef, useState, type FocusEvent } from 'react'
-import Button from '@/components/ui/Button'
+import { useId } from 'react'
 import Chip from '@/components/ui/Chip'
+import { cx } from '@/components/ui/cx'
 import { FIELD_LABEL_COMPACT } from '@/components/ui/fieldStyles'
+import { popularTags } from '@/lib/pluginFilter'
+import TagPicker from './TagPicker'
 
-/** גובה התחלתי (לפני המדידה, וב-HTML מהשרת): בערך 3 שורות שבבים — כדי שלא תהיה קפיצה */
-const INITIAL_COLLAPSED_HEIGHT = 136
-/** כמה שורות מוצגות במצב מקופל */
-const COLLAPSED_ROWS = 3
+/** תגית ומספר התוספים שלה (בסינון הנוכחי של חיפוש וסטטוס) */
+export interface TagCount {
+  tag: string
+  count: number
+}
+
+/** כמה תגיות נפוצות מוצגות כשבבים */
+const POPULAR_COUNT = 8
 
 /**
- * מסנן תגיות — "כל התגיות" ואחריו כל תגית, כשבבי בחירה (ui/Chip, aria-pressed). התגית הפעילה
- * מסומנת בצבע ובמצב הנגיש. מוגבל ל-3 שורות, עם "הצג עוד" / "הצג פחות" (המנגנון הקיים של הדף:
- * מדידת גובה שורה ו-max-height מונפש; הרווח האנכי והריפוד נמדדים מה-CSS ולא מוקשים).
+ * מסנן התגיות של "כל התוספים". רוב התגיות משויכות לתוסף אחד בלבד (נמדד: 81 מתוך 104), ולכן לא
+ * מציגים את כולן כקיר שבבים:
+ * - בראש השורה, "כל התגיות" (TagPicker): חלונית עם חיפוש וכל התגיות, לפי שכיחות ועם מונה.
+ * - אחריו, התגיות הנפוצות כשבבי בחירה (aria-pressed), עם מונה. לחיצה על שבב פעיל מבטלת אותו.
+ * - התגית הפעילה תמיד גלויה. אם היא לא בין הנפוצות, היא נוספת ראשונה (popularTags).
+ * בנייד השבבים בשורה אחת שנגללת בתוך עצמה (הכפתור "כל התגיות" נשאר קבוע מחוץ לגלילה, כדי
+ * שהחלונית שלו לא תיחתך). מ-md, השבבים נשברים לשורות.
  *
- * ריפוד פנימי קטן (p-1 -m-1): ה-overflow-hidden של הקיפול חותך — בלעדיו טבעת הפוקוס של השבבים
- * בשורה העליונה ובקצוות הייתה נחתכת.
- * פוקוס מקלדת על שבב שמוסתר מתחת לקיפול — פותח את הרשימה, כדי שלא יהיה פוקוס בלתי נראה.
+ * tags: כל התגיות לפי סדר השכיחות ברשימה המלאה. הסדר יציב ולא קופץ בזמן הקלדה. המונה הוא
+ * מספר התוספים בסינון הנוכחי.
  */
 export default function TagFilterChips({
   tags,
@@ -27,101 +36,49 @@ export default function TagFilterChips({
   allLabel = 'כל התגיות',
   className
 }: {
-  tags: string[]
+  tags: TagCount[]
   activeTag: string
   onSelect: (tag: string) => void
   label?: string
   allLabel?: string
   className?: string
 }) {
-  const baseId = useId()
-  const labelId = `${baseId}-label`
-  const listId = `${baseId}-list`
-  const clipRef = useRef<HTMLDivElement>(null)
-  const listRef = useRef<HTMLDivElement>(null)
-  const [expanded, setExpanded] = useState(false)
-  const [collapsedHeight, setCollapsedHeight] = useState(INITIAL_COLLAPSED_HEIGHT)
-  const [fullHeight, setFullHeight] = useState(0)
-  const [overflow, setOverflow] = useState(false)
-
-  // מדידת גובה אזור התגיות — הגבלה ל-3 שורות עם כפתור "הצג עוד".
-  // המדידה על הרשימה הפנימית (שאינה מוגבלת בגובה), ונשנית בכל שינוי גודל שלה (ResizeObserver —
-  // גם כשהגופן נטען אחרי ה-hydration ומשנה את רוחב השבבים, לא רק ב-resize של החלון).
-  useEffect(() => {
-    const clip = clipRef.current
-    const list = listRef.current
-    if (!clip || !list || !list.firstElementChild) return
-    const measure = () => {
-      const rowHeight = (list.firstElementChild as HTMLElement).offsetHeight
-      if (!rowHeight) return
-      const gap = parseFloat(getComputedStyle(list).rowGap) || 0
-      const clipStyle = getComputedStyle(clip)
-      const padding = (parseFloat(clipStyle.paddingTop) || 0) + (parseFloat(clipStyle.paddingBottom) || 0)
-      const collapsed = rowHeight * COLLAPSED_ROWS + gap * (COLLAPSED_ROWS - 1) + padding
-      const full = list.offsetHeight + padding
-      setCollapsedHeight(collapsed)
-      setFullHeight(full)
-      setOverflow(full > collapsed + 4)
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
-    observer?.observe(list)
-    document.fonts?.ready.then(measure).catch(() => {})
-    return () => {
-      window.removeEventListener('resize', measure)
-      observer?.disconnect()
-    }
-  }, [tags])
-
-  const handleFocus = (event: FocusEvent<HTMLDivElement>) => {
-    if (expanded || !overflow) return
-    const target = event.target as HTMLElement
-    if (target.offsetTop + target.offsetHeight > collapsedHeight) setExpanded(true)
-  }
+  const labelId = `${useId()}-label`
 
   if (tags.length === 0) return null
+
+  const chips = popularTags(tags, activeTag, POPULAR_COUNT) as TagCount[]
 
   return (
     <div className={className}>
       <p id={labelId} className={FIELD_LABEL_COMPACT}>{label}</p>
-      {/* עוטף הקיפול (max-height + overflow) והרשימה עצמה בתוכו — כדי שאפשר יהיה למדוד את גובהה המלא */}
-      <div
-        id={listId}
-        ref={clipRef}
-        onFocus={handleFocus}
-        className="-m-1 overflow-hidden p-1 transition-[max-height] duration-300 motion-reduce:transition-none"
-        style={{ maxHeight: expanded ? (fullHeight || undefined) : collapsedHeight }}
-      >
-        <div
-          ref={listRef}
-          role="group"
-          aria-labelledby={labelId}
-          className="relative flex flex-wrap gap-x-2 gap-y-2.5"
+      <div role="group" aria-labelledby={labelId} className="flex items-start gap-2">
+        <TagPicker tags={tags} activeTag={activeTag} onSelect={onSelect} label={allLabel} className="shrink-0" />
+        <ul
+          className={cx(
+            'flex min-w-0 flex-1 gap-x-2 gap-y-2.5',
+            // נייד: מסילה. py-1 ו--my-1 נותנים מקום לטבעת הפוקוס בתוך אזור הגלילה, בלי להזיז את השורה
+            '-my-1 overflow-x-auto overscroll-x-contain px-1 py-1 scrollbar-thin',
+            'md:my-0 md:flex-wrap md:overflow-visible md:p-0'
+          )}
         >
-          <Chip selected={activeTag === 'all'} onClick={() => onSelect('all')}>
-            {allLabel}
-          </Chip>
-          {tags.map((tag) => (
-            <Chip key={tag} selected={activeTag === tag} onClick={() => onSelect(tag)}>
-              {tag}
-            </Chip>
-          ))}
-        </div>
+          {chips.map(({ tag, count }) => {
+            const selected = activeTag === tag
+            return (
+              <li key={tag} className="shrink-0">
+                <Chip
+                  selected={selected}
+                  icon={selected ? 'check' : undefined}
+                  count={count}
+                  onClick={() => onSelect(selected ? 'all' : tag)}
+                >
+                  {tag}
+                </Chip>
+              </li>
+            )
+          })}
+        </ul>
       </div>
-      {overflow && (
-        <Button
-          variant="text"
-          size="sm"
-          iconEnd={expanded ? 'expand_less' : 'expand_more'}
-          aria-expanded={expanded}
-          aria-controls={listId}
-          onClick={() => setExpanded((v) => !v)}
-          className="mt-2 -ms-3"
-        >
-          {expanded ? 'הצג פחות' : 'הצג עוד'}
-        </Button>
-      )}
     </div>
   )
 }

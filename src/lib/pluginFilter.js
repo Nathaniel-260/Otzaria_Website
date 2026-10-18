@@ -36,3 +36,35 @@ export function extractSortedTags(plugins) {
   })
   return Array.from(tags).sort((a, b) => a.localeCompare(b, 'he'))
 }
+
+// כמה תוספים משויכים לכל תגית — Map של תגית → מספר. תגית כפולה באותו תוסף נספרת פעם אחת.
+export function countTags(plugins) {
+  const counts = new Map()
+  plugins.forEach(plugin => {
+    new Set(plugin.tags || []).forEach(tag => counts.set(tag, (counts.get(tag) || 0) + 1))
+  })
+  return counts
+}
+
+// כל התגיות לפי שכיחות (הנפוצה ראשונה), ובשוויון — א"ב עברי. [{ tag, count }].
+// מסנן התגיות בדף "כל התוספים" מציג את הראשונות כ"נפוצות", ואת כולן בתפריט "כל התגיות".
+export function rankTags(plugins) {
+  return Array.from(countTags(plugins), ([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, 'he'))
+}
+
+// התגיות שמוצגות כשבבים: N הראשונות בדירוג. התגית הפעילה תמיד גלויה — אם היא לא ביניהן
+// (או בכלל לא ברשימה, למשל מקישור ישן), היא נוספת ראשונה.
+export function popularTags(ranked, activeTag = 'all', limit = 8) {
+  const top = ranked.slice(0, limit)
+  if (activeTag === 'all' || top.some(t => t.tag === activeTag)) return top
+  const active = ranked.find(t => t.tag === activeTag) || { tag: activeTag, count: 0 }
+  return [active, ...top]
+}
+
+// חיפוש בתוך רשימת התגיות (תפריט "כל התגיות"): התאמה חלקית, בלי תלות ברישיות וברווחים בקצוות.
+export function searchTags(tags, query) {
+  const q = (query || '').trim().toLowerCase()
+  if (!q) return tags
+  return tags.filter(t => t.tag.toLowerCase().includes(q))
+}

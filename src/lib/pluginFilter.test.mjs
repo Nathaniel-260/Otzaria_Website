@@ -4,7 +4,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { filterPlugins, extractSortedTags } from './pluginFilter.js'
+import { filterPlugins, extractSortedTags, countTags, rankTags, popularTags, searchTags } from './pluginFilter.js'
 
 function plugin(overrides = {}) {
   return {
@@ -88,4 +88,32 @@ test('extractSortedTags מאחד תגיות כפולות וממיין א"ב עב
 
 test('extractSortedTags מחזיר מערך ריק כשאין תגיות', () => {
   assert.deepEqual(extractSortedTags([plugin(), plugin()]), [])
+})
+
+test('countTags סופר תוספים לכל תגית (כפילות באותו תוסף — פעם אחת)', () => {
+  const counts = countTags([plugin({ tags: ['א', 'ב', 'א'] }), plugin({ tags: ['א'] }), plugin({ tags: undefined })])
+  assert.equal(counts.get('א'), 2)
+  assert.equal(counts.get('ב'), 1)
+  assert.equal(counts.size, 2)
+})
+
+test('rankTags ממיין לפי שכיחות, ובשוויון לפי א"ב', () => {
+  const ranked = rankTags([plugin({ tags: ['ת', 'ב'] }), plugin({ tags: ['ת', 'א'] })])
+  assert.deepEqual(ranked, [{ tag: 'ת', count: 2 }, { tag: 'א', count: 1 }, { tag: 'ב', count: 1 }])
+})
+
+test('popularTags: N הראשונות; תגית פעילה מחוץ להן נוספת ראשונה', () => {
+  const ranked = [{ tag: 'א', count: 3 }, { tag: 'ב', count: 2 }, { tag: 'ג', count: 1 }]
+  assert.deepEqual(popularTags(ranked, 'all', 2).map(t => t.tag), ['א', 'ב'])
+  assert.deepEqual(popularTags(ranked, 'ב', 2).map(t => t.tag), ['א', 'ב'])
+  assert.deepEqual(popularTags(ranked, 'ג', 2).map(t => t.tag), ['ג', 'א', 'ב'])
+  // תגית שלא קיימת (קישור ישן) — עדיין גלויה, עם 0
+  assert.deepEqual(popularTags(ranked, 'ז', 1), [{ tag: 'ז', count: 0 }, { tag: 'א', count: 3 }])
+})
+
+test('searchTags: התאמה חלקית בלי רישיות; שאילתה ריקה מחזירה הכל', () => {
+  const tags = [{ tag: 'English', count: 1 }, { tag: 'כלי עזר', count: 2 }]
+  assert.deepEqual(searchTags(tags, '  eng '), [tags[0]])
+  assert.deepEqual(searchTags(tags, 'עזר'), [tags[1]])
+  assert.equal(searchTags(tags, ''), tags)
 })

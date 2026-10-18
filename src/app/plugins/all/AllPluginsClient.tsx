@@ -23,7 +23,8 @@
 //
 // מבנה העמוד (מפרט החנות, סעיף 6 / סוכן 2), לסריקה מהירה:
 //   StorePageHeader (פירורי לחם, h1, "העלה תוסף חדש") ובתוכו לוח מסננים אחד — חיפוש וסטטוס בשורה,
-//   תגיות מתחת. → אזור התוצאות: h2 ובקצה השורה מונה התוצאות + "נקה סינון" כשיש סינון פעיל.
+//   ומתחת שורת תגיות: "כל התגיות" (חלונית עם חיפוש) + התגיות הנפוצות, עם מונה (TagFilterChips).
+//   → אזור התוצאות: h2 ובקצה השורה מונה התוצאות + "נקה סינון" כשיש סינון פעיל.
 //   → רשת הכרטיסים (h3). → אזור הסבר "תוספים לאוצריא".
 
 import { useState, useEffect, useLayoutEffect, useMemo } from 'react'
@@ -44,7 +45,7 @@ import ResultsHeading from '@/components/plugins/listing/ResultsHeading'
 import StatusSelect from '@/components/plugins/listing/StatusSelect'
 import TagFilterChips from '@/components/plugins/listing/TagFilterChips'
 import { FIELD_LABEL_COMPACT } from '@/components/ui/fieldStyles'
-import { filterPlugins, extractSortedTags } from '@/lib/pluginFilter'
+import { filterPlugins, countTags, rankTags } from '@/lib/pluginFilter'
 import type { PluginCardData } from '@/components/plugins/types'
 import Loader from '@/components/ui/Loader'
 
@@ -87,7 +88,17 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
   const { showAlert } = useDialog() as { showAlert: (title: string, message: string) => void }
   const { installState, install } = useDirectInstall(showAlert)
 
-  const allTags: string[] = useMemo(() => extractSortedTags(plugins), [plugins])
+  // התגיות לפי שכיחות ברשימה המלאה (סדר יציב), והמונה של כל אחת — בסינון הנוכחי של חיפוש וסטטוס
+  // (בלי התגית עצמה), כלומר: כמה תוספים יוצגו אם יבחרו בה
+  const rankedTags = useMemo(() => rankTags(plugins) as { tag: string; count: number }[], [plugins])
+  const tagCounts = useMemo(
+    () => countTags(filterPlugins(plugins, { searchQuery, statusFilter })) as Map<string, number>,
+    [plugins, searchQuery, statusFilter]
+  )
+  const tagOptions = useMemo(
+    () => rankedTags.map(({ tag }) => ({ tag, count: tagCounts.get(tag) || 0 })),
+    [rankedTags, tagCounts]
+  )
   const filteredPlugins: PluginCardData[] = useMemo(
     () => filterPlugins(plugins, { searchQuery, statusFilter, activeTag }),
     [plugins, searchQuery, statusFilter, activeTag]
@@ -190,7 +201,7 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
               <StatusSelect value={statusFilter} onChange={setStatusFilter} />
             </div>
 
-            <TagFilterChips tags={allTags} activeTag={activeTag} onSelect={setActiveTag} />
+            <TagFilterChips tags={tagOptions} activeTag={activeTag} onSelect={setActiveTag} />
           </Card>
         </StorePageHeader>
 
