@@ -66,3 +66,25 @@ export function ownerPermissions(
     showSuspendToggle: canEdit && (!plugin.isSuspended || canResume)
   }
 }
+
+/**
+ * טקסט חופשי של המפתח (תיאור, תיאור קצר) → פסקאות של שורות, לתצוגה של כל שורה כבלוק נפרד.
+ * למה לא <p> אחד עם whitespace-pre-line: הנתונים מגיעים עם \r\n ובשורות שמערבבות אנגלית ועברית —
+ * בחירה בלחיצה כפולה/משולשת חצתה את גבול השורה, וכיוון השורה (נקודה בסוף שורה אנגלית) נקבע לפי
+ * הפסקה כולה. כאן: \r\n ו-\r → \n; שורה ריקה (או כמה) מפרידה פסקאות; שורות ריקות בקצוות נזרקות.
+ * ירידות השורה שהמפתח הזין נשמרות (issue #175).
+ */
+export function splitUserText(text: string | null | undefined): string[][] {
+  const normalized = (text || '').replace(/\r\n?/g, '\n')
+  return normalized
+    .split(/\n[ \t]*\n/)
+    .map((paragraph) => paragraph.split('\n').map((line) => line.trimEnd()))
+    .map((lines) => {
+      let first = 0
+      let last = lines.length
+      while (first < last && lines[first].trim() === '') first++
+      while (last > first && lines[last - 1].trim() === '') last--
+      return lines.slice(first, last)
+    })
+    .filter((lines) => lines.length > 0)
+}

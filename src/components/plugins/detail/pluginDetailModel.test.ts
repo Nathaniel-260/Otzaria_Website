@@ -6,7 +6,8 @@ import {
   versionHref,
   formatCount,
   displayUpdatedDate,
-  ownerPermissions
+  ownerPermissions,
+  splitUserText
 } from './pluginDetailModel'
 
 describe('buildPluginBreadcrumbs', () => {
@@ -75,5 +76,20 @@ describe('ownerPermissions', () => {
     expect(p.suspendedByAdmin).toBe(true)
     expect(p.showSuspendToggle).toBe(false)
     expect(ownerPermissions({ ...base, isSuspended: true, suspendedByRole: 'owner' }, 'u1').showSuspendToggle).toBe(true)
+  })
+})
+
+describe('splitUserText', () => {
+  it('מנרמל \r\n ו-\r ומפצל לשורות', () => {
+    expect(splitUserText("Jastrow English Aramaic dictionary\r\nמילון ג'סטרוב\rשורה שלישית")).toEqual([
+      ['Jastrow English Aramaic dictionary', "מילון ג'סטרוב", 'שורה שלישית']
+    ])
+  })
+  it('שורה ריקה מפרידה פסקאות; שורות ריקות בקצוות נזרקות', () => {
+    expect(splitUserText('\r\n\r\nא\r\nב\r\n\r\n\r\nג\n  \n')).toEqual([['א', 'ב'], ['ג']])
+  })
+  it('ריק → אין פסקאות', () => {
+    expect(splitUserText('')).toEqual([])
+    expect(splitUserText(undefined)).toEqual([])
   })
 })

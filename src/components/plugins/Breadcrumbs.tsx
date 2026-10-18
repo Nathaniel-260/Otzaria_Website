@@ -46,7 +46,8 @@ export default function Breadcrumbs({ items, className }: BreadcrumbsProps) {
                   title={item.label}
                   className={cx('inline-flex min-h-(--touch-target) min-w-0 items-center', last && 'text-on-surface')}
                 >
-                  <span className="truncate">{item.label}</span>
+                  {/* השם האחרון הוא שם התוסף (טקסט המפתח, אולי באנגלית) — כיוון לפי התוכן, יישור לפי העמוד */}
+                  <span dir="auto" className="truncate text-right">{item.label}</span>
                 </span>
               )}
               {!last && <AppIcon name="chevron_left" className="shrink-0 text-base text-outline" />}

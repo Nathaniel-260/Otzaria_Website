@@ -56,8 +56,10 @@ export default function PluginResultRow({
               href={href}
               prefetch={false}
               title={plugin.name}
+              // טקסט של המפתח — אולי באנגלית: dir="auto" מסדר את הסימנים (נקודה בסוף), והיישור נשאר לימין כמו העמוד
+              dir="auto"
               className={cx(
-                'line-clamp-2 break-words outline-none transition-colors group-hover:text-primary',
+                'line-clamp-2 break-words text-right outline-none transition-colors group-hover:text-primary',
                 "after:absolute after:inset-0 after:rounded-(--card-radius) after:content-['']",
                 'focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-focus-ring'
               )}
@@ -70,7 +72,7 @@ export default function PluginResultRow({
           <PluginMeta plugin={plugin} className="mt-1.5" />
 
           {plugin.shortDescription && (
-            <p className="mt-2 line-clamp-2 break-words text-body-sm text-on-surface-variant">
+            <p dir="auto" className="mt-2 line-clamp-2 break-words text-right text-body-sm text-on-surface-variant">
               {plugin.shortDescription}
             </p>
           )}

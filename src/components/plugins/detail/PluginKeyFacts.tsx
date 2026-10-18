@@ -60,7 +60,7 @@ export function buildKeyFacts(plugin: Pick<Plugin,
     facts.push({ key: 'compat', label: 'תאימות', value: <Ltr>{plugin.compatibleWith}</Ltr> })
   }
   if (plugin.author) {
-    facts.push({ key: 'author', label: 'מפתח', value: plugin.author, title: plugin.author })
+    facts.push({ key: 'author', label: 'מפתח', value: <bdi>{plugin.author}</bdi>, title: plugin.author })
   }
   return facts
 }

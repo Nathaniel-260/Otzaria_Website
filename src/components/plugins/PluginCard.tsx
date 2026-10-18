@@ -68,8 +68,10 @@ export default function PluginCard({
               href={href}
               prefetch={false}
               title={plugin.name}
+              // טקסט של המפתח — אולי באנגלית: dir="auto" מסדר את הסימנים (נקודה בסוף), והיישור נשאר לימין כמו העמוד
+              dir="auto"
               className={cx(
-                'line-clamp-2 break-words outline-none transition-colors group-hover:text-primary',
+                'line-clamp-2 break-words text-right outline-none transition-colors group-hover:text-primary',
                 // stretched link: כל הכרטיס מטרת הקישור; הפוקוס — טבעת סביב הכרטיס
                 "after:absolute after:inset-0 after:rounded-(--card-radius) after:content-['']",
                 'focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-focus-ring'
@@ -84,7 +86,7 @@ export default function PluginCard({
       </div>
 
       {/* תיאור — תמיד בגובה שתי שורות, כדי שהכפתורים בשורת כרטיסים יהיו בקו אחד */}
-      <p className="line-clamp-2 min-h-[calc(2lh)] break-words text-body-sm text-on-surface-variant">
+      <p dir="auto" className="line-clamp-2 min-h-[calc(2lh)] break-words text-right text-body-sm text-on-surface-variant">
         {plugin.shortDescription}
       </p>
 

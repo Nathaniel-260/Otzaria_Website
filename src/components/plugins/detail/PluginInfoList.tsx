@@ -22,7 +22,7 @@ export function buildInfoRows(plugin: Pick<Plugin,
   const rows: Row[] = [
     { key: 'version', label: 'גרסה', value: <Ltr>{plugin.version}</Ltr> },
     { key: 'status', label: 'סטטוס', value: formatPluginStatus(plugin.status) },
-    { key: 'author', label: 'מפתח', value: plugin.author },
+    { key: 'author', label: 'מפתח', value: <bdi>{plugin.author}</bdi> },
     { key: 'updated', label: 'עודכן', value: formatHebrewDate(displayUpdatedDate(plugin)) },
     { key: 'downloads', label: 'הורדות', value: <span className="tabular-nums">{formatCount(plugin.downloadCount)}</span> }
   ]
