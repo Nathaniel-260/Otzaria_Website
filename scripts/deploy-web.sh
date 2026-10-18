@@ -4,10 +4,13 @@ set -euo pipefail
 DEPLOY_REF=${1:?website commit required}
 VALIDATOR_REF=${2:?validator commit required}
 APP_DIR=${3:-/var/www/otzaria-web}
+PM2_APP=${PM2_APP:-otzaria}
 [[ "$DEPLOY_REF" =~ ^[a-f0-9]{40}$ && "$VALIDATOR_REF" =~ ^[a-f0-9]{40}$ ]] || {
   echo 'Deployment requires immutable commit SHAs' >&2; exit 1;
 }
 cd "$APP_DIR"
+# Fail before installing/building when this PM2 user cannot see the app.
+pm2 describe "$PM2_APP" > /dev/null
 OLD_REF=$(git rev-parse HEAD)
 STAGE=$(mktemp -d "$(dirname "$APP_DIR")/.otzaria-deploy.XXXXXX")
 BACKUP="$STAGE/previous"
@@ -35,14 +38,14 @@ cleanup() {
   if [[ "$STOPPED" == true && "$COMPLETE" != true ]]; then
     echo 'Activation failed; restoring the previous code and build' >&2
     set +e
-    pm2 stop otzaria-web || rollback_failed=true
+    pm2 stop "$PM2_APP" || rollback_failed=true
     for item in ${INSTALLED_NEW[@]+"${INSTALLED_NEW[@]}"}; do rm -rf "$APP_DIR/$item" || rollback_failed=true; done
     for item in ${MOVED_OLD[@]+"${MOVED_OLD[@]}"}; do
       mkdir -p "$(dirname "$APP_DIR/$item")" || rollback_failed=true
       mv "$BACKUP/$item" "$APP_DIR/$item" || rollback_failed=true
     done
     git reset --hard "$OLD_REF" || rollback_failed=true
-    pm2 restart otzaria-web || rollback_failed=true
+    pm2 restart "$PM2_APP" || rollback_failed=true
     check_health || rollback_failed=true
     if [[ "$rollback_failed" == true ]]; then
       echo "Rollback failed; backup retained at $STAGE" >&2
@@ -75,7 +78,7 @@ for item in "${RUNTIME_PATHS[@]}"; do test -e "$STAGE/$item"; done
 
 echo 'Build verified; activating it with rollback available'
 cd "$APP_DIR"
-pm2 stop otzaria-web
+pm2 stop "$PM2_APP"
 STOPPED=true
 git reset --hard "$DEPLOY_REF"
 for item in "${RUNTIME_PATHS[@]}"; do
@@ -87,7 +90,7 @@ for item in "${RUNTIME_PATHS[@]}"; do
   mv "$STAGE/$item" "$APP_DIR/$item"
   INSTALLED_NEW+=("$item")
 done
-pm2 restart otzaria-web
+pm2 restart "$PM2_APP"
 
 # Check the actual Node server and the exact build version, bypassing nginx caches.
 if check_health; then
