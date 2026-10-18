@@ -9,40 +9,34 @@
 // הדף עצמו סטטי (ISR), ו-useSearchParams בזמן prerender "מחלץ" את כל גבול
 // ה-Suspense הקרוב לרינדור בצד הלקוח — כשהוא ישב ברכיב התוכן, ה-HTML הסטטי
 // הכיל רק שלד, והתוכן (שכבר הגיע מהשרת ב-payload) הופיע רק אחרי hydration.
+//
+// מבנה העמוד (מפרט: refactor-notes/redesign/plugins-design-spec.md, §2 סריקה מהירה ו-§6):
+// מ-lg: סרגל קטגוריות דביק מראש הדף, ולצדו עמודת התוכן. בעמודה: פתיחה קומפקטית (אריח + h1 + שורת
+// משנה, פעולות משניות שקטות, חיפוש) ← שבבי קטגוריות (רק מתחת ל-lg) ← תוספים נבחרים ← שורות הקטגוריה
+// ← פס "כל התוספים". כל אזור באותו מבנה (StoreHomeSection) וברווח אחד קבוע.
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import Button from '@/components/ui/Button'
+import EmptyState from '@/components/ui/EmptyState'
+import Section from '@/components/ui/Section'
 import { useDirectInstall } from '@/components/plugins/useDirectInstall'
 import { useDialog } from '@/components/providers/DialogContext'
 import PluginCard from '@/components/plugins/PluginCard'
-import PluginSearchBox from '@/components/plugins/PluginSearchBox'
-import PluginStoreAppBanner from '@/components/plugins/PluginStoreAppBanner'
+import PluginGrid from '@/components/plugins/PluginGrid'
+import StoreHomeHero from '@/components/plugins/home/StoreHomeHero'
+import CategoryChipsNav from '@/components/plugins/home/CategoryChipsNav'
+import CategorySidebar from '@/components/plugins/home/CategorySidebar'
+import StoreHomeSection from '@/components/plugins/home/StoreHomeSection'
+import BrowseAllCta from '@/components/plugins/home/BrowseAllCta'
+import StoreHomeSkeleton from '@/components/plugins/home/StoreHomeSkeleton'
+import { categoriesShowIcons, categoryIcon } from '@/components/plugins/categoryIcons'
 import type { StoreHomeData } from './storeHomeTypes'
 
 const DEFAULT_HOME_TITLE = 'חנות התוספים של אוצריא'
-const DEFAULT_HOME_SUBTITLE = 'תוספים שמרחיבים את חוויית הלימוד באוצריא — מצאו, הורידו והתקינו בלחיצה אחת'
+const DEFAULT_HOME_SUBTITLE = 'תוספים שמרחיבים את חוויית הלימוד באוצריא — מצא, הורד והתקן בלחיצה אחת'
 const FEATURED_PREVIEW_COUNT = 6
-
-// שלד טעינה — בלוקים אפורים מהבהבים בגובה כרטיס (לא רק ספינר). מוצג רק
-// בזמן הפניית תאימות ?tag= (הטעינה הרגילה כבר קרתה בשרת לפני הרינדור).
-function StoreHomeSkeleton() {
-  return (
-    <div className="container mx-auto max-w-6xl px-4 py-12 animate-pulse">
-      <div className="mx-auto max-w-2xl">
-        <div className="h-10 bg-neutral-200 rounded-xl w-2/3 mx-auto mb-4"></div>
-        <div className="h-5 bg-neutral-200 rounded-lg w-full mb-8"></div>
-        <div className="h-14 bg-neutral-200 rounded-2xl w-full mb-12"></div>
-      </div>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-96 bg-neutral-200 rounded-2xl"></div>
-        ))}
-      </div>
-    </div>
-  )
-}
+const TITLE_ID = 'store-home-title'
 
 interface PluginsStoreHomeClientProps {
   data: StoreHomeData | null
@@ -86,6 +80,8 @@ export default function PluginsStoreHomeClient({ data, loadError }: PluginsStore
   const homeSubtitle = data?.settings.homeSubtitle || DEFAULT_HOME_SUBTITLE
   const isEmptyHome = featured.length === 0 && homeCategories.length === 0
   const visibleFeatured = showAllFeatured ? featured : featured.slice(0, FEATURED_PREVIEW_COUNT)
+  const hasCategoryNav = !loadError && categories.length > 0
+  const showCategoryIcons = categoriesShowIcons(categories)
 
   return (
     <div className="flex flex-1 flex-col">
@@ -94,225 +90,100 @@ export default function PluginsStoreHomeClient({ data, loadError }: PluginsStore
       </Suspense>
 
       <main id="main-content" className="flex-1">
-        {/* Hero קומפקטי: כותרת + חיפוש בולט + העלאת תוסף */}
-        <section className="bg-white border-b border-neutral-100 py-12 px-4">
-          <div className="container mx-auto max-w-6xl">
-            <div className="mx-auto max-w-2xl text-center">
-              <h1 className="text-4xl md:text-5xl font-bold text-primary font-frank mb-4 leading-tight">
-                {homeTitle}
-              </h1>
-              <p className="text-lg text-on-surface/70 leading-relaxed mb-8">
-                {homeSubtitle}
-              </p>
-              <PluginSearchBox size="lg" placeholder="חפשו תוסף לפי שם, תיאור או נושא..." />
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-                <Button href="/plugins/upload" variant="outlined" icon="add">
-                  העלה תוסף חדש
-                </Button>
-                <PluginStoreAppBanner />
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* אזור אחד לכל החנות, מחובר ל-h1. מ-lg: סרגל הקטגוריות לצד עמודת התוכן כבר מראש הדף,
+            והפתיחה (כותרת + חיפוש) בראש עמודת התוכן */}
+        <Section spacing="none" labelledBy={TITLE_ID} className="pt-10 md:pt-14">
+          <div className={hasCategoryNav ? 'lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-8 xl:gap-10' : undefined}>
+            {hasCategoryNav && <CategorySidebar categories={categories} totalPlugins={totalPublicPlugins} />}
 
-        {/* סרגל קטגוריות אופקי — מובייל/טאבלט בלבד (בדסקטופ יש סרגל צד) */}
-        {!loadError && categories.length > 0 && (
-          <nav
-            aria-label="קטגוריות"
-            className="lg:hidden bg-white border-b border-neutral-100 px-4 py-3"
-          >
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
-              {categories.map(category => (
-                <Link
-                  key={category.id}
-                  href={`/plugins/category/${category.slug}`}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-on-surface/70 hover:border-primary/30 hover:text-primary transition-colors"
-                >
-                  <span className="material-symbols-outlined text-base">{category.icon || 'extension'}</span>
-                  <span>{category.name}</span>
-                  <span className="text-xs text-on-surface/40">({category.pluginCount})</span>
-                </Link>
-              ))}
-              {/* "כל התוספים" — מוצא אחרון, מוצנע בסוף השורה */}
-              <Link
-                href="/plugins/all"
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dashed border-neutral-300 px-4 py-2 text-sm text-on-surface/50 hover:text-primary hover:border-primary/30 transition-colors"
-              >
-                <span>כל התוספים ({totalPublicPlugins})</span>
-              </Link>
-            </div>
-          </nav>
-        )}
+            <div className="min-w-0">
+              <StoreHomeHero titleId={TITLE_ID} title={homeTitle} subtitle={homeSubtitle} />
 
-        <div className="container mx-auto max-w-7xl px-4 py-10">
-          <div className="flex items-start gap-8">
-            {/* סרגל צד קטגוריות — דסקטופ, דביק, נגיש בלי לגלול */}
-            {!loadError && categories.length > 0 && (
-              <aside className="hidden lg:block w-64 shrink-0 sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto">
-                <nav aria-label="קטגוריות" className="bg-white rounded-2xl border border-neutral-100 p-4">
-                  <h2 className="text-sm font-bold text-on-surface/60 mb-3 px-2">קטגוריות</h2>
-                  <ul className="space-y-1">
-                    {categories.map(category => (
-                      <li key={category.id}>
-                        <Link
-                          href={`/plugins/category/${category.slug}`}
-                          className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-medium text-on-surface/80 hover:bg-primary/5 hover:text-primary transition-colors group"
-                        >
-                          <span className="material-symbols-outlined text-xl shrink-0 text-primary/60 group-hover:text-primary">
-                            {category.icon || 'extension'}
-                          </span>
-                          <span className="flex-1 truncate">{category.name}</span>
-                          <span className="text-xs text-on-surface/40">{category.pluginCount}</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                  {/* "כל התוספים" — מוצא אחרון, מוצנע בתחתית הסרגל */}
-                  <div className="mt-3 border-t border-neutral-100 pt-3">
-                    <Link
-                      href="/plugins/all"
-                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-on-surface/50 hover:bg-primary/5 hover:text-primary transition-colors"
-                    >
-                      <span className="flex-1 truncate">כל התוספים</span>
-                      <span className="text-xs text-on-surface/40">{totalPublicPlugins}</span>
-                    </Link>
-                  </div>
-                </nav>
-              </aside>
-            )}
+              {/* מתחת ל-lg: שבבי הקטגוריות מיד אחרי החיפוש (מ-lg: הסרגל) */}
+              {hasCategoryNav && <CategoryChipsNav categories={categories} totalPlugins={totalPublicPlugins} className="mt-4" />}
 
-            {/* התוכן הראשי */}
-            <div className="flex-1 min-w-0">
-              {loadError ? (
-                // שגיאת טעינה — עדיין מציעים דרך אל כל התוספים
-                <div className="mx-auto max-w-2xl text-center bg-white rounded-2xl border border-neutral-100 py-16 px-6">
-                  <h2 className="text-2xl font-bold text-on-surface mb-3">אירעה שגיאה בטעינת החנות</h2>
-                  <p className="text-on-surface/60 leading-relaxed mb-6">
-                    נסו לרענן את הדף, או עברו לרשימת כל התוספים.
-                  </p>
-                  <Link
-                    href="/plugins/all"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors"
-                  >
-                    <span>לכל התוספים</span>
-                    <span aria-hidden="true">←</span>
-                  </Link>
-                </div>
-              ) : isEmptyHome ? (
-                // מצב ריק כללי (7.1.6): אין נבחרים ואין קטגוריות בית — שער לכל התוספים
-                <div className="mx-auto max-w-2xl text-center bg-white rounded-2xl border border-neutral-100 py-16 px-6">
-                  <span className="material-symbols-outlined text-5xl text-primary/40 mb-4 inline-block">extension</span>
-                  <h2 className="text-2xl font-bold text-on-surface mb-3">החנות בבנייה — אבל התוספים כבר כאן</h2>
-                  <p className="text-on-surface/60 leading-relaxed mb-6">
-                    בקרוב יופיעו כאן תוספים נבחרים וקטגוריות מסודרות. בינתיים אפשר לחפש למעלה
-                    או לעיין ברשימה המלאה של כל התוספים.
-                  </p>
-                  <Link
-                    href="/plugins/all"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-md hover:shadow-lg"
-                  >
-                    <span>לכל התוספים ({totalPublicPlugins})</span>
-                    <span aria-hidden="true">←</span>
-                  </Link>
-                </div>
-              ) : (
-                <>
-                  {/* תוספים נבחרים */}
-                  {featured.length > 0 && (
-                    <section>
-                      <div className="inline-flex items-center gap-2 text-primary/70 text-sm font-bold mb-2">
-                        <div className="w-7 h-px bg-primary/30"></div>
-                        <span>מומלצי החנות</span>
-                      </div>
-                      <h2 className="text-3xl font-bold text-on-surface mb-6">תוספים נבחרים</h2>
-                      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {visibleFeatured.map((plugin, pluginIndex) => (
-                          <PluginCard
-                            key={plugin.id}
-                            plugin={plugin}
-                            priority={pluginIndex === 0}
-                            installState={installState}
-                            onInstall={install}
-                          />
-                        ))}
-                      </div>
-                      {featured.length > FEATURED_PREVIEW_COUNT && !showAllFeatured && (
-                        <div className="mt-6 text-center">
-                          <button
-                            onClick={() => setShowAllFeatured(true)}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-primary/20 text-primary rounded-xl font-bold hover:bg-primary/5 transition-colors"
-                          >
-                            הצג עוד נבחרים
-                          </button>
-                        </div>
-                      )}
-                    </section>
-                  )}
-
-                  {/* שורות קטגוריה של דף הבית */}
-                  {homeCategories.map((category, index) => (
-                    <section
-                      key={category.id}
-                      className={`${featured.length > 0 || index > 0 ? 'mt-10 pt-10 border-t border-neutral-200' : ''}`}
-                    >
-                      <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
-                        <div>
-                          <div className="flex items-center gap-3 mb-1">
-                            {category.icon && (
-                              <span className="material-symbols-outlined text-3xl text-primary">
-                                {category.icon}
-                              </span>
-                            )}
-                            <h2 className="text-2xl font-bold text-on-surface">{category.name}</h2>
-                          </div>
-                          {category.description && (
-                            <p className="text-on-surface/60">{category.description}</p>
-                          )}
-                        </div>
-                        <Link
-                          href={`/plugins/category/${category.slug}`}
-                          className="text-sm font-bold text-primary hover:underline whitespace-nowrap"
-                        >
-                          לכל הקטגוריה ({category.pluginCount}) ←
-                        </Link>
-                      </div>
-
-                      {/* גלילה אופקית במובייל / גריד בדסקטופ */}
-                      <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 md:grid md:grid-cols-2 xl:grid-cols-3 md:overflow-visible">
-                        {category.plugins.map((plugin, pluginIndex) => (
-                          <div key={plugin.id} className="w-[300px] shrink-0 md:w-auto">
+              <div className="mt-12 md:mt-16">
+                {loadError ? (
+                  // שגיאת טעינה — עדיין מציעים דרך אל כל התוספים
+                  <EmptyState
+                    icon="error"
+                    title="אירעה שגיאה בטעינת החנות"
+                    description="נסה לרענן את הדף, או עבור לרשימת כל התוספים."
+                    actions={<Button href="/plugins/all" iconEnd="chevron_left">לכל התוספים</Button>}
+                  />
+                ) : isEmptyHome ? (
+                  // מצב ריק כללי: אין נבחרים ואין קטגוריות בית — שער לכל התוספים
+                  <EmptyState
+                    icon="extension"
+                    title="החנות בבנייה — אבל התוספים כבר כאן"
+                    description="בקרוב יופיעו כאן תוספים נבחרים וקטגוריות מסודרות. בינתיים אפשר לחפש למעלה או לעיין ברשימה המלאה של כל התוספים."
+                    actions={
+                      <Button href="/plugins/all" iconEnd="chevron_left">
+                        לכל התוספים <span className="tabular-nums">({totalPublicPlugins.toLocaleString('he-IL')})</span>
+                      </Button>
+                    }
+                  />
+                ) : (
+                  // אזורים ברווח אחד קבוע (S11), בלי קווי הפרדה
+                  <div className="flex flex-col gap-12 md:gap-16">
+                    {featured.length > 0 && (
+                      <StoreHomeSection id="store-home-featured" title="תוספים נבחרים">
+                        <PluginGrid columns="sidebar" labelledBy="store-home-featured">
+                          {visibleFeatured.map((plugin, pluginIndex) => (
                             <PluginCard
+                              key={plugin.id}
                               plugin={plugin}
-                              priority={featured.length === 0 && index === 0 && pluginIndex === 0}
+                              priority={pluginIndex === 0}
                               installState={installState}
                               onInstall={install}
                             />
+                          ))}
+                        </PluginGrid>
+                        {featured.length > FEATURED_PREVIEW_COUNT && !showAllFeatured && (
+                          <div className="mt-6 flex justify-center">
+                            <Button variant="tonal" icon="expand_more" onClick={() => setShowAllFeatured(true)}>
+                              הצג עוד נבחרים
+                            </Button>
                           </div>
-                        ))}
-                      </div>
-                    </section>
-                  ))}
+                        )}
+                      </StoreHomeSection>
+                    )}
 
-                  {/* פס גילוי מלא — כל התוספים */}
-                  <div className="mt-12 pt-8 border-t border-neutral-200">
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
-                      <p className="text-on-surface/70 text-lg">
-                        לא מצאתם את מה שחיפשתם?
-                      </p>
-                      <Link
-                        href="/plugins/all"
-                        className="inline-flex items-center gap-2 text-lg font-bold text-primary hover:underline"
-                      >
-                        <span>עיינו בכל התוספים ({totalPublicPlugins})</span>
-                        <span aria-hidden="true">←</span>
-                      </Link>
-                    </div>
+                    {homeCategories.map((category, index) => {
+                      const headingId = `store-home-category-${category.slug}`
+                      return (
+                        <StoreHomeSection
+                          key={category.id}
+                          id={headingId}
+                          title={category.name}
+                          description={category.description || undefined}
+                          icon={showCategoryIcons ? categoryIcon(category) : undefined}
+                          action={{ href: `/plugins/category/${category.slug}`, label: 'לכל הקטגוריה', count: category.pluginCount }}
+                        >
+                          {/* בנייד — מסילה אופקית; מ-md — רשת */}
+                          <PluginGrid columns="sidebar" mobileRail labelledBy={headingId}>
+                            {category.plugins.map((plugin, pluginIndex) => (
+                              <PluginCard
+                                key={plugin.id}
+                                plugin={plugin}
+                                priority={featured.length === 0 && index === 0 && pluginIndex === 0}
+                                installState={installState}
+                                onInstall={install}
+                              />
+                            ))}
+                          </PluginGrid>
+                        </StoreHomeSection>
+                      )
+                    })}
+
+                    {/* פס גילוי מלא — כל התוספים */}
+                    <BrowseAllCta totalPlugins={totalPublicPlugins} />
                   </div>
-                </>
-              )}
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </Section>
       </main>
     </div>
   )
