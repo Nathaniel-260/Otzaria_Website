@@ -120,7 +120,10 @@
 
   /* ---------- שבב (ui/Chip): תגית לחיצה — מסנן, קישור לקטגוריה ----------
    * גובה חזותי 36px; מטרת המגע (44px) דרך ::before, כמו כפתור header. נבדל מ-Badge (לא לחיץ)
-   * במסגרת. נבחר (aria-pressed / aria-current) — המשטח הטונלי של האפליקציה. */
+   * במסגרת. נבחר (aria-pressed / aria-current) — המשטח הטונלי של האפליקציה, ומסגרת primary: הרקע
+   * הטונלי לבדו נבדל מהרקע רק ב-1.15–2:1, והמסגרת היא הסימון הלא-טקסטואלי של המצב (WCAG 1.4.11).
+   * ניגודיות המסגרת: בהיר — 5.8:1 מול רקע הדף, 6.1:1 מול surface, 3.8:1 מול מסגרת שבב רגיל;
+   * כהה — 10.9:1 / 10.1:1 / 5.5:1. */
   --chip-height: 2.25rem;
   --chip-radius: var(--radius-pill);
   --chip-bg: var(--color-surface);
@@ -132,6 +135,7 @@
   --chip-selected-bg: var(--color-secondary-container);
   --chip-selected-bg-hover: var(--color-secondary-container-hover);
   --chip-selected-fg: var(--color-on-secondary-container);
+  --chip-selected-border: var(--color-primary);
 
   /* ---------- שלד טעינה (ui/Skeleton) ---------- */
   --skeleton-bg: var(--color-surface-container-high);

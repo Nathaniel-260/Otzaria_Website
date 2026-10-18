@@ -10,6 +10,8 @@ import { FOCUS_RING } from './focusRing'
  *
  * href → קישור (Next Link בלי prefetch) — למשל קטגוריה. current → aria-current="page".
  * אחרת <button>: selected → aria-pressed (מסנן דו-מצבי: "כל התגיות", תגית).
+ * נבחר — רקע טונלי + מסגרת primary (--chip-selected-border, ניגודיות 3:1 לפחות מול הרקע ומול שבב רגיל
+ * בבהיר ובכהה); המסגרת היא שמבדילה את המצב, לא רק הרקע (WCAG 1.4.11).
  * icon — גליף לפני הטקסט; count — מספר שקט אחרי הטקסט ("(12)" — בלי סוגריים; הם בעיצוב).
  *
  * מידות: גובה חזותי --chip-height (36px), ומטרת מגע של 44px דרך ::before (כמו כפתור header),
@@ -24,7 +26,7 @@ const BASE = cx(
 const IDLE =
   'border-(--chip-border) bg-(--chip-bg) text-(--chip-fg) hover:border-(--chip-border-hover) hover:bg-(--chip-bg-hover) hover:text-(--chip-fg-hover)'
 const SELECTED =
-  'border-transparent bg-(--chip-selected-bg) text-(--chip-selected-fg) hover:bg-(--chip-selected-bg-hover)'
+  'border-(--chip-selected-border) bg-(--chip-selected-bg) text-(--chip-selected-fg) hover:bg-(--chip-selected-bg-hover)'
 
 export function chipClasses({ selected = false, className }: { selected?: boolean; className?: string } = {}) {
   return cx(BASE, selected ? SELECTED : IDLE, className)

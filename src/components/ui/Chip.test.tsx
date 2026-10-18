@@ -31,6 +31,13 @@ describe('Chip', () => {
     expect(button).toHaveAttribute('data-selected')
   })
 
+  it('נבחר מסומן במסגרת בניגודיות (לא רק ברקע); לא-נבחר — המסגרת הרגילה', () => {
+    render(<><Chip selected>נבחר</Chip><Chip selected={false}>רגיל</Chip></>)
+    expect(screen.getByRole('button', { name: 'נבחר' }).className).toContain('border-(--chip-selected-border)')
+    expect(screen.getByRole('button', { name: 'נבחר' }).className).not.toContain('border-transparent')
+    expect(screen.getByRole('button', { name: 'רגיל' }).className).toContain('border-(--chip-border)')
+  })
+
   it('כפתור בלי selected — לא מסמן aria-pressed (שבב פעולה, לא מסנן)', () => {
     render(<Chip onClick={() => {}}>פעולה</Chip>)
     expect(screen.getByRole('button', { name: 'פעולה' })).not.toHaveAttribute('aria-pressed')
