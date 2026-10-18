@@ -57,7 +57,12 @@ function content({ icon, count, children }: CommonProps) {
       {icon && <AppIcon name={icon} className="text-[1.15rem]" />}
       <span className="truncate">{children}</span>
       {typeof count === 'number' && (
-        <span className="text-label-sm font-normal opacity-80 tabular-nums">({count.toLocaleString('he-IL')})</span>
+        <>
+          {/* הרווח החזותי בא מ-gap, אבל שם נגיש מחבר טקסט של פריטי flex בלי רווח ("כלי לימוד(20)") —
+              רווח אמיתי לקורא המסך */}
+          <span className="sr-only"> </span>
+          <span className="text-label-sm font-normal opacity-80 tabular-nums">({count.toLocaleString('he-IL')})</span>
+        </>
       )}
     </>
   )

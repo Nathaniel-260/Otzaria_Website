@@ -10,6 +10,8 @@ describe('Chip', () => {
     expect(link).toHaveAttribute('href', '/plugins/category/prayer')
     expect(link).toHaveAttribute('aria-current', 'page')
     expect(link).toHaveTextContent('(3)')
+    // רווח בין השם למונה גם בשם הנגיש
+    expect(link.textContent).toMatch(/תפילה\s+\(3\)/)
   })
 
   it('בלי href → כפתור דו-מצבי (aria-pressed) שמפעיל onClick', async () => {
