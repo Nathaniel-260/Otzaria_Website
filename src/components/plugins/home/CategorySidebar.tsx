@@ -4,7 +4,7 @@ import Card from '@/components/ui/Card'
 import { cx } from '@/components/ui/cx'
 import { FOCUS_RING_INSET } from '@/components/ui/focusRing'
 import type { PluginCategorySummary } from '@/components/plugins/types'
-import { categoriesShowIcons, categoryIcon } from './categoryIcons'
+import { categoriesShowIcons, categoryIcon } from '@/components/plugins/categoryIcons'
 
 const ITEM = cx(
   'flex min-h-(--touch-target) items-center gap-3 rounded-(--radius-control) px-3 py-2',

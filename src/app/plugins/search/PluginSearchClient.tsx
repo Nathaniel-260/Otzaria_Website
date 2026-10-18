@@ -26,6 +26,7 @@ import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
 import EmptyState from '@/components/ui/EmptyState'
 import Section from '@/components/ui/Section'
+import { validCategoryIcon } from '@/components/plugins/categoryIcons'
 import type { PluginSearchResult, PluginCategorySummary } from '@/components/plugins/types'
 import { SEARCH_PAGE_SIZE, type PluginSearchResponse } from './searchConfig'
 
@@ -156,6 +157,8 @@ export default function PluginSearchClient({ initialQuery, initialResults }: Plu
     const urlQuery = new URLSearchParams(window.location.search).get('q') || ''
     if (urlQuery === initialQuery) return
     if (urlQuery.trim() !== initialQuery.trim()) immediateRef.current = true
+    // סנכרון חד-פעמי מה-URL (מערכת חיצונית, לא זמינה בשרת) אחרי Back/Forward — מכוון
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     handleInputChange(urlQuery)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -255,7 +258,7 @@ export default function PluginSearchClient({ initialQuery, initialResults }: Plu
                       <Chip
                         key={category.id}
                         href={`/plugins/category/${category.slug}`}
-                        icon={category.icon || undefined}
+                        icon={validCategoryIcon(category) ?? undefined}
                         count={category.pluginCount}
                       >
                         {category.name}

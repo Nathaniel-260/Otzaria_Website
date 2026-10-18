@@ -13,6 +13,7 @@ import Button from '@/components/ui/Button'
 import Loader from '@/components/ui/Loader'
 import AppIcon from '@/components/ui/AppIcon'
 import CheckboxField from '@/components/plugins/form/CheckboxField'
+import { categoriesShowIcons, categoryIcon } from '@/components/plugins/categoryIcons'
 
 export default function PluginApproveModal({ plugin, onClose, onConfirm }) {
   const [loadingCategories, setLoadingCategories] = useState(true)
@@ -61,6 +62,8 @@ export default function PluginApproveModal({ plugin, onClose, onConfirm }) {
       setSubmitting(false)
     }
   }
+
+  const showIcons = categoriesShowIcons(categories)
 
   return (
     <Dialog
@@ -119,7 +122,8 @@ export default function PluginApproveModal({ plugin, onClose, onConfirm }) {
                     framed={false}
                     checked={selectedIds.includes(category.id)}
                     onChange={() => toggleCategory(category.id)}
-                    icon={<AppIcon name={category.icon || 'extension'} className="mt-0.5 text-[1.15rem] text-on-surface-variant" />}
+                    // כלל אייקוני הקטגוריות (components/plugins/categoryIcons): ברשימה — לכולן או לאף אחת
+                    icon={showIcons ? <AppIcon name={categoryIcon(category)} className="mt-0.5 text-[1.15rem] text-on-surface-variant" /> : undefined}
                     label={
                       <>
                         <span className="font-semibold">{category.name}</span>

@@ -1,7 +1,7 @@
 import Chip from '@/components/ui/Chip'
 import { cx } from '@/components/ui/cx'
 import type { PluginCategorySummary } from '@/components/plugins/types'
-import { categoriesShowIcons, categoryIcon } from './categoryIcons'
+import { categoriesShowIcons, categoryIcon } from '@/components/plugins/categoryIcons'
 
 /**
  * ניווט הקטגוריות מתחת ל-lg (שם אין סרגל צד): שורת שבבים.

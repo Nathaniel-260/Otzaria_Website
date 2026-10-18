@@ -29,7 +29,7 @@ import CategorySidebar from '@/components/plugins/home/CategorySidebar'
 import StoreHomeSection from '@/components/plugins/home/StoreHomeSection'
 import BrowseAllCta from '@/components/plugins/home/BrowseAllCta'
 import StoreHomeSkeleton from '@/components/plugins/home/StoreHomeSkeleton'
-import { categoriesShowIcons, categoryIcon } from '@/components/plugins/home/categoryIcons'
+import { categoriesShowIcons, categoryIcon } from '@/components/plugins/categoryIcons'
 import type { StoreHomeData } from './storeHomeTypes'
 
 const DEFAULT_HOME_TITLE = 'חנות התוספים של אוצריא'

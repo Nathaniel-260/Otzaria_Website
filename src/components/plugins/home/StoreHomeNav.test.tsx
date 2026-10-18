@@ -26,8 +26,8 @@ describe('CategoryChipsNav', () => {
       '/plugins/category/prayer',
       '/plugins/all'
     ])
-    expect(links[0]).toHaveTextContent('כלי לימוד(20)')
-    expect(links[2]).toHaveTextContent('כל התוספים(65)')
+    expect(links[0]).toHaveTextContent('כלי לימוד (20)')
+    expect(links[2]).toHaveTextContent('כל התוספים (65)')
   })
 
   it('בלי אייקונים כשלאף קטגוריה אין אייקון; עם ברירת מחדל כשלאחת יש', () => {

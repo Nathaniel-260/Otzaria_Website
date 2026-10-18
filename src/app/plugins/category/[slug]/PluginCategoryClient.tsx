@@ -18,6 +18,7 @@ import AppIcon from '@/components/ui/AppIcon'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import Section from '@/components/ui/Section'
+import { validCategoryIcon } from '@/components/plugins/categoryIcons'
 import type { CategoryData } from './types'
 
 interface PluginCategoryClientProps {
@@ -60,8 +61,8 @@ export default function PluginCategoryClient({ category, notFound }: PluginCateg
         <StorePageHeader
           titleId={TITLE_ID}
           breadcrumbs={[{ label: 'חנות התוספים', href: '/plugins' }, { label: category.name }]}
-          // קטגוריה בלי אייקון — האייקון הכללי של תוסף (כמו בבית החנות)
-          icon={category.icon || 'extension'}
+          // אייקון רק אם לקטגוריה יש אייקון תקף (קיים בגופן) — הכלל ב-components/plugins/categoryIcons
+          icon={validCategoryIcon(category) ?? undefined}
           title={category.name}
           subtitle={category.description || undefined}
           meta={

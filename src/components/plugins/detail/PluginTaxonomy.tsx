@@ -21,7 +21,8 @@ export default function PluginTaxonomy({ categories = [], tags = [], className }
           <ul className="flex flex-wrap gap-x-2 gap-y-2.5">
             {categories.map((category) => (
               <li key={category.slug} className="max-w-full">
-                <Chip href={`/plugins/category/${category.slug}`} icon="category">{category.name}</Chip>
+                {/* בלי גליף כללי: כלל אייקוני הקטגוריות (components/plugins/categoryIcons) — אייקון רק כשלקטגוריה יש אייקון משלה, ו-CategoryRef אינו נושא אותו */}
+                <Chip href={`/plugins/category/${category.slug}`}>{category.name}</Chip>
               </li>
             ))}
           </ul>
