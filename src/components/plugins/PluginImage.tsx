@@ -20,7 +20,9 @@ const SIZES = {
   sm: 'size-(--plugin-icon-size-sm)',
   md: 'size-(--plugin-icon-size-md)',
   lg: 'size-(--plugin-icon-size-lg)',
-  xl: 'size-(--plugin-icon-size-xl)'
+  xl: 'size-(--plugin-icon-size-xl)',
+  /** ראש עמוד התוסף — רספונסיבי בעצמו: 96 → 120 (sm) → 168 (lg); לא משולב עם responsive */
+  hero: 'size-(--plugin-icon-size-hero-sm) sm:size-(--plugin-icon-size-xl) lg:size-(--plugin-icon-size-hero)'
 } as const
 
 /** אותן מידות מ-sm ומעלה — מחרוזות מלאות, כדי ש-Tailwind ימצא אותן בסריקה */
@@ -28,23 +30,30 @@ const SM_SIZES = {
   sm: 'sm:size-(--plugin-icon-size-sm)',
   md: 'sm:size-(--plugin-icon-size-md)',
   lg: 'sm:size-(--plugin-icon-size-lg)',
-  xl: 'sm:size-(--plugin-icon-size-xl)'
+  xl: 'sm:size-(--plugin-icon-size-xl)',
+  hero: 'sm:size-(--plugin-icon-size-xl)'
 } as const
 
 /** מידות פיקסל ל-width/height של <img> (שומרות מקום לפני הטעינה) — זהות לטוקנים */
-const PIXELS = { sm: 40, md: 64, lg: 72, xl: 120 } as const
+const PIXELS = { sm: 40, md: 64, lg: 72, xl: 120, hero: 168 } as const
 
 export type PluginImageSize = keyof typeof SIZES
 
 export const PLUGIN_IMAGE_FALLBACK = '/logo.webp'
 
-export default function PluginImage({ src, alt = '', size = 'md', responsive, priority = false, className }: {
+export default function PluginImage({ src, alt = '', size = 'md', responsive, priority = false, bleed = false, className }: {
   src?: string | null
   alt?: string
   size?: PluginImageSize
   /** גודל שני מ-sm ומעלה (למשל md בנייד → lg במסך רחב) */
   responsive?: PluginImageSize
   priority?: boolean
+  /**
+   * הגדלה קלה (110%) של התמונה בתוך האריח — אייקוני התוספים מגיעים עם שוליים לבנים מובנים (~10%-15%
+   * מכל צד), ובאריח גדול (ראש עמוד התוסף) הגליף נראה קטן. 110% חותך עד 5% מכל צד — פחות מהשוליים
+   * שנמדדו באייקונים בחנות. בלי השפעה על החלופה (הלוגו).
+   */
+  bleed?: boolean
   className?: string
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
@@ -77,7 +86,7 @@ export default function PluginImage({ src, alt = '', size = 'md', responsive, pr
           fetchPriority={priority ? 'high' : undefined}
           decoding="async"
           onError={() => setFailedSrc(src)}
-          className="size-full object-contain"
+          className={cx('size-full object-contain', bleed && 'scale-110')}
         />
       )}
     </span>

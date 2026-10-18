@@ -16,7 +16,8 @@ import { getErrorMessage } from '@/lib/errors'
 import { reloadOnChunkError } from '@/lib/chunkLoadRecovery'
 import PluginInstallActions, { canDirectInstall } from '@/components/plugins/PluginInstallActions'
 import Breadcrumbs from '@/components/plugins/Breadcrumbs'
-import ScreenshotGallery from '@/components/plugins/ScreenshotGallery'
+import ScreenshotCarousel from '@/components/plugins/detail/ScreenshotCarousel'
+import UserText from '@/components/plugins/detail/UserText'
 import Section from '@/components/ui/Section'
 import Loader from '@/components/ui/Loader'
 import DetailSection from '@/components/plugins/detail/DetailSection'
@@ -230,6 +231,7 @@ export default function PluginDetailClient({ initialPlugin }: PluginDetailClient
           <PluginHero
             plugin={plugin}
             titleId={titleId}
+            media={screenshots.length > 0 ? <ScreenshotCarousel screenshots={screenshots} /> : undefined}
             actions={
               <PluginInstallActions
                 plugin={plugin}
@@ -268,10 +270,8 @@ export default function PluginDetailClient({ initialPlugin }: PluginDetailClient
             >
               {showDescription && (
                 <DetailSection id="plugin-description" title="תיאור">
-                  {/* whitespace-pre-line: שמירת ירידות השורה שהמפתח הזין בתיאור (issue #175) */}
-                  <p className="max-w-measure whitespace-pre-line break-words text-body-md text-on-surface md:text-body-lg">
-                    {plugin.description}
-                  </p>
+                  {/* שורה = בלוק עם dir="auto"; ירידות השורה שהמפתח הזין נשמרות (issue #175) — UserText */}
+                  <UserText text={plugin.description} className="max-w-measure text-body-md text-on-surface md:text-body-lg" />
                 </DetailSection>
               )}
 
@@ -280,12 +280,6 @@ export default function PluginDetailClient({ initialPlugin }: PluginDetailClient
                 <PluginTaxonomy categories={plugin.categories} tags={plugin.tags} className="mt-6" />
               </DetailSection>
             </div>
-
-            {screenshots.length > 0 && (
-              <DetailSection id="plugin-screenshots" title="צילומי מסך">
-                <ScreenshotGallery screenshots={screenshots} />
-              </DetailSection>
-            )}
 
             {/* דירוגים — הדירוג הוא של התוסף כולו, ולכן אינו מוצג בתצוגת גרסה ישנה */}
             {!plugin.isHistoricalVersion && (

@@ -46,6 +46,23 @@ describe('PluginHero', () => {
     expect(screen.getByRole('presentation', { hidden: true })).toHaveAttribute('alt', '')
   })
 
+  it('שם ותיאור באנגלית: dir="auto" ויישור לימין', () => {
+    render(<PluginHero plugin={{ ...plugin, name: 'Aramaic → Eng.', shortDescription: 'and optional examples.' }} titleId="t" actions={null} />)
+    expect(screen.getByText('Aramaic → Eng.')).toHaveAttribute('dir', 'auto')
+    const line = screen.getByText('and optional examples.')
+    expect(line).toHaveAttribute('dir', 'auto')
+    expect(line).toHaveClass('text-right')
+  })
+
+  it('media — עמודה שנייה מ-lg, אחרי נתוני המפתח ב-DOM (בנייד מתחתיהם)', () => {
+    const { container } = render(<PluginHero plugin={plugin} titleId="t" actions={null} media={<div data-testid="media" />} />)
+    const grid = container.firstElementChild as HTMLElement
+    expect(grid.className).toContain('lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]')
+    const media = screen.getByTestId('media').parentElement as HTMLElement
+    expect(media).toHaveClass('lg:col-start-2', 'lg:row-start-1')
+    expect(container.querySelector('dl')?.compareDocumentPosition(media)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+
   it('תג מצב לתוסף מושהה ולגרסה ישנה', () => {
     render(<PluginHero plugin={{ ...plugin, isSuspended: true, isHistoricalVersion: true }} titleId="t" actions={null} />)
     expect(screen.getByText('מושהה')).toBeInTheDocument()

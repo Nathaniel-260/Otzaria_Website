@@ -147,6 +147,9 @@
   --plugin-icon-size-md: 4rem;
   --plugin-icon-size-lg: 4.5rem;
   --plugin-icon-size-xl: 7.5rem;
+  /* ראש עמוד התוסף: 96px בנייד → xl (120) מ-sm → 168px מ-lg (בפרופורציה לבלוק הכותרת שלצדו) */
+  --plugin-icon-size-hero-sm: 6rem;
+  --plugin-icon-size-hero: 10.5rem;
 
   /* ---------- תג / תגית (ui/Badge) ---------- */
   --badge-radius: var(--radius-pill);
