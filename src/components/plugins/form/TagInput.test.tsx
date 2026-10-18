@@ -86,6 +86,15 @@ describe('TagInput — פיצול לפי מפרידים', () => {
     expect(input()).toHaveValue('')
   })
 
+  it('תגית של 40 תווים בדיוק + פסיק — נוספת (אין maxLength על השדה כולו); 41 — הודעה בזמן ההקלדה', () => {
+    render(<Harness />)
+    expect(input()).not.toHaveAttribute('maxLength')
+    fireEvent.change(input(), { target: { value: `${'א'.repeat(40)},` } })
+    expect(chips()).toEqual(['א'.repeat(40)])
+    fireEvent.change(input(), { target: { value: 'ב'.repeat(41) } })
+    expect(input()).toHaveAttribute('aria-invalid', 'true')
+  })
+
   it('הדבקה בלי מפריד — התנהגות רגילה של השדה', () => {
     render(<Harness />)
     const paste = createEvent.paste(input(), { clipboardData: { getData: () => 'מילון' } })

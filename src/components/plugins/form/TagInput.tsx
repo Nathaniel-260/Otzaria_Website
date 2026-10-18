@@ -49,7 +49,8 @@ export default function TagInput({ id, label, tags, onTagsChange, suggestions, p
   const items = suggestions ? matchTagSuggestions(suggestions.pool, draft, tags) : []
   const open = focused && !dismissed && items.length > 0
   const active = open && activeIndex >= 0 && activeIndex < items.length ? activeIndex : -1
-  // תגית ארוכה מהמגבלה (הודבקה, או חזרה לשדה כי לא נוספה) — הודעה ליד השדה
+  // תגית ארוכה מהמגבלה — הודעה ליד השדה. המגבלה לפי קטע ולא maxLength על השדה: השדה מכיל גם
+  // מפרידים וכמה תגיות (maxLength=40 חסם הקלדת פסיק אחרי תגית של 40 תווים בדיוק)
   const tooLong = splitTags(draft).some((part) => normalizeTag(part).length > maxLength)
 
   const hintId = fieldHintId(id)
@@ -72,7 +73,7 @@ export default function TagInput({ id, label, tags, onTagsChange, suggestions, p
     else updateDraft(value)
   }
 
-  // הדבקה עם מפרידים: כל הקטעים נהפכים לתגיות (גם האחרון), בלי לחתוך לפי maxLength של השדה
+  // הדבקה עם מפרידים: כל הקטעים נהפכים לתגיות (גם האחרון)
   const handlePaste = (event: ClipboardEvent<HTMLInputElement>) => {
     const pasted = event.clipboardData.getData('text')
     if (!hasTagSeparator(pasted)) return
@@ -158,7 +159,6 @@ export default function TagInput({ id, label, tags, onTagsChange, suggestions, p
             className={fieldClasses({ invalid: tooLong })}
             placeholder={placeholder}
             aria-label={label ? undefined : placeholder}
-            maxLength={maxLength}
           />
           {open && (
             <TagSuggestionList
