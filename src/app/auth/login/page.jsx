@@ -5,6 +5,12 @@ import LoginForm from './LoginForm'
 import { firstSearchParam, getSafeCallbackUrl, loginErrorMessage } from '@/lib/loginRedirect'
 import { isGoogleAuthConfigured } from '@/lib/googleAuth'
 
+// דף ההתחברות אינו תוכן לחיפוש — noindex (היה מאונדקס ב-Google)
+export const metadata = {
+  title: 'התחברות | אוצריא',
+  robots: { index: false },
+}
+
 // רכיב שרת: הפרמטרים (callbackUrl, error) נקראים כאן ועוברים לטופס כ-props, כך
 // שהטופס כולו — כולל הודעת "פעולה זו דורשת התחברות" והודעת שגיאה מה-URL — מגיע
 // מוכן ב-HTML. קודם הדף היה רכיב לקוח עם useSearchParams בתוך Suspense, ולכן

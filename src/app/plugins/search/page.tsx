@@ -45,6 +45,12 @@ async function loadInitialResults(rawQuery: string): Promise<PluginSearchRespons
   }
 }
 
+// דף תוצאות חיפוש פנימי — לא לאינדקס (Google ממליץ שלא לאנדקס תוצאות חיפוש באתר)
+export const metadata = {
+  title: 'חיפוש תוספים | חנות התוספים של אוצריא',
+  robots: { index: false },
+}
+
 export default async function PluginSearchPage({
   searchParams
 }: {
