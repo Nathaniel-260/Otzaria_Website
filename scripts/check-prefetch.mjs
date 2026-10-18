@@ -76,7 +76,9 @@ async function resolveImport(specifier, fromFile) {
   ]
   for (const candidate of candidates) {
     try {
-      if ((await stat(candidate)).isFile()) return candidate
+      // רק קוד: ייבוא של JSON/CSS (למשל scripts/icon-font.manifest.json ב-ui/iconGlyphs) אינו
+      // מכיל קישורים, ו-babel לא יודע לפענח אותו
+      if ((await stat(candidate)).isFile()) return SOURCE_EXTENSIONS.includes(path.extname(candidate)) ? candidate : null
     } catch {
       // ממשיכים למועמד הבא
     }
