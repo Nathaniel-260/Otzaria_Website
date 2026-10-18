@@ -101,6 +101,23 @@ describe('ScreenshotCarousel', () => {
     expect(currentSlide()).toHaveAttribute('aria-label', 'תמונה 2 מתוך 3')
   })
 
+  it('רשימה חדשה (עריכה בעמוד) — חוזרת לתמונה הראשונה, בלי מצב שבור מהרשימה הקודמת', async () => {
+    const user = userEvent.setup()
+    const { container, rerender } = render(<ScreenshotCarousel screenshots={shots} />)
+    await user.click(screen.getByRole('button', { name: 'הקודם' }))
+    expect(currentSlide()).toHaveAttribute('aria-label', 'תמונה 3 מתוך 3')
+    fireEvent.error(container.querySelector('img[src="/a.png"]') as HTMLImageElement)
+
+    rerender(<ScreenshotCarousel screenshots={['/x.png', '/y.png']} />)
+    expect(currentSlide()).toHaveAttribute('aria-label', 'תמונה 1 מתוך 2')
+    expect(Array.from(container.querySelectorAll('img')).map((img) => img.getAttribute('src'))).toEqual(['/x.png', '/y.png'])
+
+    // אותו תוכן במערך חדש — המיקום נשמר
+    await user.click(screen.getByRole('button', { name: 'הבא' }))
+    rerender(<ScreenshotCarousel screenshots={['/x.png', '/y.png']} />)
+    expect(currentSlide()).toHaveAttribute('aria-label', 'תמונה 2 מתוך 2')
+  })
+
   it('תמונה שבורה — placeholder במקום אייקון שבור', () => {
     const { container } = render(<ScreenshotCarousel screenshots={shots} />)
     fireEvent.error(container.querySelector('img') as HTMLImageElement)

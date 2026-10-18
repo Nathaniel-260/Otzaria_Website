@@ -36,11 +36,19 @@ const ScreenshotLightbox = dynamic(() => import('./ScreenshotLightbox'), { ssr: 
  *   "תמונה X מתוך N"; שקופיות מוסתרות inert; aria-live="off" בזמן ניגון ו-polite בניווט ידני.
  * - ביצועים: רק התמונה הראשונה (והבאה בתור) מקבלות src; כל השאר — כשמגיעים אליהן.
  * - תמונה אחת: בלי פקדים ובלי מעבר. אפס: לא מרנדר דבר.
+ * - רשימה שהתחלפה (למשל אחרי עריכה בעמוד) — הקרוסלה מתחילה מחדש: key לפי התוכן מאפס את המיקום,
+ *   התמונות שנטענו והשבורות, שהיו שייכים לרשימה הקודמת. אותו תוכן במערך חדש — בלי איפוס.
  */
-export default function ScreenshotCarousel({ screenshots, className }: {
+type CarouselProps = {
   screenshots: string[]
   className?: string
-}) {
+}
+
+export default function ScreenshotCarousel(props: CarouselProps) {
+  return <Carousel key={props.screenshots.join('\n')} {...props} />
+}
+
+function Carousel({ screenshots, className }: CarouselProps) {
   const count = screenshots.length
   const multiple = count > 1
   const [index, setIndex] = useState(0)
