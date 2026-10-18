@@ -6,6 +6,7 @@
 import crypto from 'node:crypto';
 import { sanitizeUserText, reportPageUrl, publicImageUrl } from './issue-text.js';
 import { decodeImage, cleanImageName, IMAGE_TYPES, MAX_IMAGES, MAX_IMAGES_TOTAL_BYTES } from './validation.js';
+import { CID_IMAGE_RE, bareContentId, decodeCidReference } from './content-id.js';
 
 // hex באותיות קטנות: יש שרתי דואר שמשנים רישיות בחלק המקומי של הכתובת
 export const REPLY_TOKEN_RE = /^[0-9a-f]{40}$/;
@@ -95,17 +96,7 @@ export function htmlToText(html) {
     .trim();
 }
 
-const CID_RE = /<img\b[^>]*?\bsrc\s*=\s*["']?cid:([^"'\s>]+)[^>]*>/gi;
 const SIGNATURE_RE = /<div[^>]{0,200}(class="[^"]{0,100}gmail_signature|id="(x_)?Signature")/i;
-
-const normalizeCid = (id) => {
-  const bare = String(id ?? '').trim().replace(/^<|>$/g, '');
-  try {
-    return decodeURIComponent(bare);
-  } catch {
-    return bare;
-  }
-};
 
 /**
  * ה-Content-ID של התמונות שמוצגות בחלק החדש של התשובה, לפי אותו חיתוך ציטוט של הטקסט.
@@ -115,7 +106,7 @@ export function replyContentIds(html) {
   let s = String(html ?? '').slice(0, MAX_RAW_TEXT_CHARS);
   const sigAt = s.search(SIGNATURE_RE);
   if (sigAt >= 0) s = s.slice(0, sigAt);
-  const marked = htmlToText(s.replace(CID_RE, (_, id) => ` [[cid:${encodeURIComponent(normalizeCid(id))}]] `));
+  const marked = htmlToText(s.replace(CID_IMAGE_RE, (_, id) => ` [[cid:${encodeURIComponent(decodeCidReference(id))}]] `));
   // שורה קבועה בראש: בלי טקסט חדש extractReplyText מחזיר את הכל, כולל תמונות הציטוט
   const kept = extractReplyText(`.\n${marked}`);
   return new Set([...kept.matchAll(/\[\[cid:([^\]\s]+)\]\]/g)].map((m) => decodeURIComponent(m[1])));
@@ -144,7 +135,7 @@ function inboundImages(raw, html) {
   for (const item of Array.isArray(raw) ? raw.slice(0, 100) : []) {
     if (item?.inline === true) {
       replyCids ??= replyContentIds(html);
-      if (!replyCids.has(normalizeCid(item.contentId))) continue;
+      if (!replyCids.has(bareContentId(item.contentId))) continue;
     }
     const { buffer, mimeType, error } = decodeImage(item);
     if (error || images.length >= MAX_IMAGES || total + buffer.length > MAX_IMAGES_TOTAL_BYTES) {

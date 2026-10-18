@@ -8,6 +8,7 @@
  *   כל השאר       — זמני (כולל 503 של חסימת השבת באתר). נשמר ב-KV ונשלח שוב מה-cron של ה-Worker.
  */
 import PostalMime from 'postal-mime';
+import { CID_IMAGE_RE, bareContentId, decodeCidReference } from '../../../src/lib/app-reports/content-id.js';
 
 const MAX_RAW_BYTES = 10 * 1024 * 1024;
 const MAX_TEXT_CHARS = 200000;
@@ -49,7 +50,6 @@ function isImage(att) {
 }
 
 const isInline = (att) => att.disposition === 'inline' || (!att.disposition && Boolean(att.contentId));
-const bareCid = (id) => String(id || '').trim().replace(/^<|>$/g, '');
 
 /**
  * תמונות כ-base64, בתקרות: קודם המצורפות, אחר כך המוטמעות לפי מיקומן ב-HTML (התשובה החדשה למעלה).
@@ -60,6 +60,11 @@ function splitAttachments(list, html) {
   let total = 0;
   let others = 0;
   const candidates = [];
+  const inlinePositions = new Map();
+  for (const match of html.matchAll(CID_IMAGE_RE)) {
+    const id = decodeCidReference(match[1]);
+    if (!inlinePositions.has(id)) inlinePositions.set(id, match.index);
+  }
   for (const att of list) {
     const image = isImage(att);
     if (!image) {
@@ -70,8 +75,8 @@ function splitAttachments(list, html) {
       candidates.push({ att, inline: false, order: -1 });
       continue;
     }
-    const at = att.contentId ? html.indexOf(`cid:${bareCid(att.contentId)}`) : -1;
-    if (at >= 0) candidates.push({ att, inline: true, order: at });
+    const at = att.contentId ? inlinePositions.get(bareContentId(att.contentId)) : undefined;
+    if (at !== undefined) candidates.push({ att, inline: true, order: at });
   }
   candidates.sort((a, b) => a.order - b.order);
   for (const { att, inline } of candidates) {
@@ -80,7 +85,7 @@ function splitAttachments(list, html) {
       total += size;
       images.push({
         fileName: att.filename || '', mimeType: att.mimeType || '', data: att.content,
-        inline, ...(inline ? { contentId: bareCid(att.contentId) } : {}),
+        inline, ...(inline ? { contentId: bareContentId(att.contentId) } : {}),
       });
     } else if (!inline) {
       others += 1;

@@ -171,3 +171,15 @@ test('תמונות בלי inline/contentId (Worker קודם) — נשמרות כ
   const v = validateInboundPayload({ to: `reply+${TOKEN}@x.org`, html: gmailHtml, images: [img(PNG), img(JPEG, 'b.jpg')] });
   assert.equal(v.value.images.length, 2);
 });
+
+test('inline CID references decode once, preserve literal header escapes and exclude quoted images', () => {
+  const html = '<div><img src="CID:Shot%40example.com"><img src="cid:literal%2540example.com"></div>'
+    + '<div class="gmail_quote"><img src="CID:old%40example.com"></div>';
+  assert.deepEqual([...replyContentIds(html)], ['Shot@example.com', 'literal%40example.com']);
+  const v = validateInboundPayload({
+    to: `reply+${TOKEN}@x.org`, html,
+    images: [{ ...inl(PNG, '<Shot@example.com>'), fileName: 'shot.png' }, inl(JPEG, 'literal%40example.com'), inl(PNG, 'old@example.com')],
+  });
+  assert.deepEqual(v.value.images.map((i) => i.fileName), ['shot.png', 'literal%40example.com.png']);
+  assert.equal(v.value.attachments, 0);
+});

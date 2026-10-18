@@ -489,7 +489,25 @@ export async function ingestInboundReply(raw, deps) {
     ...(imageRefs.length ? { images: imageRefs } : {}),
   };
   const filter = { reportId: doc.reportId, ...(messageId ? { 'contactLog.messageId': { $ne: messageId } } : {}) };
-  const upd = await AppReport.updateOne(filter, { $push: { contactLog: entry }, $set: { lastInboundAt: now } });
+  let upd;
+  try {
+    upd = await AppReport.updateOne(filter, { $push: { contactLog: entry }, $set: { lastInboundAt: now } });
+  } catch (error) {
+    if (tracker.saved.length) {
+      try {
+        // The write may have committed before its acknowledgement was lost. Check
+        // our own file IDs: a concurrent delivery may have stored the same Message-ID.
+        const referenced = await AppReport.exists({
+          reportId: doc.reportId, 'contactLog.images.gridfsId': { $in: tracker.saved },
+        }).read('primary');
+        if (!referenced) await deleteSavedFiles(tracker.saved, deps.deleteFile);
+      } catch (reconcileError) {
+        // If Mongo is still unavailable, preserve potentially referenced images.
+        console.error('Inbound reply: could not verify image references after update failure:', reconcileError?.message);
+      }
+    }
+    throw error;
+  }
   if (!upd.modifiedCount) {
     // שני משלוחים של אותו מייל במקביל: רק אחד נשמר, והתמונות של השני נמחקות
     await deleteSavedFiles(tracker.saved, deps.deleteFile);

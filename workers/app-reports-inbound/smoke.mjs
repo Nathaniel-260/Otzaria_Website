@@ -167,4 +167,34 @@ assert.deepEqual(site.value.images.map((i) => i.fileName), ['b.jpg', 'ii_new.png
 assert.deepEqual(site.value.images[1].buffer, png);
 assert.equal(site.value.attachments, 1);
 
+// 6. CID is a URI: decode its escapes once, preserve the header's literal value,
+// and compare the full ID (only the scheme is case-insensitive).
+for (const { src, id, expected = 1 } of [
+  { src: 'cid:shot%40example.com', id: 'shot@example.com' },
+  { src: 'CID:Shot@example.com', id: 'Shot@example.com' },
+  { src: 'CiD:shot%40example.com', id: 'shot@example.com' },
+  { src: 'cid:shot%2540example.com', id: 'shot%40example.com' },
+  { src: 'cid:shot@example.com.extra', id: 'shot@example.com', expected: 0 },
+  { src: 'cid:shot@example.com', id: 'Shot@example.com', expected: 0 },
+]) {
+  const source = [
+    'MIME-Version: 1.0', 'From: reporter@example.com', `To: reply+${TOKEN}@reply.otzaria.org`,
+    'Subject: CID regression', 'Message-ID: <cid@example.com>',
+    'Content-Type: multipart/related; boundary="rel"', '',
+    '--rel', 'Content-Type: text/html; charset=utf-8', '',
+    `<div>New screenshot<img src="${src}"></div>`,
+    ...inlinePart(id, png), '--rel--', '',
+  ].join('\r\n');
+  const mail = message(undefined, source);
+  await worker.email(mail, env());
+  const payload = calls.at(-1).body;
+  assert.equal(payload.images.length, expected, src);
+  assert.equal(payload.attachments, 0, src);
+  assert.deepEqual(mail.forwarded, [], src);
+  const validated = validateInboundPayload(payload);
+  assert.equal(validated.ok, true, src);
+  assert.equal(validated.value.images.length, expected, src);
+  if (expected) assert.deepEqual(validated.value.images[0].buffer, png, src);
+}
+
 console.log('smoke ok');

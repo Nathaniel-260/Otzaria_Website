@@ -551,6 +551,108 @@ test('תשובה במייל עם תמונות: משלוח כפול במקביל 
   assert.equal((await AppReport.findOne({ reportId: rep.body.reportId }).lean()).contactLog.length, 2);
 });
 
+for (const committed of [false, true]) {
+  test(`reply image references: update ${committed ? 'commits but acknowledgement is lost' : 'fails before writing'}; retry keeps one copy`, async (t) => {
+    if (db.skip) return t.skip(db.skip);
+    const rep = await post(manual());
+    const to = await contactWithReply(rep.body.reportId);
+    const filesBefore = files.size;
+    const payload = inbound(to, { images: replyImages() });
+    const updateOne = AppReport.updateOne.bind(AppReport);
+    let failNext = true;
+    t.mock.method(AppReport, 'updateOne', async (filter, update, ...args) => {
+      if (failNext && update.$push?.contactLog) {
+        failNext = false;
+        if (committed) await updateOne(filter, update, ...args);
+        throw new Error('reply reference update failed');
+      }
+      return updateOne(filter, update, ...args);
+    });
+    const request = new Request('http://localhost/api/app-reports/inbound-email', {
+      method: 'POST', headers: { authorization: 'Bearer inbound-secret' }, body: JSON.stringify(payload),
+    });
+    const failed = await handleInboundEmailPost(request, { ...imageDeps(), connectDB: async () => {} });
+    assert.equal(failed.status, 500);
+    assert.equal(files.size, filesBefore + (committed ? 2 : 0));
+    const beforeRetry = await AppReport.findOne({ reportId: rep.body.reportId }).lean();
+    assert.equal(beforeRetry.contactLog.filter((c) => c.direction === 'in').length, committed ? 1 : 0);
+    if (committed) {
+      for (const ref of beforeRetry.contactLog.at(-1).images) {
+        assert.ok(files.has(String(ref.gridfsId)), 'committed images must survive a lost acknowledgement');
+        assert.ok(await loadPublicImage(ref.publicToken, readFile));
+      }
+    }
+    const retry = await ingestInboundReply(payload, imageDeps());
+    assert.equal(retry.status, 200);
+    assert.equal(retry.body.status, committed ? 'duplicate' : 'stored');
+    assert.equal(files.size, filesBefore + 2);
+    const doc = await AppReport.findOne({ reportId: rep.body.reportId }).lean();
+    const replies = doc.contactLog.filter((c) => c.direction === 'in');
+    assert.equal(replies.length, 1);
+    for (const ref of replies[0].images) assert.ok(files.has(String(ref.gridfsId)));
+  });
+}
+
+test('reply update failure cleans only its own images when a concurrent duplicate has committed', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const rep = await post(manual());
+  const to = await contactWithReply(rep.body.reportId);
+  const filesBefore = files.size;
+  const updateOne = AppReport.updateOne.bind(AppReport);
+  let writes = 0;
+  let releaseLoser;
+  const winnerStored = new Promise((resolve) => { releaseLoser = resolve; });
+  t.mock.method(AppReport, 'updateOne', async (filter, update, ...args) => {
+    if (update.$push?.contactLog) {
+      writes += 1;
+      if (writes === 1) {
+        await winnerStored;
+        throw new Error('concurrent delivery update failed');
+      }
+      try {
+        return await updateOne(filter, update, ...args);
+      } finally {
+        releaseLoser();
+      }
+    }
+    return updateOne(filter, update, ...args);
+  });
+  const results = await Promise.allSettled([1, 2].map(() => ingestInboundReply(inbound(to, { images: replyImages() }), imageDeps())));
+  assert.equal(results.filter((r) => r.status === 'fulfilled' && r.value.body.status === 'stored').length, 1);
+  assert.equal(results.filter((r) => r.status === 'rejected').length, 1);
+  assert.equal(files.size, filesBefore + 2);
+  const doc = await AppReport.findOne({ reportId: rep.body.reportId }).lean();
+  const replies = doc.contactLog.filter((c) => c.direction === 'in');
+  assert.equal(replies.length, 1);
+  for (const ref of replies[0].images) assert.ok(files.has(String(ref.gridfsId)));
+});
+
+test('reply update failure preserves images if checking committed references also fails', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const rep = await post(manual());
+  const to = await contactWithReply(rep.body.reportId);
+  const filesBefore = files.size;
+  const updateOne = AppReport.updateOne.bind(AppReport);
+  const exists = AppReport.exists.bind(AppReport);
+  t.mock.method(AppReport, 'updateOne', async (filter, update, ...args) => {
+    if (update.$push?.contactLog) {
+      await updateOne(filter, update, ...args);
+      throw new Error('lost write acknowledgement');
+    }
+    return updateOne(filter, update, ...args);
+  });
+  t.mock.method(AppReport, 'exists', (filter) => {
+    if (filter['contactLog.images.gridfsId']) {
+      return { read: async () => { throw new Error('verification unavailable'); } };
+    }
+    return exists(filter);
+  });
+  await assert.rejects(ingestInboundReply(inbound(to, { images: replyImages() }), imageDeps()), /lost write acknowledgement/);
+  assert.equal(files.size, filesBefore + 2);
+  const doc = await AppReport.findOne({ reportId: rep.body.reportId }).lean();
+  for (const ref of doc.contactLog.at(-1).images) assert.ok(files.has(String(ref.gridfsId)));
+});
+
 test('נתיב inbound-email: תמונה גדולה מהתקרה הישנה (2MB) נקלטת', async (t) => {
   if (db.skip) return t.skip(db.skip);
   const rep = await post(manual());
