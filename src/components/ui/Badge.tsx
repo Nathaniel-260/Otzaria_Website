@@ -25,6 +25,7 @@ const SIZES = {
 } as const
 
 export type BadgeTone = keyof typeof TONES
+
 export type BadgeSize = keyof typeof SIZES
 
 /**

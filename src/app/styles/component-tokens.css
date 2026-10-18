@@ -104,6 +104,57 @@
   --tooltip-max-width: 15rem;
   --tooltip-delay: 280ms;
 
+  /* ---------- שדה טקסט (plugins/PluginSearchBox; בעתיד ui/TextField) ----------
+   * מסגרת outline (4.3:1 — שדה חייב גבול מזוהה, WCAG 1.4.11), ריחוף on-surface-variant, ובפוקוס
+   * מסגרת primary בעובי 2px (הגבול + outline פנימי של 1px) — מחוון הפוקוס של שדה, במקום הטבעת
+   * המרוחקת של כפתור. lg — שדה חיפוש ראשי בעמוד (גיבור החנות). */
+  --field-radius: var(--radius-control);
+  --field-bg: var(--color-surface);
+  --field-fg: var(--color-on-surface);
+  --field-placeholder: var(--color-on-surface-variant);
+  --field-border: var(--color-outline);
+  --field-border-hover: var(--color-on-surface-variant);
+  --field-border-focus: var(--color-primary);
+  --field-height-md: var(--button-height-lg);
+  --field-height-lg: 3.5rem;
+
+  /* ---------- שבב (ui/Chip): תגית לחיצה — מסנן, קישור לקטגוריה ----------
+   * גובה חזותי 36px; מטרת המגע (44px) דרך ::before, כמו כפתור header. נבדל מ-Badge (לא לחיץ)
+   * במסגרת. נבחר (aria-pressed / aria-current) — המשטח הטונלי של האפליקציה, ומסגרת primary: הרקע
+   * הטונלי לבדו נבדל מהרקע רק ב-1.15–2:1, והמסגרת היא הסימון הלא-טקסטואלי של המצב (WCAG 1.4.11).
+   * ניגודיות המסגרת: בהיר — 5.8:1 מול רקע הדף, 6.1:1 מול surface, 3.8:1 מול מסגרת שבב רגיל;
+   * כהה — 10.9:1 / 10.1:1 / 5.5:1. */
+  --chip-height: 2.25rem;
+  --chip-radius: var(--radius-pill);
+  --chip-bg: var(--color-surface);
+  --chip-bg-hover: var(--color-surface-selected);
+  --chip-border: var(--color-outline-variant);
+  --chip-border-hover: var(--color-outline);
+  --chip-fg: var(--color-on-surface-variant);
+  --chip-fg-hover: var(--color-on-surface);
+  --chip-selected-bg: var(--color-secondary-container);
+  --chip-selected-bg-hover: var(--color-secondary-container-hover);
+  --chip-selected-fg: var(--color-on-secondary-container);
+  --chip-selected-border: var(--color-primary);
+
+  /* ---------- שלד טעינה (ui/Skeleton) ---------- */
+  --skeleton-bg: var(--color-surface-container-high);
+
+  /* ---------- אייקון תוסף (plugins/PluginImage) ----------
+   * תמונת התוסף היא אייקון ריבועי (512–1200px, זהב על לבן) — מוצגת כאריח ריבועי ולא כבאנר
+   * חתוך. sm — הצעות החיפוש ושורת תוצאה צפופה; md — כרטיס בנייד; lg — כרטיס מ-sm;
+   * xl — כותרת עמוד התוסף. הרקע מאחוריו (לפני הטעינה / תמונה שקופה) — surface-container. */
+  --plugin-icon-radius: var(--radius-card);
+  --plugin-icon-bg: var(--color-surface-container);
+  --plugin-icon-ring: color-mix(in oklab, var(--color-outline-variant) 70%, transparent);
+  --plugin-icon-size-sm: 2.5rem;
+  --plugin-icon-size-md: 4rem;
+  --plugin-icon-size-lg: 4.5rem;
+  --plugin-icon-size-xl: 7.5rem;
+  /* ראש עמוד התוסף: 96px בנייד → xl (120) מ-sm → 168px מ-lg (בפרופורציה לבלוק הכותרת שלצדו) */
+  --plugin-icon-size-hero-sm: 6rem;
+  --plugin-icon-size-hero: 10.5rem;
+
   /* ---------- תג / תגית (ui/Badge) ---------- */
   --badge-radius: var(--radius-pill);
   --badge-height-sm: 1.5rem;
