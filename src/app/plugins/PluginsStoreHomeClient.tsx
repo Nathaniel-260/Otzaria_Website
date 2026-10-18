@@ -102,7 +102,7 @@ export default function PluginsStoreHomeClient({ data, loadError }: PluginsStore
               {/* מתחת ל-lg: שבבי הקטגוריות מיד אחרי החיפוש (מ-lg: הסרגל) */}
               {hasCategoryNav && <CategoryChipsNav categories={categories} totalPlugins={totalPublicPlugins} className="mt-4" />}
 
-              <div className="mt-10 md:mt-12">
+              <div className="mt-12 md:mt-16">
                 {loadError ? (
                   // שגיאת טעינה — עדיין מציעים דרך אל כל התוספים
                   <EmptyState
