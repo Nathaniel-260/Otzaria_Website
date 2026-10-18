@@ -59,3 +59,44 @@ export function splitLatinRuns(text) {
   if (last < source.length) parts.push({ text: source.slice(last), ltr: false })
   return parts
 }
+
+// קישור בתוך תשובה: התשובה היא מחרוזת רגילה, והמקום של הקישור בה מסומן בטוקן {link}; היעד
+// והנוסח הלחיץ — בשדה link של השאלה ({ href, label }). כך הנתונים נשארים טקסט פשוט (בלי HTML
+// ובלי markup), והרכיב בונה את הקישור בעצמו.
+export const FAQ_LINK_TOKEN = '{link}'
+
+/** נתיב פנימי באתר בלבד ("/#download", "/offline") — לא כתובת חיצונית ולא "//host" */
+export function isInternalHref(href) {
+  return typeof href === 'string' && href.startsWith('/') && !href.startsWith('//') && !href.includes('\\')
+}
+
+/**
+ * מפרק תשובה לקטעים: { type: 'text', text } ו-{ type: 'link', href, label } במקום כל טוקן.
+ * קישור חסר או לא-פנימי — הטוקן מוחלף בנוסח בלבד (טקסט), כדי שלא יוצג "{link}" גולמי.
+ * קטעי טקסט ריקים לא מוחזרים.
+ */
+export function splitAnswerLink(text, link) {
+  const source = String(text ?? '')
+  const label = typeof link?.label === 'string' ? link.label : ''
+  const valid = label !== '' && isInternalHref(link?.href)
+  const parts = []
+  source.split(FAQ_LINK_TOKEN).forEach((chunk, i) => {
+    if (i > 0) {
+      if (valid) parts.push({ type: 'link', href: link.href, label })
+      else if (label) parts.push({ type: 'text', text: label })
+    }
+    if (chunk) parts.push({ type: 'text', text: chunk })
+  })
+  // טקסטים סמוכים (קישור לא תקין שהפך לטקסט) — קטע אחד
+  return parts.reduce((merged, part) => {
+    const prev = merged[merged.length - 1]
+    if (part.type === 'text' && prev?.type === 'text') prev.text += part.text
+    else merged.push({ ...part })
+    return merged
+  }, [])
+}
+
+/** התשובה כטקסט רציף (הטוקן מוחלף בנוסח הקישור) — למה שהקורא רואה, ולכל שימוש שאינו React */
+export function faqAnswerText(faq) {
+  return splitAnswerLink(faq?.answer, faq?.link).map((part) => (part.type === 'link' ? part.label : part.text)).join('')
+}
