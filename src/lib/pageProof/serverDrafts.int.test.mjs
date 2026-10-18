@@ -151,7 +151,7 @@ test('העמוד חזר מזיהוי-מחדש (גרסה 2): הטיוטה עוב�
   const got = await editorDraft(await reload(), a._id, { edit: true, userName: 'מתנדב א' });
   assert.equal(got.revision, 2);
   assert.deepEqual(got.ops, [TEXT]);
-  assert.deepEqual(got.carried, { from: 1, kept: 1, cut: 1, dropped: ['טקסט: «על השורה שנחתכה»'] });
+  assert.deepEqual(got.carried, { from: 1, kept: 1, cut: 1, dropped: ['טקסט: «על השורה שנחתכה»'], held: [] });
   assert.equal(got.stage, 'text');
   assert.ok(got.recut.sentAt && got.recut.backAt);
   // השמירה הבאה בגרסה 2 — ההודעה "עברה" כבר אינה רלוונטית
@@ -219,7 +219,7 @@ test('עדכון-עמוד מתוכנת-הספר באותה גרסה ובמזהי
   await PageProofPage.updateOne({ _id: page._id }, { $set: { doc: { ...DOC, lines: [line(1), line(31), line(3)] } } });
   const got = await editorDraft(await reload(), a._id, { edit: true, userName: 'מתנדב א' });
   assert.deepEqual(got.ops, [TEXT]);
-  assert.deepEqual(got.carried, { from: 1, kept: 1, cut: 0, dropped: ['טקסט: «על שורה שתוחלף»'], update: true });
+  assert.deepEqual(got.carried, { from: 1, kept: 1, cut: 0, dropped: ['טקסט: «על שורה שתוחלף»'], held: [], update: true });
   assert.equal(got.stage, 'structure', 'אין "חזר מזיהוי-מחדש" — השלב נשאר');
   assert.equal(got.recut, null);
   // פתיחה נוספת — כבר באותה חתימה, בלי מעבר נוסף
@@ -237,4 +237,26 @@ test('המתנדב הבא אינו רואה את שם הקודם; מנהל — �
   assert.equal(JSON.stringify(got).includes('מתנדב א'), false);
   const adm = await editorContext(await reload(), admin._id, { edit: false, admin: true });
   assert.equal(adm.draft.inherited.byName, 'מתנדב א');
+});
+
+
+test('נוסח שהושהה אחרי זיהוי מחדש נשאר אחרי שמירה ופתיחה מחדש, ונמחק באיפוס', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  await saveDraft(page._id, a._id, { revision: 1, ops: [TEXT] });
+  await PageProofPage.updateOne({ _id: page._id }, { $set: { revision: 2, doc: { ...DOC, revision: 2, lines: [line(1, { text: 'זיהוי חדש', recheck: true }), line(2), line(3)] } } });
+  const first = await editorDraft(await reload(), a._id, { edit: true });
+  assert.deepEqual(first.ops, []);
+  assert.equal(first.held[0].mine, TEXT.value);
+  await saveDraft(page._id, a._id, { revision: 2, ops: [OK3] });
+  const reopened = await editorDraft(await reload(), a._id, { edit: true });
+  assert.equal(reopened.carried, null, 'הודעת המעבר אינה מתערבת במיזוג טיוטות רגיל');
+  assert.deepEqual(reopened.held, first.held);
+  assert.deepEqual(reopened.ops, [OK3]);
+  await PageProofPage.updateOne({ _id: page._id }, { $set: { revision: 3, doc: { ...DOC, revision: 3, lines: [line(1, { text: 'זיהוי נוסף', recheck: true }), line(2), line(3)] } } });
+  const nextRevision = await editorDraft(await reload(), a._id, { edit: true });
+  assert.equal(nextRevision.held[0].mine, TEXT.value);
+  assert.equal(nextRevision.held[0].ocr, 'זיהוי נוסף');
+  assert.equal(nextRevision.ops.some((o) => o.kind === 'text'), false, 'הגיבוי אינו מוחל אוטומטית');
+  await saveDraft(page._id, a._id, { revision: 3, ops: [], reset: true });
+  assert.deepEqual((await editorDraft(await reload(), a._id, { edit: true })).held, []);
 });

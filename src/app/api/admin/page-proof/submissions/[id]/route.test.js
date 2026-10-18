@@ -338,3 +338,20 @@ describe('אישור עם עריכה — קישור לעמוד אחר', () => {
     expect(Sub.findOneAndUpdate).not.toHaveBeenCalled()
   })
 })
+
+
+describe('שינוי מסגרות בלבד', () => {
+  it('אישור בלי עריכה שומר needsRecut מהמסד ומעביר את העמוד לזיהוי מחדש', async () => {
+    const stored = sub({ needsRecut: true, ops: [{ kind: 'frames_set', page: 3, value: { frames: [{ fid: 'aaaaaa', stream: 'main', order: 1, bbox: [10, 10, 90, 90] }] } }] })
+    Sub.findById.mockImplementation((_id, fields) => lean(Object.fromEntries(Object.entries(stored).filter(([key]) => key === '_id' || fields[key]))))
+    Page.findById.mockReturnValue(lean(page()))
+    let update
+    Sub.findOneAndUpdate.mockImplementation(async (_f, u) => {
+      update = u.$set
+      return { ...stored, ...update, opCount: 1 }
+    })
+    Sub.find.mockImplementation(() => lean([{ ...stored, ...update, reviewedAt: new Date() }]))
+    const body = await (await PATCH(req({ action: 'approve' }), params)).json()
+    expect(body).toMatchObject({ success: true, needsRecut: true, pageStatus: 'recut' })
+  })
+})

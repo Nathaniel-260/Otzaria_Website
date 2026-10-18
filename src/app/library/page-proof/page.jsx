@@ -136,6 +136,8 @@ function PageProofVolunteer() {
   const [helpOpen, setHelpOpen] = useState(false)
   // הטיוטה עברה לגרסה חדשה של העמוד (drafts.cleanupPageDrafts): מה עבר ומה לא
   const [carried, setCarried] = useState(null)
+  // העורך (ProofEditor editorRef) — "השתמשו בנוסח שלי" בהודעה על שורה שזוהתה מחדש מחיל את התיקון דרכו (עם ביטול)
+  const editorRef = useRef(null)
 
   const role = session?.user?.role
   const canWork = session?.user?.isVerified || hasBookLibraryAccess(role) || hasOcrAccess(role)
@@ -165,7 +167,7 @@ function PageProofVolunteer() {
           const local = withStorage((s) => cleanupPageDrafts(s, data.page, draftKey))?.carried || null
           const skewMs = data.now ? Date.parse(data.now) - received : 0
           draftInfo = withStorage((s) => applyServerDraft(s, { pageId: data.page.id, draftKey, server: data.draft || null, skewMs }))
-          setCarried((draftInfo?.source === 'server' && data.draft?.carried) || local)
+          setCarried((draftInfo?.source === 'server' && data.draft?.carried) || local || (data.draft?.held?.length ? { held: data.draft.held } : null))
         } else if (data.submission) withStorage((s) => removePageDrafts(s, data.page.id))
         setCurrent({ ...data, draftKey, draftInfo })
       } catch (e) {
@@ -466,7 +468,13 @@ function PageProofVolunteer() {
                 </div>
               )}
 
-              {editing && carried && !loadingPage && <DraftCarriedNotice carried={carried} onClose={() => setCarried(null)} />}
+              {editing && carried && !loadingPage && (
+                <DraftCarriedNotice
+                  carried={carried}
+                  onClose={() => setCarried(null)}
+                  onUseMine={(h) => !!editorRef.current?.push({ kind: 'text', page: h.page ?? current?.page?.page, ids: [h.id], value: h.mine })}
+                />
+              )}
 
               {loadingPage ? (
                 <LoadingSpinner message="טוען עמוד..." />
@@ -482,6 +490,7 @@ function PageProofVolunteer() {
                   onSendRecut={sendRecut}
                   onReset={() => resetDraft(current.page.id)}
                   onReload={() => openPage(current.page.id)}
+                  editorRef={editorRef}
                 />
               ) : current ? (
                 <ProofEditor

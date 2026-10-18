@@ -174,3 +174,24 @@ test('validateOp link_reset: רק לקישור שבוטל', () => {
   assert.equal(validateOp(live, op), 'הקישור מהשורה הזו לא בוטל');
   assert.equal(validateOp({ ...live, links: [] }, op), 'אין בעמוד קישור מהשורה הזו');
 });
+
+
+test('שני קישורים בשורה: ביטול ושחזור של כל טווח בנפרד, גם כשהשני נשאר חי', () => {
+  const b = base();
+  const first = b.links[0];
+  const second = { ...first, from_words: [2, 2], to_line: 2 };
+  b.links = [first, second];
+  const del1 = unlinkPlan(b, first).op;
+  const del2 = unlinkPlan(b, second).op;
+  const v = buildView(b, [del2]);
+  const one = cancelledLinks(b, [del2], v);
+  assert.equal(one.length, 1);
+  assert.deepEqual(one[0].link.from_words, [2, 2]);
+  assert.equal(one[0].restore.match(del2), true);
+  assert.equal(one[0].restore.match(del1), false);
+  const both = cancelledLinks(b, [del1, del2], buildView(b, [del1, del2]));
+  assert.equal(both.length, 2);
+  assert.equal(new Set(both.map((c) => c.key)).size, 2);
+  const remaining = [del1, del2].filter((o) => !both[1].restore.match(o));
+  assert.deepEqual(buildView(b, remaining).links.map((k) => k.from_words), [[2, 2]]);
+});

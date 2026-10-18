@@ -28,7 +28,7 @@
 // צרכן שאינו מכיר את השדות מתעלם מהם (החוזה).
 
 import { CONTRACT_VERSION } from './vocab.js';
-import { CUT_KINDS } from './ops.js';
+import { CUT_KINDS, framesChanged } from './ops.js';
 import { matchOps } from './draftRules.js';
 
 export const SITE_WHO = 'otzaria-site';
@@ -76,7 +76,14 @@ export function recutOf(primary, byId) {
   const base = byId?.get?.(basedOnId(primary) || '');
   if (!base?.exportedAt) return true;
   const cut = (o) => !!o && CUT_KINDS.includes(o.kind);
-  return matchOps(base.ops, primary.ops).some((j, i) => j < 0 && cut(primary.ops[i]));
+  const matches = matchOps(base.ops, primary.ops);
+  if (matches.some((j, i) => j < 0 && cut(primary.ops[i]))) return true;
+  const isFrameOp = (o) => o?.kind === 'frames_set' || o?.kind === 'frames_clear';
+  if (!matches.some((j, i) => j < 0 && isFrameOp(primary.ops[i]))) return false;
+  const prior = (base.ops || []).filter(isFrameOp).at(-1);
+  // בלי צילום מסגרות קודם אין כאן את עמוד-המקור להשוואה; needsRecut כבר נקבע מולו בהגשה.
+  if (!prior) return true;
+  return framesChanged({ frames: prior.kind === 'frames_clear' ? [] : prior.value?.frames }, primary.ops);
 }
 
 // submissions: [{_id, page, revision?, who, approvedAt, needsRecut?, exportedAt?, ops:[...] }]

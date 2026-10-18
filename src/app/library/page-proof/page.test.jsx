@@ -609,3 +609,15 @@ describe('דף המתנדב — עד מתי העמוד שמור, ומה עם ע�
     expect(screen.getByRole('button', { name: /עמוד 4 · הוגש/ })).toHaveAttribute('title', expect.stringContaining(`ממתין לבדיקת מנהל (מאז ${since})`))
   })
 })
+
+
+it('מציג נוסח שממתין לבחירה מהטיוטה גם אחרי שהודעת המעבר נוקתה בשמירה', async () => {
+  pageData.draft = {
+    ops: [], revision: 1, stage: 'text', updatedAt: new Date().toISOString(), carried: null,
+    held: [{ id: 1, page: P, mine: 'הנוסח שלי שנשמר', ocr: 'הזיהוי החדש' }],
+  }
+  render(<PageProofVolunteer />)
+  expect(await screen.findByText(/«הנוסח שלי שנשמר»/)).toBeTruthy()
+  expect(screen.getByText(/«הזיהוי החדש»/)).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'השתמשו בנוסח שלי' })).toBeEnabled()
+})
