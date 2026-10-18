@@ -1,10 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
 import { useSession } from 'next-auth/react'
+import Dialog from '@/components/ui/Dialog'
+import Button from '@/components/ui/Button'
+import AppIcon from '@/components/ui/AppIcon'
+import FormField from '@/components/plugins/form/FormField'
+import FormNote from '@/components/plugins/form/FormNote'
+import FileDropZone from '@/components/plugins/form/FileDropZone'
+import TagInput from '@/components/plugins/form/TagInput'
+import { usePluginTagSuggestions } from '@/components/plugins/form/usePluginTagSuggestions'
+import CheckboxField from '@/components/plugins/form/CheckboxField'
+import { IconPreview, ScreenshotPreviews, SelectedFile } from '@/components/plugins/form/FilePreviews'
+import { fieldA11yProps, fieldClasses } from '@/components/ui/fieldStyles'
 import { useDialog } from '@/components/providers/DialogContext'
 import { MIN_SUPPORTED_APP_VERSION, formatPluginStatus } from '@/lib/pluginStatus'
+import { normalizeTagList } from '@/lib/pluginTags'
 
 const ALLOWED_IMAGE_MIMES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 const STATUS_OPTIONS = [
@@ -114,8 +125,9 @@ function buildManifestDiff(manifest, current) {
 export default function PluginEditModal({ plugin, endpoint, onClose, onSuccess }) {
   const { data: session } = useSession()
   const { showAlert, showConfirm, showMessage } = useDialog()
-  const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
+  // חלון אישור של DialogContext פתוח מעל החלון הזה — Esc לא יסגור את העריכה מתחתיו
+  const [confirming, setConfirming] = useState(false)
   const isAdmin = session?.user?.role === 'admin'
   const originalVersion = plugin.version || ''
 
@@ -128,7 +140,8 @@ export default function PluginEditModal({ plugin, endpoint, onClose, onSuccess }
     author: plugin.author || '',
     compatibleWith: plugin.compatibleWith || '',
     requiresNetwork: plugin.requiresNetwork === true,
-    tags: plugin.tags || [],
+    // מנורמלות כבר בפתיחה (פיצול פסיקים, גרשיים, כפילויות) — מה שרואים הוא מה שיישמר
+    tags: normalizeTagList(plugin.tags || []),
     homepage: plugin.homepage || ''
   })
 
@@ -139,26 +152,10 @@ export default function PluginEditModal({ plugin, endpoint, onClose, onSuccess }
   const [screenshotPreviews, setScreenshotPreviews] = useState([])
   const [removeImage, setRemoveImage] = useState(false)
   const [removeScreenshots, setRemoveScreenshots] = useState(false)
-  const [newTag, setNewTag] = useState('')
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const tagSuggestions = usePluginTagSuggestions()
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const addTag = () => {
-    const value = newTag.trim()
-    if (value && !formData.tags.includes(value)) {
-      handleChange('tags', [...formData.tags, value])
-      setNewTag('')
-    }
-  }
-
-  const removeTag = (tag) => {
-    handleChange('tags', formData.tags.filter((item) => item !== tag))
   }
 
   const handlePluginFile = async (event) => {
@@ -244,7 +241,8 @@ export default function PluginEditModal({ plugin, endpoint, onClose, onSuccess }
       if (diff.length > 0) {
         const lines = diff.map((change) => `• ${change.label}\n   לפני: ${change.before}\n   אחרי: ${change.after}`)
         const message = `בקובץ התוסף החדש נמצאו ערכים שונים מהשדות בטופס:\n\n${lines.join('\n\n')}\n\nלהחליף את הערכים בטופס לפי הקובץ?`
-        const apply = await showConfirm('עדכון שדות לפי הקובץ', message)
+        setConfirming(true)
+        const apply = await showConfirm('עדכון שדות לפי הקובץ', message).finally(() => setConfirming(false))
         if (apply) {
           setFormData((prev) => ({
             ...prev,
@@ -313,7 +311,7 @@ export default function PluginEditModal({ plugin, endpoint, onClose, onSuccess }
       data.append('author', formData.author)
       data.append('compatibleWith', formData.compatibleWith)
       data.append('requiresNetwork', formData.requiresNetwork ? 'true' : 'false')
-      data.append('tags', JSON.stringify(formData.tags))
+      data.append('tags', JSON.stringify(normalizeTagList(formData.tags)))
       data.append('homepage', formData.homepage)
 
       if (pluginFile) {
@@ -350,159 +348,166 @@ export default function PluginEditModal({ plugin, endpoint, onClose, onSuccess }
     }
   }
 
-  if (!mounted) return null
+  const field = (id, label, key, { required = true, ltr = false, className } = {}) => (
+    <FormField id={id} label={label} required={required} className={className}>
+      <input
+        value={formData[key]}
+        onChange={(e) => handleChange(key, e.target.value)}
+        className={fieldClasses()}
+        required={required}
+        dir={ltr ? 'ltr' : undefined}
+        {...fieldA11yProps(id, { required })}
+      />
+    </FormField>
+  )
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-neutral-200 bg-white p-6">
-          <h2 className="text-2xl font-bold text-on-surface">עריכת תוסף</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 transition-colors hover:bg-neutral-100"
-          >
-            <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
+  return (
+    <Dialog
+      title="עריכת תוסף"
+      subtitle={plugin.name}
+      onClose={onClose}
+      // בזמן שמירה או כשחלון אישור/הודעה פתוח מעליו — רק "ביטול" סוגר (לא Esc/רקע)
+      dismissible={!loading && !confirming}
+      className="[--dialog-width:48rem]"
+      footer={
+        <>
+          <Button type="submit" form={EDIT_FORM_ID} variant="filled" icon="save" loading={loading} className="flex-1 sm:flex-none">
+            {loading ? 'שומר...' : 'שמור שינויים'}
+          </Button>
+          <Button type="button" variant="outlined" onClick={onClose} className="flex-1 sm:flex-none">
+            ביטול
+          </Button>
+        </>
+      }
+    >
+      <form id={EDIT_FORM_ID} onSubmit={handleSubmit} className="space-y-8">
+        {!isAdmin && (
+          <FormNote>
+            בעת החלפת קובץ התוסף, שם התוסף, המפתח והגרסה יזוהו אוטומטית מ-<code dir="ltr">manifest.json</code> — הגרסה חייבת להיות גבוהה מהנוכחית.
+          </FormNote>
+        )}
 
-        <form onSubmit={handleSubmit} className="space-y-6 p-6">
-          {!isAdmin && (
-            <div className="rounded-xl border border-primary/10 bg-primary/5 p-4 text-on-surface/70 text-sm">
-              בעת החלפת קובץ התוסף, שם התוסף, המפתח והגרסה יזוהו אוטומטית מ-manifest.json — הגרסה חייבת להיות גבוהה מהנוכחית.
-            </div>
-          )}
-
-          <section className="space-y-4">
-            <h3 className="text-xl font-bold text-on-surface">מידע בסיסי</h3>
-            {isAdmin ? (
-              <>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <input value={formData.name} onChange={(e) => handleChange('name', e.target.value)} className="rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10" placeholder="שם התוסף" required />
-                  <input value={formData.author} onChange={(e) => handleChange('author', e.target.value)} className="rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10" placeholder="מפתח" required />
-                  <input value={formData.version} onChange={(e) => handleChange('version', e.target.value)} className="rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10" placeholder="גרסה" required />
-                  <input value={formData.compatibleWith} onChange={(e) => handleChange('compatibleWith', e.target.value)} className="rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10" placeholder="גרסת מינימום" required />
-                  <input value={formData.shortDescription} onChange={(e) => handleChange('shortDescription', e.target.value)} className="md:col-span-2 rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10" placeholder="תיאור קצר" required />
-                  <input value={formData.homepage} onChange={(e) => handleChange('homepage', e.target.value)} className="md:col-span-2 rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10" placeholder="אתר בית (אופציונלי)" />
-                  <select value={formData.status} onChange={(e) => handleChange('status', e.target.value)} className="rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10">
+        <EditSection id="edit-section-basic" title="מידע בסיסי">
+          {isAdmin ? (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                {field('edit-name', 'שם התוסף', 'name')}
+                {field('edit-author', 'מפתח', 'author')}
+                {field('edit-version', 'גרסה', 'version', { ltr: true })}
+                {field('edit-compatible', 'גרסת מינימום', 'compatibleWith', { ltr: true })}
+                {field('edit-short-description', 'תיאור קצר', 'shortDescription', { className: 'md:col-span-2' })}
+                {field('edit-homepage', 'אתר בית (אופציונלי)', 'homepage', { required: false, ltr: true, className: 'md:col-span-2' })}
+                <FormField id="edit-status" label="סטטוס">
+                  <select
+                    id="edit-status"
+                    value={formData.status}
+                    onChange={(e) => handleChange('status', e.target.value)}
+                    className={fieldClasses({ kind: 'select' })}
+                  >
                     {STATUS_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                </div>
-                <label className="flex items-center gap-3 rounded-xl border border-neutral-200 px-4 py-3 cursor-pointer hover:bg-neutral-50 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={formData.requiresNetwork}
-                    onChange={(e) => handleChange('requiresNetwork', e.target.checked)}
-                    className="h-5 w-5 rounded border-neutral-300 text-primary focus:ring-2 focus:ring-primary/20"
-                  />
-                  <span className="material-symbols-outlined text-primary">
-                    {formData.requiresNetwork ? 'wifi' : 'wifi_off'}
-                  </span>
-                  <span className="font-medium text-on-surface">התוסף דורש חיבור אינטרנט</span>
-                </label>
-              </>
-            ) : (
-              <>
-                <div className="rounded-xl border border-primary/10 bg-primary/5 px-4 py-3 text-sm text-on-surface/70">
-                  שאר המידע יילקח מקובץ התוסף.
-                </div>
-                <div className="flex items-center gap-3 rounded-xl border border-neutral-200 px-4 py-3 text-sm text-on-surface/70">
-                  <span className="material-symbols-outlined text-primary">
-                    {formData.requiresNetwork ? 'wifi' : 'wifi_off'}
-                  </span>
-                  <span>
-                    חיבור אינטרנט: <strong>{formData.requiresNetwork ? 'נדרש' : 'לא נדרש'}</strong>
-                    {' '}(נקבע אוטומטית מ-<code>network.enabled</code> ב-manifest.json)
-                  </span>
-                </div>
-              </>
-            )}
-            <textarea value={formData.description} onChange={(e) => handleChange('description', e.target.value)} className="min-h-[150px] w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10" placeholder="תיאור מלא" required />
-          </section>
-
-          <section className="space-y-4">
-            <h3 className="text-xl font-bold text-on-surface">תגיות</h3>
-            <div className="flex gap-2">
-              <input type="text" value={newTag} onChange={(e) => setNewTag(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())} className="flex-1 rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10" placeholder="הוסף תגית" />
-              <button type="button" onClick={addTag} className="rounded-xl bg-primary px-6 py-3 font-bold text-white transition-colors hover:bg-primary/90">הוסף</button>
-            </div>
-            {formData.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {formData.tags.map((tag) => (
-                  <span key={tag} className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-                    {tag}
-                    <button type="button" onClick={() => removeTag(tag)} className="hover:text-primary/70">
-                      <span className="material-symbols-outlined text-base">close</span>
-                    </button>
-                  </span>
-                ))}
+                </FormField>
               </div>
-            )}
-          </section>
+              <CheckboxField
+                id="edit-requires-network"
+                checked={formData.requiresNetwork}
+                onChange={(checked) => handleChange('requiresNetwork', checked)}
+                icon={<AppIcon name={formData.requiresNetwork ? 'wifi' : 'wifi_off'} className="mt-0.5 text-[1.25rem] text-primary" />}
+                label={<span className="font-semibold">התוסף דורש חיבור אינטרנט</span>}
+              />
+            </>
+          ) : (
+            <>
+              <FormNote>שאר המידע יילקח מקובץ התוסף.</FormNote>
+              <div className="flex items-start gap-3 rounded-(--radius-control) border border-outline-variant px-4 py-3 text-body-sm text-on-surface-variant">
+                <AppIcon name={formData.requiresNetwork ? 'wifi' : 'wifi_off'} className="mt-0.5 text-[1.25rem] text-primary" />
+                <span>
+                  חיבור אינטרנט: <strong className="font-semibold text-on-surface">{formData.requiresNetwork ? 'נדרש' : 'לא נדרש'}</strong>
+                  {' '}(נקבע אוטומטית מ-<code dir="ltr">network.enabled</code> ב-<code dir="ltr">manifest.json</code>)
+                </span>
+              </div>
+            </>
+          )}
+          <FormField id="edit-description" label="תיאור מלא" required>
+            <textarea
+              value={formData.description}
+              onChange={(e) => handleChange('description', e.target.value)}
+              className={fieldClasses({ kind: 'textarea' })}
+              required
+              {...fieldA11yProps('edit-description', { required: true })}
+            />
+          </FormField>
+        </EditSection>
 
-          <section className="space-y-6">
-            <h3 className="text-xl font-bold text-on-surface">קבצים</h3>
+        <EditSection id="edit-section-tags" title="תגיות">
+          <TagInput
+            id="edit-new-tag"
+            tags={formData.tags}
+            onTagsChange={(tags) => handleChange('tags', tags)}
+            suggestions={tagSuggestions}
+            placeholder="הוסף תגית"
+          />
+        </EditSection>
 
-            <div>
-              <label className="mb-2 block text-sm font-bold text-on-surface/60">קובץ תוסף (.otzplugin)</label>
-              <input type="file" accept=".otzplugin" onChange={handlePluginFile} className="w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10" />
-              {pluginFile && <p className="mt-2 text-sm text-success-600">✓ נבחר: {pluginFile.name}</p>}
-              {plugin.pluginFileName && <p className="mt-2 text-sm text-on-surface/50">קובץ נוכחי: {plugin.pluginFileName}</p>}
-              {isAdmin && <p className="mt-2 text-sm text-on-surface/50">למנהל, החלפת הקובץ אינה משנה אוטומטית את השדות הידניים. ניתן לשמור על אותה גרסה אך לא לשנמך, והמזהה (id) ב-manifest.json חייב להישאר זהה.</p>}
-              {!isAdmin && <p className="mt-2 text-sm text-on-surface/50">אם מעלים קובץ חדש, הגרסה תזוהה אוטומטית מ-manifest.json ועליה להיות גבוהה מהגרסה הנוכחית ({originalVersion}). המזהה (id) חייב להישאר זהה.</p>}
-            </div>
+        <EditSection id="edit-section-files" title="קבצים">
+          <FileDropZone
+            id="edit-plugin-file"
+            icon="folder_zip"
+            label={<>קובץ תוסף (<bdi dir="ltr">.otzplugin</bdi>)</>}
+            accept=".otzplugin"
+            onChange={handlePluginFile}
+            hint={
+              <>
+                {plugin.pluginFileName && <p>קובץ נוכחי: <bdi dir="ltr">{plugin.pluginFileName}</bdi></p>}
+                {isAdmin && <p>למנהל, החלפת הקובץ אינה משנה אוטומטית את השדות הידניים. ניתן לשמור על אותה גרסה אך לא לשנמך, והמזהה (id) ב-manifest.json חייב להישאר זהה.</p>}
+                {!isAdmin && <p>אם מעלים קובץ חדש, הגרסה תזוהה אוטומטית מ-manifest.json ועליה להיות גבוהה מהגרסה הנוכחית ({originalVersion}). המזהה (id) חייב להישאר זהה.</p>}
+              </>
+            }
+          >
+            {pluginFile && <SelectedFile>נבחר: {pluginFile.name}</SelectedFile>}
+          </FileDropZone>
 
-            <div>
-              <label className="mb-2 block text-sm font-bold text-on-surface/60">תמונת תוסף</label>
-              <input type="file" accept="image/*" onChange={handleImageFile} className="w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10" />
-              {imagePreview ? (
-                <img src={imagePreview} alt="תצוגה מקדימה" className="mt-4 h-48 w-full max-w-md rounded-xl border border-neutral-200 object-cover" />
-              ) : plugin.imageData && !removeImage ? (
-                <div className="mt-4">
-                  <img src={plugin.image} alt="תמונה נוכחית" className="h-48 w-full max-w-md rounded-xl border border-neutral-200 object-cover" />
-                  <button type="button" onClick={() => setRemoveImage(true)} className="mt-2 text-sm text-danger-600 hover:underline">הסר תמונה</button>
-                </div>
-              ) : null}
-            </div>
+          <FileDropZone id="edit-image-file" icon="image" label="תמונת תוסף" accept="image/*" onChange={handleImageFile}>
+            {imagePreview ? (
+              <IconPreview src={imagePreview} alt="תצוגה מקדימה" />
+            ) : plugin.imageData && !removeImage ? (
+              <div className="flex flex-wrap items-end gap-3">
+                <IconPreview src={plugin.image} alt="תמונה נוכחית" />
+                <Button type="button" variant="text" size="sm" icon="delete" onClick={() => setRemoveImage(true)}>
+                  הסר תמונה
+                </Button>
+              </div>
+            ) : null}
+          </FileDropZone>
 
-            <div>
-              <label className="mb-2 block text-sm font-bold text-on-surface/60">צילומי מסך</label>
-              <input type="file" accept="image/*" multiple onChange={handleScreenshotFiles} className="w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10" />
-              {screenshotPreviews.length > 0 ? (
-                <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-3">
-                  {screenshotPreviews.map((preview, index) => (
-                    <img key={index} src={preview} alt={`צילום מסך ${index + 1}`} className="h-32 w-full rounded-xl border border-neutral-200 object-cover" />
-                  ))}
-                </div>
-              ) : plugin.screenshots?.length > 0 && !removeScreenshots ? (
-                <div className="mt-4">
-                  <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                    {plugin.screenshots.map((screenshot, index) => (
-                      <img key={index} src={screenshot} alt={`צילום מסך ${index + 1}`} className="h-32 w-full rounded-xl border border-neutral-200 object-cover" />
-                    ))}
-                  </div>
-                  <button type="button" onClick={() => setRemoveScreenshots(true)} className="mt-2 text-sm text-danger-600 hover:underline">הסר את כל צילומי המסך</button>
-                </div>
-              ) : null}
-            </div>
-          </section>
+          <FileDropZone id="edit-screenshots" icon="photo_library" label="צילומי מסך" accept="image/*" multiple onChange={handleScreenshotFiles}>
+            {screenshotPreviews.length > 0 ? (
+              <ScreenshotPreviews srcs={screenshotPreviews} />
+            ) : plugin.screenshots?.length > 0 && !removeScreenshots ? (
+              <div className="space-y-2">
+                <ScreenshotPreviews srcs={plugin.screenshots} />
+                <Button type="button" variant="text" size="sm" icon="delete" onClick={() => setRemoveScreenshots(true)}>
+                  הסר את כל צילומי המסך
+                </Button>
+              </div>
+            ) : null}
+          </FileDropZone>
+        </EditSection>
+      </form>
+    </Dialog>
+  )
+}
 
-          <div className="flex gap-4 border-t border-neutral-200 pt-4">
-            <button type="submit" disabled={loading} className="flex-1 rounded-xl bg-primary px-6 py-4 font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
-              {loading ? 'שומר...' : 'שמור שינויים'}
-            </button>
-            <button type="button" onClick={onClose} className="rounded-xl border border-neutral-200 px-6 py-4 font-bold text-on-surface transition-colors hover:bg-neutral-50">
-              ביטול
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body
+const EDIT_FORM_ID = 'plugin-edit-form'
+
+/** אזור בחלון העריכה: כותרת h3 (text-title-md) ותוכן במרווח קבוע */
+function EditSection({ id, title, children }) {
+  return (
+    <section aria-labelledby={id} className="space-y-4">
+      <h3 id={id} className="text-title-md text-on-surface">{title}</h3>
+      {children}
+    </section>
   )
 }
