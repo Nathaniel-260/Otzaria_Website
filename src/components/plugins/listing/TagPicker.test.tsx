@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import TagPicker from './TagPicker'
 
@@ -65,5 +65,18 @@ describe('TagPicker', () => {
     await userEvent.click(screen.getByRole('button', { name: 'כל התגיות' }))
     await userEvent.click(document.body)
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+})
+
+describe('TagPicker — תגיות התאמה', () => {
+  it('"מראה תואם לאוצריא" וכו\' בקבוצה "תאימות" בסוף הרשימה, וניווט החצים עובר אליהן', async () => {
+    const onSelect = vi.fn()
+    const tags = [{ tag: 'כלי עזר', count: 20 }, { tag: 'מראה תואם לאוצריא', count: 23 }, { tag: 'תואם אוצריא', count: 1 }]
+    render(<TagPicker tags={tags} activeTag="all" onSelect={onSelect} label="כל התגיות" />)
+    await userEvent.click(screen.getByRole('button', { name: 'כל התגיות' }))
+    const group = screen.getByRole('group', { name: 'תאימות' })
+    expect(within(group).getAllByRole('option').map((o) => o.textContent)).toEqual(['מראה תואם לאוצריא (23)', 'תואם אוצריא (1)'])
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}')
+    expect(onSelect).toHaveBeenCalledWith('מראה תואם לאוצריא')
   })
 })

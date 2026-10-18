@@ -4,7 +4,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { filterPlugins, extractSortedTags, countTags, rankTags, popularTags, searchTags } from './pluginFilter.js'
+import { filterPlugins, extractSortedTags, countTags, rankTags, popularTags, searchTags, isCompatibilityTag } from './pluginFilter.js'
 
 function plugin(overrides = {}) {
   return {
@@ -116,4 +116,24 @@ test('searchTags: התאמה חלקית בלי רישיות; שאילתה ריק
   assert.deepEqual(searchTags(tags, '  eng '), [tags[0]])
   assert.deepEqual(searchTags(tags, 'עזר'), [tags[1]])
   assert.equal(searchTags(tags, ''), tags)
+})
+
+test('isCompatibilityTag: תגית ההתאמה הרשמית והווריאציות שלה בנתונים, לא תגיות נושא', () => {
+  for (const tag of ['מראה תואם לאוצריא', 'עיצוב תואם לאוצריא', 'מראה תואם אוצריא', 'תואם אוצריא']) {
+    assert.equal(isCompatibilityTag(tag), true, tag)
+  }
+  for (const tag of ['אוצריא', 'כלי עזר', 'תוכנת אוצריא', '', undefined]) {
+    assert.equal(isCompatibilityTag(tag), false, String(tag))
+  }
+})
+
+test('rankTags: תגיות התאמה בסוף; popularTags לא כולל אותן, אלא אם נבחרו', () => {
+  const ranked = rankTags([
+    plugin({ tags: ['מראה תואם לאוצריא', 'כלי עזר'] }),
+    plugin({ tags: ['מראה תואם לאוצריא', 'תואם אוצריא'] }),
+    plugin({ tags: ['מראה תואם לאוצריא', 'לימוד'] })
+  ])
+  assert.deepEqual(ranked.map(t => t.tag), ['כלי עזר', 'לימוד', 'מראה תואם לאוצריא', 'תואם אוצריא'])
+  assert.deepEqual(popularTags(ranked).map(t => t.tag), ['כלי עזר', 'לימוד'])
+  assert.deepEqual(popularTags(ranked, 'מראה תואם לאוצריא').map(t => t.tag), ['מראה תואם לאוצריא', 'כלי עזר', 'לימוד'])
 })

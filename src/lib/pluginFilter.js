@@ -46,17 +46,30 @@ export function countTags(plugins) {
   return counts
 }
 
-// כל התגיות לפי שכיחות (הנפוצה ראשונה), ובשוויון — א"ב עברי. [{ tag, count }].
+// תגית התאמה ולא נושא: "מראה תואם לאוצריא" (OTZARIA_DESIGN_TAG ב-pluginValidation.js, שמתווספת
+// אוטומטית לתוסף שעומד בהנחיות העיצוב), והווריאציות הידניות שלה בנתונים — "עיצוב תואם לאוצריא",
+// "מראה תואם אוצריא", "תואם אוצריא". בתצוגה בלבד: הן לא נכנסות לתגיות הנפוצות, ומופיעות בסוף.
+const COMPATIBILITY_TAG_RE = /תואם\s*ל?\s*אוצריא/
+export function isCompatibilityTag(tag) {
+  return COMPATIBILITY_TAG_RE.test(tag || '')
+}
+
+// כל התגיות לפי שכיחות (הנפוצה ראשונה), ובשוויון — א"ב עברי. [{ tag, count }]. תגיות ההתאמה
+// (isCompatibilityTag) — אחרי כל תגיות הנושא, באותו סדר ביניהן.
 // מסנן התגיות בדף "כל התוספים" מציג את הראשונות כ"נפוצות", ואת כולן בתפריט "כל התגיות".
 export function rankTags(plugins) {
   return Array.from(countTags(plugins), ([tag, count]) => ({ tag, count }))
-    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, 'he'))
+    .sort((a, b) =>
+      Number(isCompatibilityTag(a.tag)) - Number(isCompatibilityTag(b.tag)) ||
+      b.count - a.count ||
+      a.tag.localeCompare(b.tag, 'he')
+    )
 }
 
-// התגיות שמוצגות כשבבים: N הראשונות בדירוג. התגית הפעילה תמיד גלויה — אם היא לא ביניהן
-// (או בכלל לא ברשימה, למשל מקישור ישן), היא נוספת ראשונה.
+// התגיות שמוצגות כשבבים: N תגיות הנושא הראשונות בדירוג (בלי תגיות התאמה). התגית הפעילה תמיד
+// גלויה — אם היא לא ביניהן (תגית התאמה, או בכלל לא ברשימה, למשל מקישור ישן), היא נוספת ראשונה.
 export function popularTags(ranked, activeTag = 'all', limit = 8) {
-  const top = ranked.slice(0, limit)
+  const top = ranked.filter(t => !isCompatibilityTag(t.tag)).slice(0, limit)
   if (activeTag === 'all' || top.some(t => t.tag === activeTag)) return top
   const active = ranked.find(t => t.tag === activeTag) || { tag: activeTag, count: 0 }
   return [active, ...top]
