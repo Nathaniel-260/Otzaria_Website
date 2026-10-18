@@ -18,7 +18,7 @@
 
 import { tokenize } from './textModel.js';
 import { farLabel, isCancelledLink } from './flowEdit.js';
-import { sameLinkSlot, linkOpValue } from './ops.js';
+import { sameLinkSlot, linkOpValue, linkFromRange, linkTargets } from './ops.js';
 
 export { isCancelledLink };
 
@@ -111,37 +111,55 @@ export function unlinkPlan(view, k, page = view?.page, baseDoc = null) {
 // baseDoc — העמוד שיובא; ops — הפעולות (בלי המקומיות); view — buildView(baseDoc, ops).
 export function cancelledLinks(baseDoc, ops, view) {
   const page = view?.page ?? baseDoc?.page;
-  const live = new Set((view?.links || []).filter((k) => k && !isCancelledLink(k)).map((k) => k.from_line));
+  const live = (view?.links || []).filter((k) => k && !isCancelledLink(k));
   const base = (baseDoc?.links || []).filter(Boolean);
   const out = [];
   const seen = new Set();
-  // בעריכה הזו: link_del על קישור (לא מבוטל) שהגיע עם העמוד
+  const bySource = new Map();
+  const liveBySource = new Map();
+  for (const k of base) {
+    if (!bySource.has(k.from_line)) bySource.set(k.from_line, []);
+    bySource.get(k.from_line).push(k);
+  }
+  for (const k of live) {
+    if (!liveBySource.has(k.from_line)) liveBySource.set(k.from_line, []);
+    liveBySource.get(k.from_line).push(k);
+  }
+  const keyOf = (k) => `${k.from_line}:${linkFromRange(k).join('-')}`;
+  const stillLive = (k) => (liveBySource.get(k.from_line) || []).some((x) => sameLinkSlot(x, k.from_line, k.from_words));
+  const entryKey = (when, k) => {
+    const several = bySource.get(k.from_line).length > 1;
+    return `${when}:${several ? keyOf(k) : k.from_line}`;
+  };
+  // כל טווח שבוטל מופיע בנפרד, גם כשקישור אחר באותה שורה נשאר חי.
   for (const op of ops || []) {
     if (op?.kind !== 'link_del') continue;
-    const src = op.value?.src_line;
-    if (seen.has(src) || live.has(src)) continue;
-    const b = base.find((k) => k.from_line === src && !isCancelledLink(k));
-    if (!b) continue;
-    seen.add(src);
-    out.push({
-      key: `now:${src}`,
-      link: b,
-      when: 'now',
-      auto: b.src !== 'human',
-      label: linkEndLabel(view, 'from', b),
-      restore: { action: 'remove', match: (o) => o?.kind === 'link_del' && o.value?.src_line === src },
-    });
+    for (const b of bySource.get(op.value?.src_line) || []) {
+      if (isCancelledLink(b) || !linkTargets(b, op.value, 'link_del') || seen.has(keyOf(b)) || stillLive(b)) continue;
+      seen.add(keyOf(b));
+      out.push({
+        key: entryKey('now', b),
+        link: b,
+        when: 'now',
+        auto: b.src !== 'human',
+        label: linkEndLabel(view, 'from', b),
+        restore: {
+          action: 'remove',
+          match: (o) => o?.kind === 'link_del' && linkTargets(b, o.value, 'link_del'),
+        },
+      });
+    }
   }
   // קודם: "אין קישור" שהגיע עם העמוד
   for (const b of base) {
-    if (!isCancelledLink(b) || seen.has(b.from_line) || live.has(b.from_line)) continue;
+    if (!isCancelledLink(b) || seen.has(keyOf(b)) || stillLive(b)) continue;
     if (b.from_page != null && b.from_page !== page) continue;
-    seen.add(b.from_line);
+    seen.add(keyOf(b));
     const src = b.from_line;
     const vk = (view?.links || []).find((k) => k && k.from_line === src);
     const pending = !!vk?._reset || (ops || []).some((o) => o?.kind === 'link_reset' && o.value?.src_line === src);
     out.push({
-      key: `before:${src}`,
+      key: entryKey('before', b),
       link: b,
       when: 'before',
       auto: true,

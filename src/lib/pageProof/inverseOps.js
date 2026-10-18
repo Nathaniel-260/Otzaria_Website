@@ -9,7 +9,7 @@
 // סגנון-תו וגבול-פסקה — למצב שבעמוד המקורי (לא היפוך של on): מילה שהיה לה הסגנון — חוזרת אליו, ושלא היה — בלעדיו.
 // קישור — כמו שהיה בעמוד המקורי, גם כשהצד השני בעמוד אחר (עמוד, מספר-שורה ותחילת-הטקסט).
 
-import { REVERT_STATUSES, validateOp } from './ops.js';
+import { REVERT_STATUSES, validateOp, sameLinkSlot, linkOpValue } from './ops.js';
 import { CERTAINTY, PAGE_TYPES, PARA_STYLES, SCRIPTS, isStreamKey } from './vocab.js';
 
 const lineMap = (doc) => new Map((doc?.lines || []).filter((l) => l && Number.isInteger(l.id)).map((l) => [l.id, l]));
@@ -31,9 +31,8 @@ function byValue(kind, page, ids, lines, valueOf) {
 
 // הקישור שיצא מהשורה בעמוד המקורי ← link_add שמחזיר אותו (או null). צד הגוף בעמוד אחר — עם העמוד, מספר-השורה
 // ותחילת-הטקסט שלו (כמו בחוזה-העמוד)
-function baseLinkAdd(doc, fromLine) {
-  const k = (doc?.links || []).find((x) => x && x.from_line === fromLine && Number.isInteger(x.to_line));
-  if (!k) return null;
+function baseLinkAdd(doc, k) {
+  const fromLine = k.from_line;
   const value = {};
   if (Array.isArray(k.from_words)) value.from_words = k.from_words.slice();
   if (Array.isArray(k.to_words)) value.to_words = k.to_words.slice();
@@ -97,12 +96,15 @@ function raw(doc, op) {
     case 'page_type':
       return Object.hasOwn(PAGE_TYPES, doc?.page_type) ? [{ kind: 'page_type', page: P, value: doc.page_type }] : [];
     case 'link_add': {
-      const back = baseLinkAdd(doc, ids[0]);
-      return [back || { kind: 'link_del', page: P, value: { src_line: ids[0], page: P } }];
+      const before = (doc.links || []).filter((k) => sameLinkSlot(k, ids[0], v?.from_words) && Number.isInteger(k.to_line));
+      if (before.length) return before.map((k) => baseLinkAdd(doc, k));
+      const added = { from_line: ids[0], from_words: v?.from_words };
+      return [{ kind: 'link_del', page: P, value: linkOpValue({ links: [...(doc.links || []), added] }, ids[0], added, P) }];
     }
     case 'link_del': {
-      const back = baseLinkAdd(doc, v?.src_line);
-      return back ? [back] : [];
+      return (doc.links || [])
+        .filter((k) => k?.from_line === v?.src_line && Number.isInteger(k.to_line) && (!Array.isArray(v?.from_words) || sameLinkSlot(k, v.src_line, v.from_words)))
+        .map((k) => baseLinkAdd(doc, k));
     }
     // "החזר לאוטומטי" (link_reset) — רק על קישור שהגיע מבוטל ("אין קישור"): ההיפוך הוא שוב "אין קישור"
     case 'link_reset':

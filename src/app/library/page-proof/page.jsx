@@ -167,7 +167,7 @@ function PageProofVolunteer() {
           const local = withStorage((s) => cleanupPageDrafts(s, data.page, draftKey))?.carried || null
           const skewMs = data.now ? Date.parse(data.now) - received : 0
           draftInfo = withStorage((s) => applyServerDraft(s, { pageId: data.page.id, draftKey, server: data.draft || null, skewMs }))
-          setCarried((draftInfo?.source === 'server' && data.draft?.carried) || local)
+          setCarried((draftInfo?.source === 'server' && data.draft?.carried) || local || (data.draft?.held?.length ? { held: data.draft.held } : null))
         } else if (data.submission) withStorage((s) => removePageDrafts(s, data.page.id))
         setCurrent({ ...data, draftKey, draftInfo })
       } catch (e) {

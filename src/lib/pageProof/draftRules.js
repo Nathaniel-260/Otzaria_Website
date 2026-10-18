@@ -112,6 +112,7 @@ export function publicDraft(d, viewerId, { admin = false } = {}) {
     byName: admin || mine ? d.byName || '' : '',
     mine,
     carried: d.carried && typeof d.carried === 'object' ? d.carried : null,
+    held: Array.isArray(d.held) ? d.held : [],
     recut: d.recut && typeof d.recut === 'object' ? { sentAt: iso(d.recut.sentAt), backAt: iso(d.recut.backAt) } : null,
     inherited: inh
       ? {

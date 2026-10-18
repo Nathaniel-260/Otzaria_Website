@@ -1237,3 +1237,15 @@ test('trustRevert: revert/revert_status על תיקון-טקסט — רק כשה
   ]);
   assert.deepEqual(trustRevert(base, null), []);
 });
+
+
+test('אישור קישור יחיד שאינו בתחילת השורה — הטווח נשלח והאישור חל', async () => {
+  const { linkOpValue } = await import('./ops.js');
+  const k = { from_line: 1, to_line: 2, from_words: [3, 3], src: 'auto', suspect: 'test' };
+  const doc = { page: 3, lines: [{ id: 1, text: 'א ב ג ד' }, { id: 2, text: 'גוף' }], links: [k] };
+  const op = { kind: 'link_ok', page: 3, value: linkOpValue(doc, 1, k, 3) };
+  assert.equal(validateOp(doc, op), null);
+  assert.deepEqual(op.value.from_words, [3, 3]);
+  assert.equal(buildView(doc, [op]).links[0].src, 'human');
+  assert.equal(buildView(doc, [op]).links[0].suspect, null);
+});

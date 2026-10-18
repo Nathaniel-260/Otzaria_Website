@@ -27,6 +27,8 @@ const PageProofDraftSchema = new mongoose.Schema(
     byName: { type: String, default: '' },
     inherited: { type: mongoose.Schema.Types.Mixed, default: null },
     carried: { type: mongoose.Schema.Types.Mixed, default: null },
+    // נוסחים שהושהו אחרי זיהוי מחדש — נשמרים גם אחרי שמירה רגילה, עד הגשה או איפוס.
+    held: { type: [mongoose.Schema.Types.Mixed], default: [] },
     recut: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true }

@@ -17,6 +17,18 @@ import { CUT_KINDS, validateOp, validateOps } from './ops.js';
 import { OP_KINDS } from './vocab.js';
 
 export const DRAFT_PREFIX = 'page-proof-draft:';
+const carriedKey = (pageId) => `page-proof-carried:${pageId}`;
+
+// גיבוי נוסח אינו פעולת-טקסט: גם במעבר נוסף הוא לעולם לא מוחל אוטומטית.
+export function carryHeld(doc, held = []) {
+  const lines = new Map((doc?.lines || []).map((l) => [l.id, l]));
+  return held.flatMap((h) => {
+    const l = lines.get(h.id);
+    if (!l || l.status === 'removed') return [];
+    const ocr = String(l.text ?? l.text_ocr ?? '');
+    return h.mine === ocr ? [] : [{ ...h, page: doc.page, ocr }];
+  });
+}
 
 // המפתח הישן, בלי גרסה
 export const legacyDraftKey = (pageId) => `${DRAFT_PREFIX}${pageId}`;
@@ -89,8 +101,14 @@ export function carryDraftOps(doc, ops) {
       else held.set(again.id, { id: again.id, page: op.page ?? doc?.page ?? null, mine: op.value, ocr });
       continue;
     }
-    if (again && op.kind === 'line_ok') {
-      dropped.push(op);
+    if (!op._local && op.kind === 'line_ok' && Array.isArray(op.ids) && op.ids.some((id) => reread.has(id))) {
+      dropped.push({ ...op, ids: op.ids.filter((id) => reread.has(id)) });
+      const ids = op.ids.filter((id) => !reread.has(id));
+      if (ids.length) {
+        const rest = { ...op, ids };
+        if (validateOp(doc, rest)) dropped.push(rest);
+        else kept.push(rest);
+      }
       continue;
     }
     if (op.kind === 'cut_ok') {
@@ -158,6 +176,15 @@ function readDraftAt(raw) {
 export function cleanupPageDrafts(storage, page, key = pageDraftKey(page)) {
   const res = { key, migrated: false, removed: [], carried: null };
   if (!storage || page?.id == null || page.id === '') return res;
+  // נפרד מרשימת הפעולות: שמירת העורך והמיזוג עם השרת מחליפים אותה, אבל אינם החלטה לוותר על הנוסח הישן.
+  try {
+    const saved = JSON.parse(storage.getItem(carriedKey(page.id)));
+    if (saved?.key === key) res.carried = saved.carried;
+    else if (saved?.carried?.held?.length) res.carried = { held: carryHeld(page.doc, saved.carried.held) };
+    else storage.removeItem(carriedKey(page.id));
+  } catch {
+    /* גיבוי פגום אינו מונע פתיחת עמוד */
+  }
   const legacy = legacyDraftKey(page.id);
   const raw = storage.getItem(legacy);
   if (raw != null && pageRevisionNumber(page) === 1 && storage.getItem(key) == null) {
@@ -181,14 +208,17 @@ export function cleanupPageDrafts(storage, page, key = pageDraftKey(page)) {
       const at = readDraftAt(storage.getItem(older.k));
       if (c.kept.length) storage.setItem(key, JSON.stringify({ ops: c.kept, at: at ?? Date.now() }));
       const kept = c.kept.filter((o) => !o._local).length;
-      if (kept || c.dropped.length || c.held.length)
-        res.carried = { from: older.k, kept, cut: c.cut, dropped: c.dropped.map(droppedOpLabel), held: c.held };
+      const held = [...new Map([...(res.carried?.held || []), ...c.held].map((h) => [h.id, h])).values()];
+      if (kept || c.dropped.length || held.length)
+        res.carried = { from: older.k, kept, cut: c.cut, dropped: c.dropped.map(droppedOpLabel), held };
     }
   }
   for (const k of stale) {
     storage.removeItem(k);
     res.removed.push(k);
   }
+  if (res.carried?.held?.length) storage.setItem(carriedKey(page.id), JSON.stringify({ key, carried: res.carried }));
+  else storage.removeItem(carriedKey(page.id));
   return res;
 }
 
@@ -196,6 +226,7 @@ export function cleanupPageDrafts(storage, page, key = pageDraftKey(page)) {
 export function removePageDrafts(storage, pageId) {
   const removed = [];
   if (!storage) return removed;
+  storage.removeItem(carriedKey(pageId));
   for (const k of storageKeys(storage).filter((key) => isDraftKeyOf(key, pageId))) {
     storage.removeItem(k);
     removed.push(k);

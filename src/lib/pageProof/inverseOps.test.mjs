@@ -115,3 +115,22 @@ test('inverseOps: "החזר לאוטומטי" (link_reset) על קישור שה�
     R({ kind: 'link_del', page: 7, value: { src_line: 1, page: 7 } }),
   ]);
 });
+
+
+test('החזר למקור בקישורים מרובים: הטווח שנבחר בלבד, כולל ביטול קישור שנוסף בטווח חדש', () => {
+  const first = DOC.links[0];
+  const second = { ...first, from_words: [3, 3], to_line: 3 };
+  const doc = { ...DOC, links: [first, second] };
+  const del = { kind: 'link_del', page: 7, value: { src_line: 2, page: 7, from_words: [3, 3] } };
+  const restored = inverseOps(doc, del);
+  assert.equal(restored.length, 1);
+  assert.deepEqual(restored[0].value.from_words, [3, 3]);
+  assert.deepEqual(restored[0].ids, [2, 3]);
+  assert.equal(inverseOps(doc, { ...del, value: { src_line: 2, page: 7 } }).length, 2, 'מחיקה ישנה של כל השורה מחזירה את שני הקישורים');
+  const add = { kind: 'link_add', page: 7, ids: [2, 1], value: { from_words: [5, 5] } };
+  const undo = inverseOps(doc, add);
+  assert.deepEqual(undo, [R({ kind: 'link_del', page: 7, value: { src_line: 2, page: 7, from_words: [5, 5] } })]);
+  let after = applyOp(doc, add);
+  for (const op of undo) after = applyOp(after, op);
+  assert.deepEqual(after.links, doc.links);
+});

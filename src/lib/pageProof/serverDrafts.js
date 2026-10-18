@@ -4,7 +4,7 @@ import PageProofDraft from '../../models/PageProofDraft.js';
 import PageProofPage from '../../models/PageProofPage.js';
 import PageProofSubmission from '../../models/PageProofSubmission.js';
 import { revisionFilter, sameRevision, storedRevision } from './importRules.js';
-import { carryDraftOps, droppedOpLabel } from './drafts.js';
+import { carryDraftOps, carryHeld, droppedOpLabel } from './drafts.js';
 import { DRAFT_MSG, liveCount, publicDraft, sanitizeDraftOps } from './draftRules.js';
 import { isStage } from './stages.js';
 import { MAX_PENDING_RECUT, recutRefusal } from './recutRules.js';
@@ -74,7 +74,7 @@ export async function saveDraft(pageId, userId, { revision, ops, stage, reset = 
     carried: null,
   };
   if (isStage(stage)) set.stage = stage;
-  if (reset) Object.assign(set, { inherited: null, recut: null, stage: isStage(stage) ? stage : 'structure' });
+  if (reset) Object.assign(set, { inherited: null, recut: null, held: [], stage: isStage(stage) ? stage : 'structure' });
   let d;
   if (baseUpdatedAt === undefined) {
     d = await PageProofDraft.findOneAndUpdate({ page: pid }, { $set: set }, { upsert: true, returnDocument: 'after', lean: true });
@@ -101,6 +101,7 @@ export async function saveDraft(pageId, userId, { revision, ops, stage, reset = 
 async function carryToRevision(d, page, now, { sameRev = false } = {}) {
   const rev = storedRevision(page);
   const c = carryDraftOps(page.doc, d.ops);
+  const held = [...new Map([...carryHeld(page.doc, d.held || []), ...c.held].map((h) => [h.id, h])).values()];
   const inh = d.inherited && typeof d.inherited === 'object' ? d.inherited : null;
   const set = {
     revision: rev,
@@ -108,7 +109,8 @@ async function carryToRevision(d, page, now, { sameRev = false } = {}) {
     ops: c.kept,
     opCount: liveCount(c.kept),
     // held — תיקוני-טקסט בשורות שזוהו מחדש: לא הוחלו, המתנדב בוחר (drafts.carryDraftOps)
-    carried: { from: d.revision || 1, kept: liveCount(c.kept), cut: c.cut, dropped: c.dropped.map(droppedOpLabel), held: c.held, ...(sameRev ? { update: true } : {}) },
+    carried: { from: d.revision || 1, kept: liveCount(c.kept), cut: c.cut, dropped: c.dropped.map(droppedOpLabel), held, ...(sameRev ? { update: true } : {}) },
+    held,
     inherited: inh ? { ...inh, ops: carryDraftOps(page.doc, inh.ops || []).kept } : null,
   };
   if (!sameRev) Object.assign(set, { stage: 'text', recut: { ...(d.recut && typeof d.recut === 'object' ? d.recut : {}), backAt: now } });

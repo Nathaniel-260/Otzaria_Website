@@ -282,3 +282,25 @@ test('cleanupPageDrafts: carried.held — תיקון בשורה שזוהתה מ�
   assert.deepEqual(res.carried.held, [{ id: 2, page: 4, mine: 'ישן', ocr: 'חדש' }]);
   assert.equal(s.getItem(pageDraftKey(p2)), null);
 });
+
+
+test('אישור מרוכז מגרסה ישנה: רק שורות שלא זוהו מחדש שומרות את האישור', () => {
+  const doc = { ...rev2().doc, lines: [line(1), { ...line(2), recheck: true }] };
+  const c = carryDraftOps(doc, [{ kind: 'line_ok', page: 4, ids: [1, 2] }]);
+  assert.deepEqual(c.kept, [{ kind: 'line_ok', page: 4, ids: [1] }]);
+  assert.deepEqual(c.dropped, [{ kind: 'line_ok', page: 4, ids: [2] }]);
+  assert.deepEqual(carryDraftOps(doc, [{ kind: 'line_ok', page: 4, ids: [2] }]).kept, []);
+});
+
+test('נוסח שממתין לבחירה נשמר בפתיחה חוזרת גם אחרי שמירת פעולות אחרות; איפוס מנקה אותו', () => {
+  const p2 = page({ revision: 2 }, { revision: 2, lines: [line(1), { ...line(2), text: 'חדש', recheck: true }] });
+  const s = memStorage({ [pageDraftKey(rev1())]: draft([{ kind: 'text', page: 4, ids: [2], value: 'שלי' }]) });
+  const first = cleanupPageDrafts(s, p2);
+  s.setItem(pageDraftKey(p2), draft([{ kind: 'text', page: 4, ids: [1], value: 'אחר' }]));
+  assert.deepEqual(cleanupPageDrafts(s, p2).carried.held, first.carried.held);
+  const p3 = { ...p2, revision: 3, doc: { ...p2.doc, revision: 3 } };
+  assert.deepEqual(cleanupPageDrafts(s, p3).carried.held, first.carried.held);
+  removePageDrafts(s, p2.id);
+  assert.equal(cleanupPageDrafts(s, p2).carried, null);
+  assert.deepEqual(s.keys(), []);
+});

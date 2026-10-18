@@ -71,11 +71,11 @@ export function sameLinkSlot(k, fromLine, fromWords) {
 // בשורה עם קישור אחד — כמו תמיד (src_line, page)
 export function linkOpValue(view, srcLine, k, page) {
   const v = { src_line: srcLine, page };
-  if (k && (view?.links || []).filter((x) => x && x.from_line === srcLine).length > 1) v.from_words = linkFromRange(k).slice();
+  if (k && (linkFromRange(k)[0] > 0 || (view?.links || []).filter((x) => x && x.from_line === srcLine).length > 1)) v.from_words = linkFromRange(k).slice();
   return v;
 }
 
-function linkTargets(k, v, kind) {
+export function linkTargets(k, v, kind) {
   if (!k || k.from_line !== v?.src_line) return false;
   if (isWordRange(v.from_words)) return sameLinkSlot(k, v.src_line, v.from_words);
   return kind === 'link_del' || sameLinkSlot(k, v.src_line, [0, 0]);

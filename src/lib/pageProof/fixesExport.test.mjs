@@ -169,3 +169,19 @@ test('pendingRecut: המשך של הגשה שיצאה — רק תיקוני-חי
   assert.equal(recutOf(subA({ ops: [cut], needsRecut: true, exportedAt: '2026-10-05T10:30:00Z' }), byId()), true);
   assert.equal(pendingRecut(subB({ needsRecut: false }), byId(A)), false);
 });
+
+
+test('הגשת המשך: שינוי מסגרות חדש דורש זיהוי מחדש; צילום זהה או שינוי סדר בלבד אינם דורשים', () => {
+  const frame = { fid: 'aaaaaa', stream: 'main', order: 1, bbox: [10, 10, 900, 900] };
+  const set = (f) => ({ kind: 'frames_set', page: 4, value: { frames: [f] } });
+  const A = subA({ ops: [set(frame)], needsRecut: true, exportedAt: '2026-10-05T10:30:00Z' });
+  const check = (ops, base = A) => {
+    const B = subB({ ops, needsRecut: true });
+    return recutOf(B, new Map([['a', base], ['b', B]]));
+  };
+  assert.equal(check([set(frame), set({ ...frame, bbox: [10, 10, 950, 900] })]), true);
+  assert.equal(check([set(frame), set({ ...frame, order: 2 })]), false);
+  assert.equal(check([set(frame), { kind: 'frames_clear', page: 4 }]), true);
+  assert.equal(check([set(frame)]), false);
+  assert.equal(check([set(frame)], subA({ ops: [], exportedAt: A.exportedAt })), true);
+});
