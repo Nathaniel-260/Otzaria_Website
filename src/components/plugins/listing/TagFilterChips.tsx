@@ -37,29 +37,41 @@ export default function TagFilterChips({
   const baseId = useId()
   const labelId = `${baseId}-label`
   const listId = `${baseId}-list`
-  const containerRef = useRef<HTMLDivElement>(null)
+  const clipRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const [expanded, setExpanded] = useState(false)
   const [collapsedHeight, setCollapsedHeight] = useState(INITIAL_COLLAPSED_HEIGHT)
   const [fullHeight, setFullHeight] = useState(0)
   const [overflow, setOverflow] = useState(false)
 
-  // מדידת גובה אזור התגיות — הגבלה ל-3 שורות עם כפתור "הצג עוד"
+  // מדידת גובה אזור התגיות — הגבלה ל-3 שורות עם כפתור "הצג עוד".
+  // המדידה על הרשימה הפנימית (שאינה מוגבלת בגובה), ונשנית בכל שינוי גודל שלה (ResizeObserver —
+  // גם כשהגופן נטען אחרי ה-hydration ומשנה את רוחב השבבים, לא רק ב-resize של החלון).
   useEffect(() => {
-    const el = containerRef.current
-    if (!el || !el.firstElementChild) return
+    const clip = clipRef.current
+    const list = listRef.current
+    if (!clip || !list || !list.firstElementChild) return
     const measure = () => {
-      const rowHeight = (el.firstElementChild as HTMLElement).offsetHeight
-      const style = getComputedStyle(el)
-      const gap = parseFloat(style.rowGap) || 0
-      const padding = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0)
+      const rowHeight = (list.firstElementChild as HTMLElement).offsetHeight
+      if (!rowHeight) return
+      const gap = parseFloat(getComputedStyle(list).rowGap) || 0
+      const clipStyle = getComputedStyle(clip)
+      const padding = (parseFloat(clipStyle.paddingTop) || 0) + (parseFloat(clipStyle.paddingBottom) || 0)
       const collapsed = rowHeight * COLLAPSED_ROWS + gap * (COLLAPSED_ROWS - 1) + padding
+      const full = list.offsetHeight + padding
       setCollapsedHeight(collapsed)
-      setFullHeight(el.scrollHeight)
-      setOverflow(el.scrollHeight > collapsed + 4)
+      setFullHeight(full)
+      setOverflow(full > collapsed + 4)
     }
     measure()
     window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    observer?.observe(list)
+    document.fonts?.ready.then(measure).catch(() => {})
+    return () => {
+      window.removeEventListener('resize', measure)
+      observer?.disconnect()
+    }
   }, [tags])
 
   const handleFocus = (event: FocusEvent<HTMLDivElement>) => {
@@ -73,23 +85,29 @@ export default function TagFilterChips({
   return (
     <div className={className}>
       <p id={labelId} className={FIELD_LABEL}>{label}</p>
+      {/* עוטף הקיפול (max-height + overflow) והרשימה עצמה בתוכו — כדי שאפשר יהיה למדוד את גובהה המלא */}
       <div
         id={listId}
-        ref={containerRef}
-        role="group"
-        aria-labelledby={labelId}
+        ref={clipRef}
         onFocus={handleFocus}
-        className="relative -m-1 flex flex-wrap gap-x-2 gap-y-2.5 overflow-hidden p-1 transition-[max-height] duration-300 motion-reduce:transition-none"
+        className="-m-1 overflow-hidden p-1 transition-[max-height] duration-300 motion-reduce:transition-none"
         style={{ maxHeight: expanded ? (fullHeight || undefined) : collapsedHeight }}
       >
-        <Chip selected={activeTag === 'all'} onClick={() => onSelect('all')}>
-          {allLabel}
-        </Chip>
-        {tags.map((tag) => (
-          <Chip key={tag} selected={activeTag === tag} onClick={() => onSelect(tag)}>
-            {tag}
+        <div
+          ref={listRef}
+          role="group"
+          aria-labelledby={labelId}
+          className="relative flex flex-wrap gap-x-2 gap-y-2.5"
+        >
+          <Chip selected={activeTag === 'all'} onClick={() => onSelect('all')}>
+            {allLabel}
           </Chip>
-        ))}
+          {tags.map((tag) => (
+            <Chip key={tag} selected={activeTag === tag} onClick={() => onSelect(tag)}>
+              {tag}
+            </Chip>
+          ))}
+        </div>
       </div>
       {overflow && (
         <Button

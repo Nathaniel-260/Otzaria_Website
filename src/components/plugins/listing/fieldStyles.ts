@@ -32,13 +32,20 @@ export function fieldClasses({
   return cx(BASE, s.box, withIcon ? s.icon : s.plain, trailing ? s.trailing : s.end, className)
 }
 
-/** מיקום אייקון בתוך השדה (אבסולוטי, ממורכז אנכית) — start לאייקון חיפוש, end לחץ */
+/**
+ * מיקום אייקון בתוך השדה (אבסולוטי, ממורכז אנכית) — start לאייקון חיפוש, end לחץ.
+ * חשוב: המחלקות האלה הולכות על span עוטף ולא על הגליף עצמו — ל-.material-symbols-outlined יש
+ * direction: ltr (base.css), ולכן start/end עליו מתהפכים (start-* = שמאל). העוטף יורש rtl מהדף.
+ */
 export function fieldIconClasses(size: FieldSize = 'md', side: 'start' | 'end' = 'start') {
   const pos = size === 'lg'
     ? (side === 'start' ? 'start-4 text-[1.5rem]' : 'end-4 text-[1.5rem]')
     : (side === 'start' ? 'start-3.5 text-[1.25rem]' : 'end-3.5 text-[1.25rem]')
-  return cx('pointer-events-none absolute top-1/2 -translate-y-1/2 text-on-surface-variant', pos)
+  return cx('pointer-events-none absolute top-1/2 flex -translate-y-1/2 text-on-surface-variant', pos)
 }
+
+/** הגליף בתוך העוטף — יורש את הגודל מהעוטף (ה-24px של מחלקת הגופן נדרס) */
+export const FIELD_ICON_GLYPH = '[font-size:inherit]'
 
 /** תווית מעל שדה בסרגל המסננים — שקטה אך קריאה (Assistant, לא Vilna) */
 export const FIELD_LABEL = 'mb-2 block text-label-md text-on-surface'
