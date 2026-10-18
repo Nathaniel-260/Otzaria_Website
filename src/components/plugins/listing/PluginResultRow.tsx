@@ -15,15 +15,12 @@
 // כל השורה לחיצה (stretched link על השם, כמו בכרטיס); שבבי הקטגוריות והכפתורים מעליו (z-raised).
 
 import Link from 'next/link'
-import AppIcon from '@/components/ui/AppIcon'
 import Chip from '@/components/ui/Chip'
 import Skeleton from '@/components/ui/Skeleton'
 import { cx } from '@/components/ui/cx'
 import PluginImage from '@/components/plugins/PluginImage'
 import PluginInstallActions from '@/components/plugins/PluginInstallActions'
-import RatingSummary from '@/components/plugins/RatingSummary'
-import StatusBadge from '@/components/plugins/StatusBadge'
-import { cardShowsStatus } from '@/components/plugins/PluginCard'
+import PluginMeta from '@/components/plugins/PluginMeta'
 import { highlightMatches } from '@/components/plugins/PluginSearchBox'
 import type { DirectInstallState } from '@/components/plugins/useDirectInstall'
 import type { PluginSearchResult } from '@/components/plugins/types'
@@ -69,17 +66,8 @@ export default function PluginResultRow({
             </Link>
           </Heading>
 
-          {/* שורת מטא — זהה לכרטיס: דירוג, הורדות, גרסה, ותג סטטוס רק כשאינו "יציב" */}
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-label-md font-normal text-on-surface-variant">
-            {(plugin.ratingCount || 0) > 0 && <RatingSummary avg={plugin.ratingAvg} count={plugin.ratingCount} />}
-            <span className="inline-flex items-center gap-0.5 whitespace-nowrap tabular-nums" title="מספר הורדות">
-              <AppIcon name="download" className="text-[1.1em]" />
-              <span className="sr-only">הורדות: </span>
-              {(plugin.downloadCount || 0).toLocaleString('he-IL')}
-            </span>
-            {plugin.version && <span className="whitespace-nowrap tabular-nums">גרסה {plugin.version}</span>}
-            {cardShowsStatus(plugin.status) && <StatusBadge status={plugin.status} className="ms-0.5" />}
-          </p>
+          {/* שורת מטא — אותו רכיב כמו בכרטיס */}
+          <PluginMeta plugin={plugin} className="mt-1.5" />
 
           {plugin.shortDescription && (
             <p className="mt-2 line-clamp-2 break-words text-body-sm text-on-surface-variant">

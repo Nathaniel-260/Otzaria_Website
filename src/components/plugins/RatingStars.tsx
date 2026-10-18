@@ -24,10 +24,30 @@ const SIZE_CLASSES = {
   lg: 'text-[1.75rem]'
 } as const
 
-const STAR_PATH =
+/** מסלול כוכב אחד בתא 24×24 — מקור אחד לכל הכוכבים בחנות (כאן, StarIcon, PluginRatingPanel) */
+export const STAR_PATH =
   'M12 2.6l2.83 5.73 6.32.92-4.58 4.46 1.08 6.3L12 17.03l-5.65 2.98 1.08-6.3-4.58-4.46 6.32-.92z'
 const STAR_COUNT = 5
 const STAR_PITCH = 24 // רוחב תא של כוכב ב-viewBox (המסלול צר ממנו, וכך יש רווח בין הכוכבים)
+
+/**
+ * כוכב בודד (SVG, דקורטיבי) — מלא בצבע הדירוג או ריק. גודל: 1em כברירת מחדל, או מחלקות size-* של הצרכן.
+ * לכפתורי הדירוג, לתוויות ההתפלגות ולסיכום המקוצר (RatingSummary variant="compact").
+ */
+export function StarIcon({ filled = true, className }: { filled?: boolean; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      aria-hidden="true"
+      focusable="false"
+      className={cx('shrink-0', filled ? 'fill-rating' : 'fill-outline-variant', className)}
+    >
+      <path d={STAR_PATH} />
+    </svg>
+  )
+}
 
 export function clampRating(value: number): number {
   return Math.min(Math.max(Number(value) || 0, 0), 5)

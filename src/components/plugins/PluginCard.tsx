@@ -7,7 +7,7 @@
 // כל פריט מידע במקום קבוע בכל כרטיס, כך שהעין עוברת בקו ישר לאורך שורה של כרטיסים.
 //
 //   [אייקון]  שם התוסף (בולט, עד 2 שורות)     ← כל הכרטיס הוא הקישור לעמוד התוסף
-//             ★ 4.6 (12)   ⤓ 2,473   גרסה 1.2.0   [בטא]   ← שורת מטא אחת, טקסט משני
+//             ★ 4.6 (12)  ⤓ 2,473  גרסה 1.2.0 [בטא]   ← שורת מטא (PluginMeta), טקסט משני
 //   תיאור קצר — תמיד בגובה שתי שורות (נחתך עם "…")
 //   [הורדה] [התקנה ישירה]                       ← דבוק לתחתית; מעל הקישור (z), לחיצים בנפרד
 //
@@ -19,19 +19,13 @@
 // מצוירת על ה-::after — סביב הכרטיס כולו.
 
 import Link from 'next/link'
-import AppIcon from '@/components/ui/AppIcon'
 import { cx } from '@/components/ui/cx'
 import PluginImage from '@/components/plugins/PluginImage'
 import PluginInstallActions from '@/components/plugins/PluginInstallActions'
-import RatingSummary from '@/components/plugins/RatingSummary'
-import StatusBadge from '@/components/plugins/StatusBadge'
+import PluginMeta from '@/components/plugins/PluginMeta'
 import type { DirectInstallState } from '@/components/plugins/useDirectInstall'
 import type { PluginCardData } from '@/components/plugins/types'
 
-/** סטטוס שמוצג כתג בכרטיס — רק מה שמוסיף מידע ("יציב" הוא ברירת המחדל ואינו מוצג) */
-export function cardShowsStatus(status: string | undefined): boolean {
-  return Boolean(status) && status !== 'stable'
-}
 
 interface PluginCardProps {
   plugin: PluginCardData
@@ -57,7 +51,6 @@ export default function PluginCard({
   className
 }: PluginCardProps) {
   const href = `/plugins/${plugin.id}`
-  const hasRating = (plugin.ratingCount || 0) > 0
 
   return (
     <article
@@ -86,23 +79,7 @@ export default function PluginCard({
             </Link>
           </Heading>
 
-          {/* בלי מפרידים: לכל פריט סימן משלו (כוכבים, חץ הורדה, המילה "גרסה"), וכך שורה שנשברת לא
-              מתחילה או נגמרת ב"·" יתום */}
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-label-md font-normal text-on-surface-variant">
-            {category && (
-<span className="max-w-full truncate">{category}</span>
-            )}
-            {hasRating && (
-<RatingSummary avg={plugin.ratingAvg} count={plugin.ratingCount} />
-            )}
-            <span className="inline-flex items-center gap-0.5 whitespace-nowrap tabular-nums" title="מספר הורדות">
-              <AppIcon name="download" className="text-[1.1em]" />
-              <span className="sr-only">הורדות: </span>
-              {(plugin.downloadCount || 0).toLocaleString('he-IL')}
-            </span>
-            <span className="whitespace-nowrap tabular-nums">גרסה {plugin.version}</span>
-            {cardShowsStatus(plugin.status) && <StatusBadge status={plugin.status} className="ms-0.5" />}
-          </p>
+          <PluginMeta plugin={plugin} category={category} className="mt-1.5" />
         </div>
       </div>
 
