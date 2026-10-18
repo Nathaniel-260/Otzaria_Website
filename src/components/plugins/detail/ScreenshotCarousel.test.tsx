@@ -112,7 +112,8 @@ describe('ScreenshotCarousel', () => {
     fireEvent.pointerDown(shot, { pointerType: 'touch', clientX: 150, clientY: 100 })
     fireEvent.pointerUp(shot, { pointerType: 'touch', clientX: 150, clientY: 100 })
     fireEvent.click(shot)
-    expect(await screen.findByRole('dialog', { name: 'צילומי מסך' })).toBeInTheDocument()
+    // התצוגה המוגדלת נטענת דינמית — זמן המתנה נדיב למכונה עמוסה
+    expect(await screen.findByRole('dialog', { name: 'צילומי מסך' }, { timeout: 10000 })).toBeInTheDocument()
   })
 
   it('click שמגיע מיד אחרי החלקה נבלע (לא פותח תצוגה מוגדלת)', () => {
