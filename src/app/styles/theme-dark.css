@@ -58,6 +58,8 @@
   --color-on-donation-container: var(--ref-rust-86);
   --color-donation-outline: var(--ref-rust-36);
 
+  --color-rating: var(--ref-primary-80);
+
   --color-error: var(--ref-error-80);
   --color-on-error: var(--ref-error-20);
   --color-error-container: var(--ref-error-30);

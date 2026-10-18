@@ -25,6 +25,11 @@ const SIZES = {
 } as const
 
 export type BadgeTone = keyof typeof TONES
+
+/** מחלקות הצבע של tone — למקום שצריך את מראה התג על אלמנט אחר (תאימות לאחור, למשל statusBadgeClass) */
+export function badgeToneClasses(tone: BadgeTone): string {
+  return TONES[tone]
+}
 export type BadgeSize = keyof typeof SIZES
 
 /**
