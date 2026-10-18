@@ -1,4 +1,5 @@
 import { compareVersions } from '@/lib/semverCompare'
+import { normalizeTagList } from '@/lib/pluginTags'
 
 /**
  * הלוגיקה הטהורה של טופס העלאת התוסף (/plugins/upload) — חולצה מ-page.tsx כמו שהיא:
@@ -126,7 +127,8 @@ export function buildUploadFormData({ formData, pluginFile, imageFile, screensho
   data.append('status', formData.status)
   data.append('author', formData.author)
   data.append('compatibleWith', formData.compatibleWith)
-  data.append('tags', JSON.stringify(formData.tags))
+  // אותו נרמול כמו בשרת (pluginTags.js) — פיצול פסיקים, גרשיים, כפילויות
+  data.append('tags', JSON.stringify(normalizeTagList(formData.tags)))
   data.append('homepage', formData.homepage)
   data.append('reportsConsent', 'true')
 

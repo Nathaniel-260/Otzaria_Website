@@ -57,7 +57,6 @@ export function useUploadPluginForm() {
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([])
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([])
-  const [newTag, setNewTag] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<UploadFieldKey, string>>>({})
 
   const setFieldError = (field: UploadFieldKey, message: string | null) => {
@@ -86,16 +85,7 @@ export function useUploadPluginForm() {
     if (value) setFieldError('reportsConsent', null)
   }
 
-  const addTag = () => {
-    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
-      handleChange('tags', [...formData.tags, newTag.trim()])
-      setNewTag('')
-    }
-  }
-
-  const removeTag = (tag: string) => {
-    handleChange('tags', formData.tags.filter(t => t !== tag))
-  }
+  const setTags = (tags: string[]) => handleChange('tags', tags)
 
   // עיבוד קובץ תוסף (משותף ל-input ול-drop)
   const processPluginFile = async (file: File, resetInput: () => void) => {
@@ -275,10 +265,7 @@ export function useUploadPluginForm() {
     handleChange,
     reportsConsent,
     setReportsConsent,
-    newTag,
-    setNewTag,
-    addTag,
-    removeTag,
+    setTags,
     pluginFile,
     handlePluginFile,
     dropPluginFile,

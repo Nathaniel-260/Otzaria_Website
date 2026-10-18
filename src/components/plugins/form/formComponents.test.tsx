@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, createEvent } from '@testing-library/react'
 import FormField from './FormField'
 import FileDropZone, { dragHasFiles } from './FileDropZone'
-import TagInput from './TagInput'
 import CheckboxField from './CheckboxField'
 import FormNote from './FormNote'
 import { SelectedFile, ScreenshotPreviews } from './FilePreviews'
@@ -73,32 +72,6 @@ describe('FileDropZone', () => {
     expect(dragHasFiles({ dataTransfer: { types: ['Files'] } } as never)).toBe(true)
     expect(dragHasFiles({ dataTransfer: { types: ['text/plain'] } } as never)).toBe(false)
     expect(dragHasFiles({ dataTransfer: null } as never)).toBe(false)
-  })
-})
-
-describe('TagInput', () => {
-  it('Enter מוסיף (ולא שולח טופס), "הוסף" מוסיף, וכל תגית ניתנת להסרה בשם נגיש', () => {
-    const onAdd = vi.fn()
-    const onRemove = vi.fn()
-    const onSubmit = vi.fn((e) => e.preventDefault())
-    render(
-      <form onSubmit={onSubmit}>
-        <TagInput id="t" tags={['מילון']} value="חדש" onValueChange={() => {}} onAdd={onAdd} onRemove={onRemove} placeholder="הוסף תגית" />
-      </form>
-    )
-    const input = screen.getByRole('textbox', { name: 'הוסף תגית' })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(onAdd).toHaveBeenCalledTimes(1)
-    expect(onSubmit).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'הוסף' }))
-    expect(onAdd).toHaveBeenCalledTimes(2)
-    fireEvent.click(screen.getByRole('button', { name: 'הסרת התגית מילון' }))
-    expect(onRemove).toHaveBeenCalledWith('מילון')
-  })
-
-  it('בלי תגיות — אין רשימה', () => {
-    render(<TagInput id="t" tags={[]} value="" onValueChange={() => {}} onAdd={() => {}} onRemove={() => {}} placeholder="תגית" />)
-    expect(screen.queryByRole('list')).toBeNull()
   })
 })
 

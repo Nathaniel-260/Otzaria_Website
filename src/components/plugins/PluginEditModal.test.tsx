@@ -68,10 +68,24 @@ describe('PluginEditModal (עמוד התוסף + /library/admin/plugins)', () =>
 
   it('תגיות: הוספה והסרה עם שם נגיש', () => {
     render(<PluginEditModal plugin={PLUGIN} endpoint="/x" onClose={() => {}} onSuccess={() => {}} />)
-    fireEvent.change(screen.getByRole('textbox', { name: 'הוסף תגית' }), { target: { value: 'מילון' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'הוסף תגית' }), { target: { value: 'מילון' } })
     fireEvent.click(screen.getByRole('button', { name: 'הוסף' }))
     expect(screen.getByRole('button', { name: 'הסרת התגית מילון' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'הסרת התגית תלמוד' }))
     expect(screen.queryByRole('button', { name: 'הסרת התגית תלמוד' })).toBeNull()
+  })
+
+  it('תגיות ישנות מנורמלות כבר בפתיחה (פסיקים, גרשיים, כפילויות), ונשלחות כך בשמירה', async () => {
+    fetchSpy.mockResolvedValue({ ok: true, json: () => Promise.resolve({ message: 'נשמר' }) })
+    const legacy = { ...PLUGIN, tags: ['כלי עזר, גימטריא', 'תנ״ך', 'תנ"ך'] }
+    render(<PluginEditModal plugin={legacy} endpoint="/x" onClose={() => {}} onSuccess={() => {}} />)
+    for (const tag of ['כלי עזר', 'גימטריא', 'תנ"ך']) {
+      expect(screen.getByRole('button', { name: `הסרת התגית ${tag}` })).toBeInTheDocument()
+    }
+    expect(screen.getAllByRole('button', { name: /^הסרת התגית/ })).toHaveLength(3)
+    fireEvent.submit(document.getElementById('plugin-edit-form')!)
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled())
+    const [, init] = fetchSpy.mock.calls[0]
+    expect(JSON.parse((init.body as FormData).get('tags') as string)).toEqual(['כלי עזר', 'גימטריא', 'תנ"ך'])
   })
 })

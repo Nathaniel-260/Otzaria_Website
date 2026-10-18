@@ -9,11 +9,13 @@ import FormField from '@/components/plugins/form/FormField'
 import FormNote from '@/components/plugins/form/FormNote'
 import FileDropZone from '@/components/plugins/form/FileDropZone'
 import TagInput from '@/components/plugins/form/TagInput'
+import { usePluginTagSuggestions } from '@/components/plugins/form/usePluginTagSuggestions'
 import CheckboxField from '@/components/plugins/form/CheckboxField'
 import { IconPreview, ScreenshotPreviews, SelectedFile } from '@/components/plugins/form/FilePreviews'
 import { fieldA11yProps, fieldClasses } from '@/components/ui/fieldStyles'
 import { useDialog } from '@/components/providers/DialogContext'
 import { MIN_SUPPORTED_APP_VERSION, formatPluginStatus } from '@/lib/pluginStatus'
+import { normalizeTagList } from '@/lib/pluginTags'
 
 const ALLOWED_IMAGE_MIMES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 const STATUS_OPTIONS = [
@@ -138,7 +140,8 @@ export default function PluginEditModal({ plugin, endpoint, onClose, onSuccess }
     author: plugin.author || '',
     compatibleWith: plugin.compatibleWith || '',
     requiresNetwork: plugin.requiresNetwork === true,
-    tags: plugin.tags || [],
+    // מנורמלות כבר בפתיחה (פיצול פסיקים, גרשיים, כפילויות) — מה שרואים הוא מה שיישמר
+    tags: normalizeTagList(plugin.tags || []),
     homepage: plugin.homepage || ''
   })
 
@@ -149,22 +152,10 @@ export default function PluginEditModal({ plugin, endpoint, onClose, onSuccess }
   const [screenshotPreviews, setScreenshotPreviews] = useState([])
   const [removeImage, setRemoveImage] = useState(false)
   const [removeScreenshots, setRemoveScreenshots] = useState(false)
-  const [newTag, setNewTag] = useState('')
+  const tagSuggestions = usePluginTagSuggestions()
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const addTag = () => {
-    const value = newTag.trim()
-    if (value && !formData.tags.includes(value)) {
-      handleChange('tags', [...formData.tags, value])
-      setNewTag('')
-    }
-  }
-
-  const removeTag = (tag) => {
-    handleChange('tags', formData.tags.filter((item) => item !== tag))
   }
 
   const handlePluginFile = async (event) => {
@@ -320,7 +311,7 @@ export default function PluginEditModal({ plugin, endpoint, onClose, onSuccess }
       data.append('author', formData.author)
       data.append('compatibleWith', formData.compatibleWith)
       data.append('requiresNetwork', formData.requiresNetwork ? 'true' : 'false')
-      data.append('tags', JSON.stringify(formData.tags))
+      data.append('tags', JSON.stringify(normalizeTagList(formData.tags)))
       data.append('homepage', formData.homepage)
 
       if (pluginFile) {
@@ -454,10 +445,8 @@ export default function PluginEditModal({ plugin, endpoint, onClose, onSuccess }
           <TagInput
             id="edit-new-tag"
             tags={formData.tags}
-            value={newTag}
-            onValueChange={setNewTag}
-            onAdd={addTag}
-            onRemove={removeTag}
+            onTagsChange={(tags) => handleChange('tags', tags)}
+            suggestions={tagSuggestions}
             placeholder="הוסף תגית"
           />
         </EditSection>

@@ -100,6 +100,16 @@ describe('buildUploadFormData', () => {
     expect(data.has('imageFile')).toBe(false)
   })
 
+  it('התגיות נשלחות מנורמלות: פיצול פסיקים, גרשיים, בלי כפילויות', () => {
+    const data = buildUploadFormData({
+      formData: { ...FILLED, tags: ['כלי עזר, גימטריא', 'תנ״ך', 'תנ"ך', ' כלי  עזר '] },
+      pluginFile: new File(['x'], 'a.otzplugin'),
+      imageFile: null,
+      screenshotFiles: []
+    })
+    expect(JSON.parse(data.get('tags') as string)).toEqual(['כלי עזר', 'גימטריא', 'תנ"ך'])
+  })
+
   it('imageFile נשלח רק כשנבחרה תמונה', () => {
     const img = new File(['z'], 'i.png', { type: 'image/png' })
     const data = buildUploadFormData({ formData: FILLED, pluginFile: new File(['x'], 'a.otzplugin'), imageFile: img, screenshotFiles: [] })
