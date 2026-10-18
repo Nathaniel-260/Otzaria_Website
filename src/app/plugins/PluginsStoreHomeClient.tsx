@@ -92,7 +92,7 @@ export default function PluginsStoreHomeClient({ data, loadError }: PluginsStore
       <main id="main-content" className="flex-1">
         {/* אזור אחד לכל החנות, מחובר ל-h1. מ-lg: סרגל הקטגוריות לצד עמודת התוכן כבר מראש הדף,
             והפתיחה (כותרת + חיפוש) בראש עמודת התוכן */}
-        <Section spacing="none" labelledBy={TITLE_ID} className="pt-6 md:pt-8">
+        <Section spacing="none" labelledBy={TITLE_ID} className="pt-10 md:pt-14">
           <div className={hasCategoryNav ? 'lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-8 xl:gap-10' : undefined}>
             {hasCategoryNav && <CategorySidebar categories={categories} totalPlugins={totalPublicPlugins} />}
 
