@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { categories, faqs } from '@/lib/faq-data'
 import FaqList from './FaqList'
+import { faqAnswerText } from './faqContent'
 
 afterEach(() => {
   window.history.replaceState(null, '', '/')
@@ -31,7 +32,8 @@ describe('FaqList', () => {
       expect(item.open).toBe(false)
       // השאלה בתוך summary (האייקון — גליף ligature, aria-hidden), והתשובה אחריו
       expect(item.querySelector('summary > span').textContent).toBe(faq.question)
-      expect(item.querySelector('summary + div').textContent).toBe(faq.answer)
+      expect(item.querySelector('summary + div').textContent).toBe(faqAnswerText(faq))
+      expect(item.querySelector('summary + div').textContent).not.toContain('{link}')
     }
   })
 
@@ -87,5 +89,31 @@ describe('FaqList', () => {
     const { container } = render(<FaqList categories={categories} faqs={faqs} />)
     expect(container.querySelector('#faq-2').open).toBe(true)
     expect(container.querySelector('#faq-1').open).toBe(false)
+  })
+
+  it('תשובות ההתקנה: קישור פנימי לדף ההורדה בתוך התשובה, בעיצוב קישור ועם טבעת פוקוס', () => {
+    const { container } = render(<FaqList categories={categories} faqs={faqs} />)
+    for (const id of [3, 7, 8, 9, 10, 11]) {
+      const links = container.querySelectorAll(`#faq-${id} summary + div a`)
+      expect(links).toHaveLength(1)
+      const link = links[0]
+      expect(link.getAttribute('href')).toBe('/#download')
+      expect(link.textContent).toMatch(/דף ההורדה$/)
+      expect(link.className).toContain('underline')
+      expect(link.className).toContain('focus-visible:outline-focus-ring')
+    }
+  })
+
+  it('קישור בתשובה נגיש לפי שמו כשהשאלה פתוחה, והמונחים הלועזיים שסביבו עדיין מבודדים', () => {
+    window.history.replaceState(null, '', '/faq#faq-11')
+    const { container } = render(<FaqList categories={categories} faqs={faqs} />)
+    const answer = container.querySelector('#faq-11 summary + div')
+    expect(within(answer).getByRole('link', { name: 'בדף ההורדה' })).toHaveAttribute('href', '/#download')
+    expect([...answer.querySelectorAll('bdi[dir="ltr"]')].map((b) => b.textContent)).toEqual(['macOS', 'macOS', 'Apple'])
+  })
+
+  it('שאלה בלי קישור — בלי a בתשובה', () => {
+    const { container } = render(<FaqList categories={categories} faqs={faqs} />)
+    expect(container.querySelector('#faq-1 summary + div a')).toBeNull()
   })
 })

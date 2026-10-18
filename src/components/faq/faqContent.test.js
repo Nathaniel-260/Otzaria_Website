@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { categories, faqs } from '@/lib/faq-data'
-import { ALL_CATEGORY, categoryHeadingId, faqAnchorId, findFaqByHash, groupFaqs, splitLatinRuns } from './faqContent.js'
+import {
+  ALL_CATEGORY,
+  FAQ_LINK_TOKEN,
+  categoryHeadingId,
+  faqAnchorId,
+  faqAnswerText,
+  findFaqByHash,
+  groupFaqs,
+  isInternalHref,
+  splitAnswerLink,
+  splitLatinRuns
+} from './faqContent.js'
 
 describe('groupFaqs', () => {
   it('"הכל": כל הקטגוריות לפי הסדר (בלי "הכל"), וכל שאלה מופיעה פעם אחת בסדר המקורי', () => {
@@ -90,5 +101,66 @@ describe('splitLatinRuns', () => {
   it('טקסט עברי בלבד / ריק', () => {
     expect(splitLatinRuns('שלום')).toEqual([{ text: 'שלום', ltr: false }])
     expect(splitLatinRuns('')).toEqual([])
+  })
+})
+
+describe('קישור בתשובה', () => {
+  const link = { href: '/#download', label: 'בדף ההורדה' }
+
+  it('splitAnswerLink: הטוקן הופך לקטע קישור, הטקסט שסביבו נשמר', () => {
+    expect(splitAnswerLink('המסייע נמצא {link}. הפעל אותו.', link)).toEqual([
+      { type: 'text', text: 'המסייע נמצא ' },
+      { type: 'link', href: '/#download', label: 'בדף ההורדה' },
+      { type: 'text', text: '. הפעל אותו.' }
+    ])
+  })
+
+  it('בלי טוקן — טקסט אחד; טוקן בקצה — בלי קטעים ריקים', () => {
+    expect(splitAnswerLink('שלום', link)).toEqual([{ type: 'text', text: 'שלום' }])
+    expect(splitAnswerLink('{link}', link)).toEqual([{ type: 'link', href: '/#download', label: 'בדף ההורדה' }])
+    expect(splitAnswerLink('', link)).toEqual([])
+  })
+
+  it('קישור חסר או חיצוני — הטוקן מוחלף בנוסח כטקסט, ולא מוצג גולמי', () => {
+    expect(splitAnswerLink('ראה {link}.', { href: 'https://evil.example', label: 'כאן' })).toEqual([{ type: 'text', text: 'ראה כאן.' }])
+    expect(splitAnswerLink('ראה {link}.', { href: '//evil.example', label: 'כאן' })).toEqual([{ type: 'text', text: 'ראה כאן.' }])
+    expect(splitAnswerLink('ראה {link}.', undefined)).toEqual([{ type: 'text', text: 'ראה .' }])
+  })
+
+  it('isInternalHref: רק נתיב פנימי', () => {
+    expect(isInternalHref('/#download')).toBe(true)
+    expect(isInternalHref('/offline')).toBe(true)
+    expect(isInternalHref('//host')).toBe(false)
+    expect(isInternalHref('/\\host')).toBe(false)
+    expect(isInternalHref('https://otzaria.org')).toBe(false)
+    expect(isInternalHref('javascript:alert(1)')).toBe(false)
+    expect(isInternalHref(undefined)).toBe(false)
+  })
+
+  it('faqAnswerText: הטקסט שהקורא רואה', () => {
+    expect(faqAnswerText({ answer: 'המסייע נמצא {link}.', link })).toBe('המסייע נמצא בדף ההורדה.')
+    expect(faqAnswerText({ answer: 'בלי קישור' })).toBe('בלי קישור')
+  })
+
+  it('בנתונים: כל טוקן מלווה בקישור פנימי, וכל קישור — בטוקן אחד בדיוק', () => {
+    for (const faq of faqs) {
+      const tokens = faq.answer.split(FAQ_LINK_TOKEN).length - 1
+      if (faq.link) {
+        expect(tokens, `faq ${faq.id}`).toBe(1)
+        expect(isInternalHref(faq.link.href), `faq ${faq.id}`).toBe(true)
+        expect(faq.link.label.trim(), `faq ${faq.id}`).not.toBe('')
+      } else {
+        expect(tokens, `faq ${faq.id}`).toBe(0)
+      }
+    }
+  })
+
+  it('תשובות ההתקנה מפנות לאזור ההורדה בדף הבית, ושום תשובה לא מזכירה "דף ההורדות" בלי קישור', () => {
+    for (const id of [3, 7, 8, 9, 10, 11]) {
+      expect(faqs.find((f) => f.id === id).link?.href).toBe('/#download')
+    }
+    for (const faq of faqs) {
+      if (!faq.link) expect(faq.answer).not.toMatch(/דף ההורד/)
+    }
   })
 })

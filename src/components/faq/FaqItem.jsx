@@ -1,6 +1,7 @@
 import AppIcon from '@/components/ui/AppIcon'
 import { cx } from '@/components/ui/cx'
 import { FOCUS_RING_INSET } from '@/components/ui/focusRing'
+import FaqAnswer from './FaqAnswer'
 import FaqText from './FaqText'
 import { faqAnchorId } from './faqContent'
 
@@ -42,7 +43,7 @@ export default function FaqItem({ faq }) {
         />
       </summary>
       <div className="whitespace-pre-line px-4 pb-5 text-body-sm text-on-surface-variant sm:px-5 sm:text-body-md xl:px-6">
-        <FaqText text={faq.answer} />
+        <FaqAnswer faq={faq} />
       </div>
     </details>
   )
