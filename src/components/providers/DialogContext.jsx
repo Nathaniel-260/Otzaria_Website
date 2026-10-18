@@ -1,6 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useId, useRef } from 'react'
+import { useDialogA11y } from '@/components/ui/useDialogA11y'
 
 const DialogContext = createContext(null)
 
@@ -134,6 +135,9 @@ export function DialogProvider({ children }) {
     const handleKeyDown = (event) => {
       if (!dialogConfig.isOpen) return
       if (event.key === 'Enter') {
+        // Enter על כפתור/קישור ממוקד (למשל "ביטול") — הפעולה הרגילה שלו, לא "אישור"
+        const target = event.target
+        if (target instanceof HTMLElement && target.closest('button, a[href]') && target.closest('[data-dialog-context]')) return
         event.preventDefault()
         if (dialogConfig.type === 'confirm' || dialogConfig.type === 'message') {
           handleConfirm()
@@ -167,6 +171,8 @@ export function DialogProvider({ children }) {
   }, [dialogConfig.isOpen, dialogConfig.type, dialogConfig.timestamp, closeDialog, clearAutoCloseTimer])
 
   const isAlert = dialogConfig.type === 'alert';
+  const baseId = useId()
+  const dialogIds = { title: `${baseId}-title`, message: `${baseId}-message` }
 
   const wrapperClass = isAlert 
     ? `fixed bottom-8 left-0 right-0 z-[9999] flex items-end justify-center transition-opacity duration-300 pointer-events-none ${isVisible ? 'opacity-100' : 'opacity-0'}`
@@ -196,8 +202,12 @@ export function DialogProvider({ children }) {
           className={wrapperClass}
           onClick={!isAlert ? closeDialog : undefined}
         >
-          <div 
+          <DialogBox
+            isAlert={isAlert}
             className={boxClass}
+            labelledBy={dialogIds.title}
+            describedBy={dialogIds.message}
+            onEscape={closeDialog}
             onClick={e => {
               e.stopPropagation();
               if (isAlert) closeDialog();
@@ -213,17 +223,17 @@ export function DialogProvider({ children }) {
                   ? 'bg-primary/10 text-primary'
                   : 'bg-secondary/10 text-secondary'
               }`}>
-                <span className={`material-symbols-outlined ${isAlert ? 'text-[24px]' : 'text-[32px]'}`}>
+                <span aria-hidden="true" className={`material-symbols-outlined ${isAlert ? 'text-[24px]' : 'text-[32px]'}`}>
                   {dialogConfig.type === 'confirm' ? 'help' : dialogConfig.type === 'message' ? 'error' : 'info'}
                 </span>
               </div>
               
               <div className="flex-1">
-                <h3 className={`${isAlert ? 'text-lg' : 'text-xl'} font-frank font-bold text-on-surface mb-1 tracking-wide`}>
+                <h3 id={dialogIds.title} className={`${isAlert ? 'text-lg' : 'text-xl'} font-frank font-bold text-on-surface mb-1 tracking-wide`}>
                   {dialogConfig.title}
                 </h3>
                 
-                <p className="text-on-surface/80 text-base leading-relaxed whitespace-pre-line">
+                <p id={dialogIds.message} className="text-on-surface/80 text-base leading-relaxed whitespace-pre-line">
                   {dialogConfig.message}
                 </p>
               </div>
@@ -256,10 +266,51 @@ export function DialogProvider({ children }) {
                   />
                </div>
             )}
-          </div>
+          </DialogBox>
         </div>
       )}
     </DialogContext.Provider>
+  )
+}
+
+/**
+ * תיבת ההודעה. alert — הודעה חולפת (toast): role="status", בלי לכידת פוקוס (לא מודאלי).
+ * confirm / message — חלון מודאלי: role="alertdialog" + aria-modal, ו-useDialogA11y — פוקוס נכנס
+ * לחלון ונלכד בו (גם כשהוא נפתח מעל ui/Dialog: רק החלון העליון מגיב ל-Tab/Esc), Esc סוגר (כמו "ביטול"),
+ * והפוקוס חוזר בסגירה לאלמנט שפתח.
+ */
+function DialogBox({ isAlert, className, labelledBy, describedBy, onEscape, onClick, children }) {
+  if (isAlert) {
+    return (
+      <div role="status" aria-live="polite" data-dialog-context="" className={className} onClick={onClick}>
+        {children}
+      </div>
+    )
+  }
+  return (
+    <ModalDialogBox className={className} onEscape={onEscape} onClick={onClick} labelledBy={labelledBy} describedBy={describedBy}>
+      {children}
+    </ModalDialogBox>
+  )
+}
+
+function ModalDialogBox({ className, onEscape, onClick, labelledBy, describedBy, children }) {
+  const panelRef = useRef(null)
+  useDialogA11y(panelRef, onEscape)
+  return (
+    <div
+      ref={panelRef}
+      role="alertdialog"
+      aria-modal="true"
+      tabIndex={-1}
+      data-dialog-context=""
+      aria-labelledby={labelledBy}
+      aria-describedby={describedBy}
+      className={`${className} outline-none`}
+      onClick={onClick}
+    >
+      {children}
+    </div>
   )
 }
 
