@@ -26,7 +26,8 @@ describe('מצב השיוך בדיווח שאינו בטיפולי', () => {
     renderWith({ status: 'claimed', assignee: 'other', assigneeName: 'ראובן', leaseExpiresAt: new Date(Date.now() - HOUR).toISOString() })
     expect(screen.getByText(/הטיפול של/).textContent).toMatch(/פג ב-/)
     expect(screen.queryByText('הדיווח אינו משויך למטפל.')).toBeNull()
-    expect(screen.getByRole('button', { name: /קח לטיפול/ })).toBeTruthy()
+    expect(screen.getByText('כל פעולה תשייך אותו אליך.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /עריכה ואז אישור/ }).disabled).toBe(false)
   })
 })
 
