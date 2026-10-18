@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation'
 import { tokenizeHebrew } from '@/lib/hebrewSearchNormalize'
 import AppIcon from '@/components/ui/AppIcon'
 import { cx } from '@/components/ui/cx'
-import { FIELD_ICON_GLYPH, fieldClasses, fieldIconClasses } from '@/components/ui/fieldStyles'
+import { FIELD_ICON_GLYPH, fieldClasses, fieldAdornmentClasses } from '@/components/ui/fieldStyles'
 import PluginImage from '@/components/plugins/PluginImage'
 import type { Plugin } from '@/components/plugins/types'
 
@@ -229,7 +229,7 @@ export default function PluginSearchBox({
 
   return (
     <div ref={containerRef} className="relative w-full">
-      <span className={fieldIconClasses(size, 'start')} aria-hidden="true">
+      <span className={fieldAdornmentClasses(size, 'start')} aria-hidden="true">
         <AppIcon name="search" className={FIELD_ICON_GLYPH} />
       </span>
       <input

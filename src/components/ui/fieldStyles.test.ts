@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fieldA11yProps, fieldClasses, fieldIconClasses } from './fieldStyles'
+import { fieldA11yProps, fieldClasses, fieldAdornmentClasses } from './fieldStyles'
 
 describe('fieldClasses', () => {
   it('טוקני --field-* ומסגרת פוקוס primary', () => {
@@ -26,11 +26,11 @@ describe('fieldClasses', () => {
   })
 })
 
-describe('fieldIconClasses', () => {
+describe('fieldAdornmentClasses', () => {
   it('מיקום לוגי (start/end), לא left/right', () => {
-    expect(fieldIconClasses('md', 'start')).toContain('start-3.5')
-    expect(fieldIconClasses('lg', 'end')).toContain('end-4')
-    expect(fieldIconClasses()).not.toMatch(/\b(left|right)-/)
+    expect(fieldAdornmentClasses('md', 'start')).toContain('start-3.5')
+    expect(fieldAdornmentClasses('lg', 'end')).toContain('end-4')
+    expect(fieldAdornmentClasses()).not.toMatch(/\b(left|right)-/)
   })
 })
 

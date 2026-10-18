@@ -2,7 +2,7 @@
 
 import { useId } from 'react'
 import AppIcon from '@/components/ui/AppIcon'
-import { FIELD_ICON_GLYPH, FIELD_LABEL_COMPACT, fieldClasses, fieldIconClasses } from '@/components/ui/fieldStyles'
+import { FIELD_ICON_GLYPH, FIELD_LABEL_COMPACT, fieldClasses, fieldAdornmentClasses } from '@/components/ui/fieldStyles'
 
 /** אפשרויות סינון הסטטוס — הנוסח הקיים בדף "כל התוספים" */
 export const STATUS_OPTIONS = [
@@ -43,7 +43,7 @@ export default function StatusSelect({
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
-        <span className={fieldIconClasses('md', 'end')}>
+        <span className={fieldAdornmentClasses('md', 'end')}>
           <AppIcon name="expand_more" className={FIELD_ICON_GLYPH} />
         </span>
       </div>

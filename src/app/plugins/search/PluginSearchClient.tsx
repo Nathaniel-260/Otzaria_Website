@@ -20,7 +20,7 @@ import { useDirectInstall } from '@/components/plugins/useDirectInstall'
 import { useDialog } from '@/components/providers/DialogContext'
 import StorePageHeader from '@/components/plugins/StorePageHeader'
 import PluginResultRow, { PluginResultRowSkeleton } from '@/components/plugins/listing/PluginResultRow'
-import { FIELD_ICON_GLYPH, fieldClasses, fieldIconClasses } from '@/components/ui/fieldStyles'
+import { FIELD_ICON_GLYPH, fieldClasses, fieldAdornmentClasses } from '@/components/ui/fieldStyles'
 import AppIcon from '@/components/ui/AppIcon'
 import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
@@ -204,7 +204,7 @@ export default function PluginSearchClient({ initialQuery, initialResults }: Plu
           {/* לא PluginSearchBox: כאן אין הצעות — התוצאות עצמן מתעדכנות מתחת (debounce משלו).
               השם הנגיש — כותרת העמוד ("חיפוש תוספים"), שצמודה לשדה */}
           <div className="relative">
-            <span className={fieldIconClasses('lg', 'start')}>
+            <span className={fieldAdornmentClasses('lg', 'start')}>
               <AppIcon name="search" className={FIELD_ICON_GLYPH} />
             </span>
             <input

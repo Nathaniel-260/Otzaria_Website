@@ -51,10 +51,12 @@ export function fieldClasses({
 
 /**
  * מיקום אייקון בתוך השדה (אבסולוטי, ממורכז אנכית) — start לחיפוש, end לחץ.
+ * השם בלי "icon" בכוונה: check:icons (src/lib/iconFontScan.mjs) סורק מחרוזות בפונקציות ששמן מכיל
+ * icon, ו-'start' / 'end' כאן נספרו כשמות אייקונים חסרים — מה שמכשיל את ה-build ב-CI.
  * חשוב: על span עוטף ולא על הגליף — ל-.material-symbols-outlined יש direction: ltr (base.css), ולכן
  * start/end על הגליף עצמו מתהפכים (start-* = שמאל). העוטף יורש rtl מהדף. הגליף בפנים — FIELD_ICON_GLYPH.
  */
-export function fieldIconClasses(size: FieldSize = 'md', side: 'start' | 'end' = 'start') {
+export function fieldAdornmentClasses(size: FieldSize = 'md', side: 'start' | 'end' = 'start') {
   const pos = size === 'lg'
     ? (side === 'start' ? 'start-4 text-[1.5rem]' : 'end-4 text-[1.5rem]')
     : (side === 'start' ? 'start-3.5 text-[1.25rem]' : 'end-3.5 text-[1.25rem]')

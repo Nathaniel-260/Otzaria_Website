@@ -15,6 +15,8 @@ const COMPONENT_PATHS = [
   'src/lib/editorUtils.js',
   'src/lib/hebrewWordUtils.js',
   'src/lib/shortcuts.js',
+  // DialogContext משתמש ב-useDialogA11y (לכידת פוקוס בחלון האישור) — חייב להופיע לפניו
+  'src/components/ui/useDialogA11y.ts',
   'src/components/providers/DialogContext.jsx',
   'src/components/ui/Modal.jsx',
   'src/components/ui/FormInput.jsx',
