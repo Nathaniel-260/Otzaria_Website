@@ -45,6 +45,9 @@ describe('PluginsStoreHomeClient', () => {
     render(<PluginsStoreHomeClient data={data()} loadError={false} />)
     expect(document.querySelectorAll('main#main-content')).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1, name: 'חנות התוספים של אוצריא' })).toBeInTheDocument()
+    // אזור אחד לכל החנות, מחובר ל-h1; הסרגל והפתיחה בתוכו
+    const store = screen.getByRole('region', { name: 'חנות התוספים של אוצריא' })
+    expect(within(store).getByRole('textbox', { name: 'חיפוש תוספים' })).toBeInTheDocument()
     const featured = screen.getByRole('region', { name: 'תוספים נבחרים' })
     expect(within(featured).getAllByRole('heading', { level: 3 })).toHaveLength(6)
     const row = screen.getByRole('region', { name: 'כלי לימוד' })

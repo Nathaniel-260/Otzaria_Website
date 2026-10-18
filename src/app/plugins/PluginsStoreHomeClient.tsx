@@ -11,8 +11,9 @@
 // הכיל רק שלד, והתוכן (שכבר הגיע מהשרת ב-payload) הופיע רק אחרי hydration.
 //
 // מבנה העמוד (מפרט: refactor-notes/redesign/plugins-design-spec.md, §2 סריקה מהירה ו-§6):
-// פתיחה (h1 + חיפוש) ← שבבי קטגוריות (מתחת ל-lg) / סרגל קטגוריות דביק (lg+) ← תוספים נבחרים
-// ← שורות הקטגוריה ← פס "כל התוספים". כל אזור באותו מבנה (StoreHomeSection) וברווח אחד קבוע.
+// מ-lg: סרגל קטגוריות דביק מראש הדף, ולצדו עמודת התוכן. בעמודה: פתיחה קומפקטית (אריח + h1 + שורת
+// משנה, פעולות משניות שקטות, חיפוש) ← שבבי קטגוריות (רק מתחת ל-lg) ← תוספים נבחרים ← שורות הקטגוריה
+// ← פס "כל התוספים". כל אזור באותו מבנה (StoreHomeSection) וברווח אחד קבוע.
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -35,6 +36,7 @@ import type { StoreHomeData } from './storeHomeTypes'
 const DEFAULT_HOME_TITLE = 'חנות התוספים של אוצריא'
 const DEFAULT_HOME_SUBTITLE = 'תוספים שמרחיבים את חוויית הלימוד באוצריא — מצא, הורד והתקן בלחיצה אחת'
 const FEATURED_PREVIEW_COUNT = 6
+const TITLE_ID = 'store-home-title'
 
 interface PluginsStoreHomeClientProps {
   data: StoreHomeData | null
@@ -88,95 +90,97 @@ export default function PluginsStoreHomeClient({ data, loadError }: PluginsStore
       </Suspense>
 
       <main id="main-content" className="flex-1">
-        <StoreHomeHero titleId="store-home-title" title={homeTitle} subtitle={homeSubtitle} />
-
-        <Section spacing="none" aria-label="תוספים">
-          {/* מתחת ל-lg: שבבי קטגוריות מעל התוכן (מ-lg — סרגל צד) */}
-          {hasCategoryNav && (
-            <CategoryChipsNav categories={categories} totalPlugins={totalPublicPlugins} className="mb-8 md:mb-10" />
-          )}
-
+        {/* אזור אחד לכל החנות, מחובר ל-h1. מ-lg: סרגל הקטגוריות לצד עמודת התוכן כבר מראש הדף,
+            והפתיחה (כותרת + חיפוש) בראש עמודת התוכן */}
+        <Section spacing="none" labelledBy={TITLE_ID} className="pt-6 md:pt-8">
           <div className={hasCategoryNav ? 'lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-8 xl:gap-10' : undefined}>
             {hasCategoryNav && <CategorySidebar categories={categories} totalPlugins={totalPublicPlugins} />}
 
             <div className="min-w-0">
-              {loadError ? (
-                // שגיאת טעינה — עדיין מציעים דרך אל כל התוספים
-                <EmptyState
-                  icon="error"
-                  title="אירעה שגיאה בטעינת החנות"
-                  description="נסה לרענן את הדף, או עבור לרשימת כל התוספים."
-                  actions={<Button href="/plugins/all" iconEnd="chevron_left">לכל התוספים</Button>}
-                />
-              ) : isEmptyHome ? (
-                // מצב ריק כללי: אין נבחרים ואין קטגוריות בית — שער לכל התוספים
-                <EmptyState
-                  icon="extension"
-                  title="החנות בבנייה — אבל התוספים כבר כאן"
-                  description="בקרוב יופיעו כאן תוספים נבחרים וקטגוריות מסודרות. בינתיים אפשר לחפש למעלה או לעיין ברשימה המלאה של כל התוספים."
-                  actions={
-                    <Button href="/plugins/all" iconEnd="chevron_left">
-                      לכל התוספים <span className="tabular-nums">({totalPublicPlugins.toLocaleString('he-IL')})</span>
-                    </Button>
-                  }
-                />
-              ) : (
-                // אזורים ברווח אחד קבוע (S11), בלי קווי הפרדה
-                <div className="flex flex-col gap-12 md:gap-16">
-                  {featured.length > 0 && (
-                    <StoreHomeSection id="store-home-featured" title="תוספים נבחרים">
-                      <PluginGrid columns="sidebar" labelledBy="store-home-featured">
-                        {visibleFeatured.map((plugin, pluginIndex) => (
-                          <PluginCard
-                            key={plugin.id}
-                            plugin={plugin}
-                            priority={pluginIndex === 0}
-                            installState={installState}
-                            onInstall={install}
-                          />
-                        ))}
-                      </PluginGrid>
-                      {featured.length > FEATURED_PREVIEW_COUNT && !showAllFeatured && (
-                        <div className="mt-6 flex justify-center">
-                          <Button variant="tonal" icon="expand_more" onClick={() => setShowAllFeatured(true)}>
-                            הצג עוד נבחרים
-                          </Button>
-                        </div>
-                      )}
-                    </StoreHomeSection>
-                  )}
+              <StoreHomeHero titleId={TITLE_ID} title={homeTitle} subtitle={homeSubtitle} />
 
-                  {homeCategories.map((category, index) => {
-                    const headingId = `store-home-category-${category.slug}`
-                    return (
-                      <StoreHomeSection
-                        key={category.id}
-                        id={headingId}
-                        title={category.name}
-                        description={category.description || undefined}
-                        icon={showCategoryIcons ? categoryIcon(category) : undefined}
-                        action={{ href: `/plugins/category/${category.slug}`, label: 'לכל הקטגוריה', count: category.pluginCount }}
-                      >
-                        {/* בנייד — מסילה אופקית; מ-md — רשת */}
-                        <PluginGrid columns="sidebar" mobileRail labelledBy={headingId}>
-                          {category.plugins.map((plugin, pluginIndex) => (
+              {/* מתחת ל-lg: שבבי הקטגוריות מיד אחרי החיפוש (מ-lg: הסרגל) */}
+              {hasCategoryNav && <CategoryChipsNav categories={categories} totalPlugins={totalPublicPlugins} className="mt-4" />}
+
+              <div className="mt-10 md:mt-12">
+                {loadError ? (
+                  // שגיאת טעינה — עדיין מציעים דרך אל כל התוספים
+                  <EmptyState
+                    icon="error"
+                    title="אירעה שגיאה בטעינת החנות"
+                    description="נסה לרענן את הדף, או עבור לרשימת כל התוספים."
+                    actions={<Button href="/plugins/all" iconEnd="chevron_left">לכל התוספים</Button>}
+                  />
+                ) : isEmptyHome ? (
+                  // מצב ריק כללי: אין נבחרים ואין קטגוריות בית — שער לכל התוספים
+                  <EmptyState
+                    icon="extension"
+                    title="החנות בבנייה — אבל התוספים כבר כאן"
+                    description="בקרוב יופיעו כאן תוספים נבחרים וקטגוריות מסודרות. בינתיים אפשר לחפש למעלה או לעיין ברשימה המלאה של כל התוספים."
+                    actions={
+                      <Button href="/plugins/all" iconEnd="chevron_left">
+                        לכל התוספים <span className="tabular-nums">({totalPublicPlugins.toLocaleString('he-IL')})</span>
+                      </Button>
+                    }
+                  />
+                ) : (
+                  // אזורים ברווח אחד קבוע (S11), בלי קווי הפרדה
+                  <div className="flex flex-col gap-12 md:gap-16">
+                    {featured.length > 0 && (
+                      <StoreHomeSection id="store-home-featured" title="תוספים נבחרים">
+                        <PluginGrid columns="sidebar" labelledBy="store-home-featured">
+                          {visibleFeatured.map((plugin, pluginIndex) => (
                             <PluginCard
                               key={plugin.id}
                               plugin={plugin}
-                              priority={featured.length === 0 && index === 0 && pluginIndex === 0}
+                              priority={pluginIndex === 0}
                               installState={installState}
                               onInstall={install}
                             />
                           ))}
                         </PluginGrid>
+                        {featured.length > FEATURED_PREVIEW_COUNT && !showAllFeatured && (
+                          <div className="mt-6 flex justify-center">
+                            <Button variant="tonal" icon="expand_more" onClick={() => setShowAllFeatured(true)}>
+                              הצג עוד נבחרים
+                            </Button>
+                          </div>
+                        )}
                       </StoreHomeSection>
-                    )
-                  })}
+                    )}
 
-                  {/* פס גילוי מלא — כל התוספים */}
-                  <BrowseAllCta totalPlugins={totalPublicPlugins} />
-                </div>
-              )}
+                    {homeCategories.map((category, index) => {
+                      const headingId = `store-home-category-${category.slug}`
+                      return (
+                        <StoreHomeSection
+                          key={category.id}
+                          id={headingId}
+                          title={category.name}
+                          description={category.description || undefined}
+                          icon={showCategoryIcons ? categoryIcon(category) : undefined}
+                          action={{ href: `/plugins/category/${category.slug}`, label: 'לכל הקטגוריה', count: category.pluginCount }}
+                        >
+                          {/* בנייד — מסילה אופקית; מ-md — רשת */}
+                          <PluginGrid columns="sidebar" mobileRail labelledBy={headingId}>
+                            {category.plugins.map((plugin, pluginIndex) => (
+                              <PluginCard
+                                key={plugin.id}
+                                plugin={plugin}
+                                priority={featured.length === 0 && index === 0 && pluginIndex === 0}
+                                installState={installState}
+                                onInstall={install}
+                              />
+                            ))}
+                          </PluginGrid>
+                        </StoreHomeSection>
+                      )
+                    })}
+
+                    {/* פס גילוי מלא — כל התוספים */}
+                    <BrowseAllCta totalPlugins={totalPublicPlugins} />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </Section>

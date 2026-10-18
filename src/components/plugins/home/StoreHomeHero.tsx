@@ -1,13 +1,18 @@
 import Button from '@/components/ui/Button'
-import Section from '@/components/ui/Section'
+import IconTile from '@/components/ui/IconTile'
 import SectionHeading from '@/components/ui/SectionHeading'
 import PluginSearchBox from '@/components/plugins/PluginSearchBox'
 import PluginStoreAppBanner from '@/components/plugins/PluginStoreAppBanner'
 
 /**
- * פתיחת בית החנות: h1 (גופן התצוגה + קישוט) ושורת משנה ממורכזים, מתחתם תיבת החיפוש הגדולה
- * (הפעולה הראשית של העמוד) ומתחתה שתי פעולות משניות — העלאת תוסף והורדת אפליקציית החנות.
- * על רקע הדף, בלי פס לבן ובלי קו תחתון: האזור נפרד מהתוכן ברווח בלבד.
+ * פתיחת בית החנות. היא קומפקטית ומיושרת לצד ההתחלה, בשפת דפי המדריכים (DocsHero): אריח אייקון,
+ * ולצדו h1 בגופן התצוגה עם הקישוט ושורת משנה. בקצה השורה יש שתי פעולות משניות שקטות (כפתורי
+ * טקסט): העלאת תוסף והורדת אפליקציית החנות. כשאין להן מקום (בנייד) הן יורדות לשורה משלהן.
+ * מתחת לכל זה, ברוחב כל עמודת התוכן, תיבת החיפוש הגדולה. זו הפעולה הראשית והפקד הבולט היחיד.
+ *
+ * היא יושבת בעמודת התוכן, לצד סרגל הקטגוריות (מ-lg) שמתחיל כבר בראש הדף, ולכן הקטגוריות נראות
+ * במסך הראשון. מתחת ל-lg שורת השבבים באה מיד אחרי החיפוש (PluginsStoreHomeClient).
+ * היא אינה <section> משלה: ה-<section> העוטף את כל החנות מחובר ל-h1 (aria-labelledby).
  */
 export default function StoreHomeHero({ titleId, title, subtitle }: {
   titleId: string
@@ -15,17 +20,29 @@ export default function StoreHomeHero({ titleId, title, subtitle }: {
   subtitle: string
 }) {
   return (
-    <Section labelledBy={titleId} spacing="none" className="pt-10 pb-8 md:pt-14 md:pb-12">
-      <SectionHeading as="h1" id={titleId} title={title} subtitle={subtitle} spacing="none" />
-      <div className="mx-auto mt-8 max-w-narrow">
-        <PluginSearchBox size="lg" placeholder="חפש תוסף לפי שם, תיאור או נושא..." />
+    <header className="flex flex-col gap-5 md:gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+        <div className="flex min-w-[min(100%,18rem)] flex-1 items-start gap-4">
+          {/* בנייד האריח קטן יותר (md), כדי שהכותרת לא תישבר מוקדם */}
+          <IconTile
+            icon="extension"
+            size="lg"
+            className="mt-0.5 max-sm:size-12 max-sm:text-(length:--icon-size-md)"
+          />
+          <div className="min-w-0">
+            <SectionHeading as="h1" id={titleId} title={title} align="start" spacing="none" />
+            <p className="mt-3 max-w-measure text-body-md text-on-surface-variant">{subtitle}</p>
+          </div>
+        </div>
+        {/* פעולות משניות. -ms-3 בנייד מיישר את טקסט הכפתור הראשון לקצה הטקסט שמעליו */}
+        <div className="-ms-3 flex flex-wrap items-center gap-1 sm:ms-0">
+          <Button href="/plugins/upload" variant="text" size="sm" icon="add">
+            העלה תוסף חדש
+          </Button>
+          <PluginStoreAppBanner variant="text" size="sm" />
+        </div>
       </div>
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-        <Button href="/plugins/upload" variant="outlined" icon="add">
-          העלה תוסף חדש
-        </Button>
-        <PluginStoreAppBanner />
-      </div>
-    </Section>
+      <PluginSearchBox size="lg" placeholder="חפש תוסף לפי שם, תיאור או נושא..." />
+    </header>
   )
 }

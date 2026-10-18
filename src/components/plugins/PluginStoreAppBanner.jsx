@@ -28,8 +28,9 @@ const HIGHLIGHTS = [
  * כפתור להורדת "חנות התוספים" — אפליקציית Windows נפרדת שמכילה מראש את כל
  * התוספים. בלחיצה נפתח דיאלוג הסבר (ui/Dialog — פוקוס נלכד, Esc, הפוקוס חוזר לכפתור),
  * וההורדה מתחילה רק לאחר אישור.
+ * variant/size — מראה הכפתור (בבית החנות: כפתור טקסט קטן, פעולה משנית שקטה).
  */
-export default function PluginStoreAppBanner() {
+export default function PluginStoreAppBanner({ variant = 'outlined', size: buttonSize = 'md' } = {}) {
   const [open, setOpen] = useState(false)
   const [release, setRelease] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -56,7 +57,7 @@ export default function PluginStoreAppBanner() {
 
   return (
     <>
-      <Button type="button" variant="outlined" icon="desktop_windows" onClick={openDialog} aria-haspopup="dialog">
+      <Button type="button" variant={variant} size={buttonSize} icon="desktop_windows" onClick={openDialog} aria-haspopup="dialog">
         הורדת החנות למחשב
       </Button>
 
