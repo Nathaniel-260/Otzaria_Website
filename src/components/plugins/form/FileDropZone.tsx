@@ -88,7 +88,7 @@ export default function FileDropZone({
       {...dropHandlers}
       data-dragging={dragging ? '' : undefined}
       className={cx(
-        'rounded-(--card-radius) border-2 border-dashed p-3.5 transition-colors sm:p-5',
+        'rounded-(--card-radius) border-2 border-dashed p-3.5 transition-colors motion-reduce:transition-none sm:p-5',
         dragging ? 'border-primary bg-surface-selected' : error ? 'border-error' : 'border-outline-variant'
       )}
     >

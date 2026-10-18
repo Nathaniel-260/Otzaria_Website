@@ -10,7 +10,7 @@ const BASE = cx(
   'block w-full rounded-(--field-radius) border bg-(--field-bg) px-4 text-body-md text-(--field-fg)',
   'placeholder:text-(--field-placeholder) transition-colors',
   'focus:border-(--field-border-focus) focus:outline-1 focus:-outline-offset-2 focus:outline-(--field-border-focus)',
-  'disabled:cursor-not-allowed disabled:opacity-(--button-disabled-opacity)'
+  'disabled:cursor-not-allowed disabled:opacity-(--button-disabled-opacity) motion-reduce:transition-none'
 )
 
 const IDLE = 'border-(--field-border) hover:border-(--field-border-hover)'
