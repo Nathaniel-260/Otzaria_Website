@@ -20,15 +20,30 @@
 //   שהיה כאן קודם) עד שהמסננים הוחלו.
 // - בניווט בתוך האתר (סקריפט שנוצר ב-React אינו רץ) — אתחול המסננים ב-
 //   useLayoutEffect, שרץ לפני הצביעה.
+//
+// מבנה העמוד (מפרט החנות, סעיף 6 / סוכן 2), לסריקה מהירה:
+//   StorePageHeader (פירורי לחם, h1, "העלה תוסף חדש") ובתוכו לוח מסננים אחד — חיפוש וסטטוס בשורה,
+//   תגיות מתחת. → אזור התוצאות: h2 ובקצה השורה מונה התוצאות + "נקה סינון" כשיש סינון פעיל.
+//   → רשת הכרטיסים (h3). → אזור הסבר "תוספים לאוצריא".
 
-import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
+import Card from '@/components/ui/Card'
+import EmptyState from '@/components/ui/EmptyState'
+import IconTile from '@/components/ui/IconTile'
+import Section from '@/components/ui/Section'
+import SectionHeading from '@/components/ui/SectionHeading'
 import { useDirectInstall } from '@/components/plugins/useDirectInstall'
 import { useDialog } from '@/components/providers/DialogContext'
 import PluginCard from '@/components/plugins/PluginCard'
+import PluginGrid from '@/components/plugins/PluginGrid'
 import PluginSearchBox from '@/components/plugins/PluginSearchBox'
-import Breadcrumbs from '@/components/plugins/Breadcrumbs'
+import StorePageHeader from '@/components/plugins/StorePageHeader'
+import ResultsHeading from '@/components/plugins/listing/ResultsHeading'
+import StatusSelect from '@/components/plugins/listing/StatusSelect'
+import TagFilterChips from '@/components/plugins/listing/TagFilterChips'
+import { FIELD_LABEL } from '@/components/plugins/listing/fieldStyles'
 import { filterPlugins, extractSortedTags } from '@/lib/pluginFilter'
 import type { PluginCardData } from '@/components/plugins/types'
 import Loader from '@/components/ui/Loader'
@@ -44,6 +59,18 @@ const FILTER_PENDING_SCRIPT =
   `s.textContent='#all-plugins-content{display:none}#all-plugins-pending{display:flex}';` +
   `document.head.appendChild(s)}`
 
+const TITLE_ID = 'all-plugins-title'
+const RESULTS_TITLE_ID = 'all-plugins-results-title'
+const INFO_TITLE_ID = 'all-plugins-info-title'
+const SEARCH_INPUT_ID = 'all-plugins-search'
+
+// היתרונות באזור "תוספים לאוצריא" — הנוסח הקיים, עם אייקון לכל שורה
+const INFO_POINTS = [
+  { icon: 'download', text: 'הורדה רגילה לצד התקנה ישירה' },
+  { icon: 'label', text: 'תגיות שעוזרות למצוא את התוסף המתאים' },
+  { icon: 'info', text: 'פרטי גרסה ותאימות במקום אחד' }
+] as const
+
 interface AllPluginsClientProps {
   plugins: PluginCardData[]
 }
@@ -55,11 +82,8 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
   const [activeTag, setActiveTag] = useState('all')
   // האם מצב הסינון כבר אותחל מה-URL (רק בצד הלקוח, אחרי hydration)
   const [urlStateReady, setUrlStateReady] = useState(false)
-  const tagsContainerRef = useRef<HTMLDivElement>(null)
-  const [showAllTags, setShowAllTags] = useState(false)
-  const [tagsCollapsedHeight, setTagsCollapsedHeight] = useState(130)
-  const [tagsFullHeight, setTagsFullHeight] = useState(0)
-  const [tagsOverflow, setTagsOverflow] = useState(false)
+  // מונה איפוסים — חלק מה-key של תיבת החיפוש, כדי ש"נקה סינון" ירוקן גם אותה (השדה לא נשלט)
+  const [resetCount, setResetCount] = useState(0)
   const { showAlert } = useDialog() as { showAlert: (title: string, message: string) => void }
   const { installState, install } = useDirectInstall(showAlert)
 
@@ -68,6 +92,7 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
     () => filterPlugins(plugins, { searchQuery, statusFilter, activeTag }),
     [plugins, searchQuery, statusFilter, activeTag]
   )
+  const isFiltered = Boolean(searchQuery) || statusFilter !== 'all' || activeTag !== 'all'
 
   // אתחול מצב הסינון מה-URL — קישורים שיתופיים (?q=&tag=&status=).
   // useLayoutEffect: העדכון והרינדור המסונן קורים לפני הצביעה, כך שבניווט בתוך
@@ -97,22 +122,26 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlStateReady, searchQuery, activeTag, statusFilter])
 
-  // מדידת גובה אזור התגיות - הגבלה ל-3 שורות עם כפתור "הצג עוד"
-  useEffect(() => {
-    const el = tagsContainerRef.current
-    if (!el || !el.firstElementChild) return
-    const measure = () => {
-      const rowHeight = (el.firstElementChild as HTMLElement).offsetHeight
-      const gap = 8 // gap-2
-      const threeLines = rowHeight * 3 + gap * 2
-      setTagsCollapsedHeight(threeLines)
-      setTagsFullHeight(el.scrollHeight)
-      setTagsOverflow(el.scrollHeight > threeLines + 4)
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [allTags])
+  const clearFilters = () => {
+    setSearchQuery('')
+    setStatusFilter('all')
+    setActiveTag('all')
+    setResetCount((n) => n + 1)
+  }
+
+  // אפס תוצאות — המונה נשאר מספרי ("מוצגים 0 מתוך 65"); המשפט המלא בכרטיס הריק שמתחת
+  const resultsCount =
+    plugins.length === 0
+      ? ''
+      : filteredPlugins.length === plugins.length
+      ? `כל התוספים מוצגים (${plugins.length.toLocaleString('he-IL')})`
+      : `מוצגים ${filteredPlugins.length.toLocaleString('he-IL')} מתוך ${plugins.length.toLocaleString('he-IL')} תוספים`
+
+  const clearButton = (variant: 'text' | 'tonal') => (
+    <Button variant={variant} size={variant === 'text' ? 'sm' : 'md'} icon="filter_alt_off" onClick={clearFilters}>
+      נקה סינון
+    </Button>
+  )
 
   return (
     <div className="flex flex-1 flex-col">
@@ -131,181 +160,121 @@ export default function AllPluginsClient({ plugins }: AllPluginsClientProps) {
       </div>
 
       <div id="all-plugins-content">
-        {/* Page Header + Filters Section */}
-        <section className="py-6 px-4 bg-white border-b border-neutral-100">
-          <div className="container mx-auto max-w-6xl">
-            <Breadcrumbs
-              items={[{ label: 'חנות התוספים', href: '/plugins' }, { label: 'כל התוספים' }]}
-              className="flex items-center gap-2 text-sm text-on-surface/60 mb-3"
-            />
-            <h1 className="text-3xl font-bold text-on-surface mb-6">כל התוספים</h1>
-
-            <div className="grid md:grid-cols-[1fr_220px_auto] gap-4 mb-4">
+        <StorePageHeader
+          titleId={TITLE_ID}
+          breadcrumbs={[{ label: 'חנות התוספים', href: '/plugins' }, { label: 'כל התוספים' }]}
+          title="כל התוספים"
+          actions={
+            <Button href="/plugins/upload" variant="filled" icon="add" className="whitespace-nowrap">
+              העלה תוסף חדש
+            </Button>
+          }
+        >
+          {/* לוח המסננים — כל הכלים במשטח אחד, בסדר קבוע: חיפוש · סטטוס, ומתחת תגיות */}
+          <Card padding="md" className="flex flex-col gap-5">
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_14rem]">
               <div>
-                <label className="block text-sm font-bold text-on-surface/60 mb-2">חיפוש</label>
-                {/* key: הרכבה מחדש אחרי קריאת ה-URL, כדי שתיבת החיפוש תציג את ?q= */}
+                <label htmlFor={SEARCH_INPUT_ID} className={FIELD_LABEL}>חיפוש</label>
+                {/* key: הרכבה מחדש אחרי קריאת ה-URL (כדי שתיבת החיפוש תציג את ?q=), ואחרי "נקה סינון" */}
                 <PluginSearchBox
-                  key={urlStateReady ? 'url' : 'initial'}
+                  key={`${urlStateReady ? 'url' : 'initial'}-${resetCount}`}
+                  inputId={SEARCH_INPUT_ID}
                   placeholder="שם, תיאור או תגית..."
                   defaultValue={searchQuery}
                   onSubmit={(q) => setSearchQuery(q)}
                 />
               </div>
-
-              <div>
-                <label className="block text-sm font-bold text-on-surface/60 mb-2">סטטוס</label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
-                >
-                  <option value="all">הכול</option>
-                  <option value="stable">יציב</option>
-                  <option value="beta">בטא</option>
-                  <option value="experimental">ניסיוני</option>
-                </select>
-              </div>
-
-              <div className="flex items-end">
-                <Button href="/plugins/upload" variant="filled" icon="add" className="whitespace-nowrap">
-                  העלה תוסף חדש
-                </Button>
-              </div>
+              <StatusSelect value={statusFilter} onChange={setStatusFilter} />
             </div>
 
-            {/* Tags Filter */}
-            {allTags.length > 0 && (
-              <div>
-                <div
-                  ref={tagsContainerRef}
-                  className="flex flex-wrap gap-2 overflow-hidden transition-all duration-300"
-                  style={{ maxHeight: !showAllTags ? tagsCollapsedHeight : (tagsFullHeight || undefined) }}
-                >
-                  <button
-                    onClick={() => setActiveTag('all')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      activeTag === 'all'
-                        ? 'bg-primary text-white'
-                        : 'bg-white border border-neutral-200 text-on-surface/70 hover:border-primary/30 hover:text-primary'
-                    }`}
-                  >
-                    כל התגיות
-                  </button>
-                  {allTags.map(tag => (
-                    <button
-                      key={tag}
-                      onClick={() => setActiveTag(tag)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                        activeTag === tag
-                          ? 'bg-primary text-white'
-                          : 'bg-white border border-neutral-200 text-on-surface/70 hover:border-primary/30 hover:text-primary'
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-                {tagsOverflow && (
-                  <button
-                    onClick={() => setShowAllTags(v => !v)}
-                    className="mt-3 text-sm font-medium text-primary hover:underline"
-                  >
-                    {showAllTags ? 'הצג פחות' : 'הצג עוד'}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </section>
+            <TagFilterChips tags={allTags} activeTag={activeTag} onSelect={setActiveTag} />
+          </Card>
+        </StorePageHeader>
 
-        {/* Plugins Grid */}
-        <section className="py-12 px-4">
-          <div className="container mx-auto max-w-6xl">
-            <div className="flex items-end justify-between mb-6">
-              <div>
-                <div className="inline-flex items-center gap-2 text-primary/70 text-sm font-bold mb-2">
-                  <div className="w-7 h-px bg-primary/30"></div>
-                  <span>רשימת תוספים</span>
-                </div>
-                <h2 className="text-3xl font-bold text-on-surface">בחרו את התוסף שמתאים לכם</h2>
-              </div>
-              <p className="text-on-surface/60">
-                {filteredPlugins.length === 0
-                  ? 'לא נמצאו תוספים לפי הסינון שבחרתם'
-                  : filteredPlugins.length === plugins.length
-                  ? 'כל התוספים מוצגים'
-                  : `מוצגים ${filteredPlugins.length} מתוך ${plugins.length} תוספים`}
+        {/* התוצאות */}
+        <Section spacing="none" labelledBy={RESULTS_TITLE_ID}>
+          <ResultsHeading
+            id={RESULTS_TITLE_ID}
+            title="בחר את התוסף שמתאים לך"
+            count={resultsCount}
+            action={isFiltered && filteredPlugins.length > 0 ? clearButton('text') : undefined}
+          />
+
+          {filteredPlugins.length === 0 ? (
+            plugins.length === 0 ? (
+              <EmptyState
+                as="h3"
+                icon="extension"
+                title="בקרוב יופיעו כאן תוספים נוספים"
+                description="אם יש לך תוסף מוכן לאוצריא, אפשר לשלוח אותו לחנות ולהציג אותו כאן עם עמוד מסודר, תגיות, הוראות וקישורי התקנה."
+                actions={
+                  <Button href="/plugins/upload" variant="tonal" icon="add">
+                    העלה תוסף חדש
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                as="h3"
+                role="status"
+                icon="search_off"
+                title="לא נמצאו תוספים לפי הסינון שבחרת"
+                description="נסה לחפש בשם אחר, להסיר תגית, או לבחור סטטוס שונה כדי לראות תוצאות נוספות."
+                actions={clearButton('tonal')}
+              />
+            )
+          ) : (
+            <PluginGrid columns="full" labelledBy={RESULTS_TITLE_ID}>
+              {filteredPlugins.map((plugin, pluginIndex) => (
+                <PluginCard
+                  priority={pluginIndex === 0}
+                  key={plugin.id}
+                  plugin={plugin}
+                  installState={installState}
+                  onInstall={install}
+                  headingLevel="h3"
+                />
+              ))}
+            </PluginGrid>
+          )}
+        </Section>
+
+        {/* תוספים לאוצריא — הסבר קצר; על רקע הדף, מופרד ברווח ובכותרת (בלי פס/קו) */}
+        <Section spacing="none" labelledBy={INFO_TITLE_ID} className="pt-12 pb-14 md:pt-16 md:pb-20">
+          <div className="grid items-center gap-8 md:grid-cols-2 md:gap-10">
+            <div>
+              <SectionHeading
+                as="h2"
+                id={INFO_TITLE_ID}
+                title="להוסיף יכולות חדשות לאוצריא בלחיצה אחת"
+                align="start"
+                spacing="none"
+              />
+              <p className="mt-5 max-w-measure text-body-md text-on-surface-variant md:text-body-lg">
+                כאן תמצא תוספים שנבנו במיוחד לחוויית הלימוד באוצריא, עם עמודי הסבר ברורים, קישורי הורדה, ובמקרים מתאימים גם התקנה ישירה מתוך התוכנה.
               </p>
             </div>
 
-            {filteredPlugins.length === 0 ? (
-              <div className="text-center py-16 px-4 bg-white rounded-2xl border border-neutral-100">
-                <h3 className="text-2xl font-bold text-on-surface mb-3">
-                  {plugins.length === 0 ? 'בקרוב יופיעו כאן תוספים נוספים' : 'לא נמצאו תוספים לפי הסינון שבחרתם'}
-                </h3>
-                <p className="text-on-surface/60 leading-relaxed">
-                  {plugins.length === 0
-                    ? 'אם יש לכם תוסף מוכן לאוצריא, אפשר לשלוח אותו לחנות ולהציג אותו כאן עם עמוד מסודר, תגיות, הוראות וקישורי התקנה.'
-                    : 'נסו לחפש בשם אחר, להסיר תגית, או לבחור סטטוס שונה כדי לראות תוצאות נוספות.'}
+            <div className="flex flex-col gap-4">
+              <Card tone="tonal" padding="md">
+                <p className="text-label-md text-on-surface-variant">זמין עכשיו</p>
+                <p className="mt-1 font-display text-headline-lg text-on-surface tabular-nums">
+                  {plugins.length.toLocaleString('he-IL')} תוספים
                 </p>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredPlugins.map((plugin, pluginIndex) => (
-                  <PluginCard
-                    priority={pluginIndex === 0}
-                    key={plugin.id}
-                    plugin={plugin}
-                    installState={installState}
-                    onInstall={install}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Hero / Info Section */}
-        <section className="bg-surface py-16 px-4 border-t border-surface-variant">
-          <div className="container mx-auto max-w-6xl">
-            <div className="grid md:grid-cols-2 gap-8 items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 text-primary/70 text-sm font-bold mb-4">
-                  <div className="w-7 h-px bg-primary/30"></div>
-                  <span>תוספים לאוצריא</span>
-                </div>
-                <h2 className="text-5xl font-bold text-primary font-frank mb-4 leading-tight">
-                  להוסיף יכולות חדשות לאוצריא בלחיצה אחת
-                </h2>
-                <p className="text-on-surface/70 text-lg leading-relaxed">
-                  כאן תמצאו תוספים שנבנו במיוחד לחוויית הלימוד באוצריא, עם עמודי הסבר ברורים, קישורי הורדה, ובמקרים מתאימים גם התקנה ישירה מתוך התוכנה.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl border border-primary/10">
-                  <span className="text-sm text-on-surface/60 block mb-2">זמין עכשיו</span>
-                  <div className="text-4xl font-bold text-primary mb-2">{plugins.length} תוספים</div>
-                </div>
-
-                <div className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl border border-primary/10 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_0_6px_rgba(44,27,2,0.08)]"></div>
-                    <span className="text-sm text-on-surface/70">הורדה רגילה לצד התקנה ישירה</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_0_6px_rgba(44,27,2,0.08)]"></div>
-                    <span className="text-sm text-on-surface/70">תגיות שעוזרות למצוא את התוסף המתאים</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_0_6px_rgba(44,27,2,0.08)]"></div>
-                    <span className="text-sm text-on-surface/70">פרטי גרסה ותאימות במקום אחד</span>
-                  </div>
-                </div>
-              </div>
+              </Card>
+              <Card tone="tonal" padding="md">
+                <ul className="flex flex-col gap-3">
+                  {INFO_POINTS.map((point) => (
+                    <li key={point.icon} className="flex items-center gap-3">
+                      <IconTile icon={point.icon} size="sm" />
+                      <span className="text-body-md text-on-surface">{point.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
             </div>
           </div>
-        </section>
+        </Section>
       </div>
       </main>
     </div>
