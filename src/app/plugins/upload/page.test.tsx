@@ -68,7 +68,7 @@ describe('/plugins/upload (מחובר — ה-proxy מפנה אורח להתחב�
 
   it('תגיות: Enter מוסיף, בלי כפילויות, והסרה', () => {
     render(<UploadPluginPage />)
-    const input = screen.getByRole('textbox', { name: /הוסף תגית/ })
+    const input = screen.getByRole('combobox', { name: /הוסף תגית/ })
     fireEvent.change(input, { target: { value: ' מילון ' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     fireEvent.change(input, { target: { value: 'מילון' } })
