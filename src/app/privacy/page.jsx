@@ -1,6 +1,11 @@
 import OtzariaSoftwareHeader from '@/components/layout/OtzariaSoftwareHeader'
 import OtzariaSoftwareFooter from '@/components/layout/OtzariaSoftwareFooter'
 
+export const metadata = {
+  title: 'מדיניות פרטיות | אוצריא',
+  description: 'מדיניות הפרטיות של אתר ותוכנת אוצריא: אילו נתונים נאספים, לשם מה, ואיך אפשר למחוק אותם.',
+}
+
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-background">

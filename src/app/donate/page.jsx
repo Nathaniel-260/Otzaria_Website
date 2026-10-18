@@ -1,6 +1,11 @@
 import OtzariaSoftwareHeader from '@/components/layout/OtzariaSoftwareHeader'
 import OtzariaSoftwareFooter from '@/components/layout/OtzariaSoftwareFooter'
 
+export const metadata = {
+  title: 'תרומה לאוצריא | אוצריא',
+  description: 'אוצריא מתוחזקת בהתנדבות. תרומתכם עוזרת לממן את השרתים ולהמשיך לפתח את התוכנה.',
+}
+
 export default function DonatePage() {
   return (
     <div className="min-h-screen bg-background">
