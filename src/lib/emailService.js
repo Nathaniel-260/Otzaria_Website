@@ -716,7 +716,7 @@ export async function sendAppReportClosedNotification({ to, reportTitle, issueUr
 
 // פנייה של צוות הפיתוח למדווח (מטופס בדף הדיווח בניהול).
 // replyTo — כתובת reply+ ייחודית לדיווח: התשובה נקלטת אוטומטית לדף הדיווח (src/lib/app-reports/inbound.js).
-export async function sendAppReportContactEmail({ to, subject, message, reportTitle, replyTo }) {
+export async function sendAppReportContactEmail({ to, subject, message, reportTitle, issueUrl, replyTo }) {
     try {
         if (!to) return { sent: false, reason: 'missing_recipient_email' };
         const html = buildAppReportMailHtml({
@@ -726,6 +726,7 @@ export async function sendAppReportContactEmail({ to, subject, message, reportTi
                 <p style="font-size: 16px; line-height: 1.8; white-space: pre-wrap;">${escapeHtml(message)}</p>
                 <div style="background-color: #f0f0f0; padding: 16px; border-radius: 8px; margin: 20px 0;">
                     <p style="margin: 0;"><strong>בעניין הדיווח:</strong> ${escapeHtml(reportTitle || '')}</p>
+                    ${issueUrl ? `<p style="margin: 8px 0 0 0;"><a href="${escapeHtml(issueUrl)}" style="color: #d4a373;">לצפייה בדיון על הדיווח</a></p>` : ''}
                 </div>
                 <p style="color: #666; font-size: 14px;">אפשר להשיב למייל זה.</p>`,
         });

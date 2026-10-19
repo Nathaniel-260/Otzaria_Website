@@ -412,13 +412,13 @@ export async function contactReporter({ reportId, subject, message, user }, deps
   if (!s || s.length > 200) return { status: 422, body: { error: 'subject: 1..200 chars', field: 'subject' } };
   if (!m || m.length > 5000) return { status: 422, body: { error: 'message: 1..5000 chars', field: 'message' } };
 
-  const doc = await AppReport.findOne({ reportId }).select('reportId title reporterEmail replyToken issueNumber').lean();
+  const doc = await AppReport.findOne({ reportId }).select('reportId title reporterEmail replyToken issueNumber issueUrl').lean();
   if (!doc) return { status: 404, body: { error: 'Report not found' } };
   if (!doc.reporterEmail) return { status: 422, body: { error: 'Reporter left no email', field: 'reporterEmail' } };
 
   const replyDomain = deps.config?.replyDomain;
   const replyTo = replyDomain ? buildReplyAddress(doc.replyToken || await ensureReplyToken(reportId), replyDomain) : null;
-  const result = await deps.sendContactMail({ to: doc.reporterEmail, subject: s, message: m, reportTitle: doc.title, replyTo });
+  const result = await deps.sendContactMail({ to: doc.reporterEmail, subject: s, message: m, reportTitle: doc.title, issueUrl: doc.issueUrl || null, replyTo });
   if (!result?.sent) return { status: 502, body: { error: 'Failed to send email' } };
 
   const entry = { direction: 'out', byUserId: user.id || null, byName: user.name || '', subject: s, message: m, sentAt: deps.now || new Date() };

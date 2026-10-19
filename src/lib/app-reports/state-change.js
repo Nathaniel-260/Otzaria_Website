@@ -52,7 +52,7 @@ export async function handleIssueStateChange(issue, deps) {
   await Model.updateMany(filter, { $set: { issueState: 'closed', issueStateReason: reason, issueCheckedAt: now } });
 
   const reports = await Model.find({ ...filter, notifiedClosedAt: null, unsubscribed: { $ne: true }, reporterEmail: { $nin: [null, ''] } })
-    .select('_id reportId title reporterEmail unsubscribed notifiedClosedAt')
+    .select('_id reportId title reporterEmail unsubscribed notifiedClosedAt issueUrl')
     .sort({ createdAt: 1 })
     .lean();
 
@@ -72,7 +72,7 @@ export async function handleIssueStateChange(issue, deps) {
         to: group.email,
         reportTitle: first.title,
         issueNumber: issue.number,
-        issueUrl: issue.url || null,
+        issueUrl: issue.url || first.issueUrl || null,
         reasonKind: kind,
         reasonText: CLOSURE_TEXT_HE[kind],
         unsubscribeUrl: deps.config?.unsubscribeSecret

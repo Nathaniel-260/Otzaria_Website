@@ -325,6 +325,8 @@ test('יצירת קשר: 404 לדיווח חסר, 422 בלי מייל, שליח�
   assert.equal(JSON.stringify(ok.body).includes('reporter@example.com'), false);
   assert.deepEqual(sent.map((m) => m.to), ['reporter@example.com']);
   const doc = await AppReport.findOne({ reportId: withMail.body.reportId }).lean();
+  assert.ok(doc.issueUrl);
+  assert.equal(sent[0].issueUrl, doc.issueUrl);
   assert.equal(doc.contactLog.length, 1);
   assert.equal(doc.contactLog[0].byName, 'מפתח');
   assert.equal(doc.contactLog[0].subject, 'שאלה');
