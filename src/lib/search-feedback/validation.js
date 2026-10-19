@@ -313,9 +313,10 @@ export const MAX_REJECTED_SAMPLES = 20;
  * ונספר ב-rejected (תיקון B לחוזה) — שאר המנה נקלטת.
  * @param {unknown} raw גוף הבקשה אחרי JSON.parse
  * @param {Date} now
+ * @param {{carriedOfflineSince?:Date}} policy Durable activation boundary for the extended window.
  * @returns {{ok:true, value:{batchId:string, sentAt:Date, context:object, events:object[], rejected:number, rejectedSamples:{index:number, field:string}[]}} | {ok:false, field:string}}
  */
-export function validateEventsBatch(raw, now = new Date()) {
+export function validateEventsBatch(raw, now = new Date(), { carriedOfflineSince = now } = {}) {
   return run(() => {
     object(raw, 'body');
     if (raw.schema !== 1) throw new Invalid('schema');
@@ -323,7 +324,11 @@ export function validateEventsBatch(raw, now = new Date()) {
     const sentAt = withinSkew(utcTime(raw.sentAt, 'sentAt'), now, 'sentAt');
     const context = validateContext(raw.context);
     const carriedOffline = raw.carriedOffline === undefined ? false : bool(raw.carriedOffline, 'carriedOffline');
-    const maxAgeMs = carriedOffline ? MAX_CARRIED_EVENT_AGE_MS : MAX_EVENT_AGE_MS;
+    // Before activation, old 31-day purge identities may already have expired.
+    // Grow the extended window from the durable boundary, preserving 30 days for legacy events.
+    const maxAgeMs = carriedOffline
+      ? Math.max(MAX_EVENT_AGE_MS, Math.min(MAX_CARRIED_EVENT_AGE_MS, now.getTime() - carriedOfflineSince.getTime()))
+      : MAX_EVENT_AGE_MS;
     if (!Array.isArray(raw.events) || raw.events.length < 1 || raw.events.length > MAX_EVENTS_PER_BATCH) {
       throw new Invalid('events');
     }

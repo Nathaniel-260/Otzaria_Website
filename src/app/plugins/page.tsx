@@ -91,6 +91,11 @@ const loadStoreHomeData = nextCache(loadStoreHomeDataUncached, ['plugins-store-h
   revalidate: REVALIDATE_SECONDS.PLUGINS_PUBLIC
 })
 
+export const metadata = {
+  title: 'חנות התוספים | אוצריא',
+  description: 'תוספים שמשפרים את נוחות הלימוד באוצריא – מצאו, הורידו והתקינו בלחיצה אחת.',
+}
+
 export default async function PluginsPage() {
   let data: StoreHomeData | null = null
   let loadError = false

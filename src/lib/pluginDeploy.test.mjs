@@ -6,7 +6,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 
 const deployScript = path.resolve('scripts/deploy-web.sh')
-function fixture(mode) {
+function fixture(mode, pm2App = '') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-deploy-test-'))
   const app = path.join(root, 'app'); const bin = path.join(root, 'bin')
   fs.mkdirSync(app); fs.mkdirSync(bin)
@@ -46,6 +46,8 @@ case "$1" in
 esac
 `)
   command('pm2', `echo "pm2 $*" >> "$TEST_ROOT/trace"
+[[ "$2" == "$TEST_PM2_APP" ]] || exit 8
+if [[ "$1" == describe && "$TEST_MODE" == missing_process ]]; then exit 9; fi
 if [[ "$1" == restart ]]; then
   count=0; [[ ! -f "$TEST_ROOT/restarts" ]] || count=$(cat "$TEST_ROOT/restarts")
   count=$((count + 1)); echo "$count" > "$TEST_ROOT/restarts"
@@ -65,7 +67,7 @@ exec /usr/bin/git "$@"
 `)
   const run = () => {
     const result = spawnSync('bash', [deployScript, next, 'a'.repeat(40), app], {
-      env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH, TEST_ROOT: root, TEST_APP: app, TEST_MODE: mode, TEST_OLD: old },
+      env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH, TEST_ROOT: root, TEST_APP: app, TEST_MODE: mode, TEST_OLD: old, PM2_APP: pm2App, TEST_PM2_APP: pm2App || 'otzaria' },
       encoding: 'utf8', timeout: 30000,
     })
     // An injected deployment failure must come from the script, not from the
@@ -91,7 +93,7 @@ for (const mode of ['install', 'safety', 'regressions', 'build', 'incomplete']) 
     try {
       const r = f.run(); assert.notEqual(r.status, 0, r.stdout + r.stderr)
       assert.equal(f.read('app.js'), 'old'); assert.equal(f.read('.next/marker'), 'old'); assert.equal(f.read('node_modules/marker'), 'old')
-      assert.equal(f.git('rev-parse', 'HEAD'), f.old); assert.doesNotMatch(f.trace(), /pm2/); assert.deepEqual(f.stages(), [])
+      assert.equal(f.git('rev-parse', 'HEAD'), f.old); assert.doesNotMatch(f.trace(), /pm2 (stop|restart)/); assert.deepEqual(f.stages(), [])
     } finally { f.remove() }
   })
 }
@@ -104,6 +106,29 @@ test('successful deployment installs one coherent build and preserves persistent
     assert.equal(f.read('storage/keep'), 'persistent'); assert.equal(f.read('public/uploads/keep'), 'persistent'); assert.equal(f.read('.env'), 'fixture')
     assert.equal(f.git('rev-parse', 'HEAD'), f.next); assert.deepEqual(f.stages(), [])
     assert.ok(f.trace().indexOf('npm run build') < f.trace().indexOf('pm2 stop'))
+    assert.match(f.trace(), /pm2 stop otzaria\n/)
+    assert.match(f.trace(), /pm2 restart otzaria\n/)
+  } finally { f.remove() }
+})
+test('missing PM2 process fails before building or changing the live installation', () => {
+  const f = fixture('missing_process')
+  try {
+    assert.notEqual(f.run().status, 0)
+    assert.doesNotMatch(f.trace(), /npm|pm2 (stop|restart)/)
+    assert.equal(f.read('app.js'), 'old')
+    assert.equal(f.read('.next/marker'), 'old')
+    assert.equal(f.git('rev-parse', 'HEAD'), f.old)
+    assert.deepEqual(f.stages(), [])
+  } finally { f.remove() }
+})
+test('configured PM2 app name is used for activation and rollback', () => {
+  const f = fixture('health', 'custom-web')
+  try {
+    assert.notEqual(f.run().status, 0)
+    assert.match(f.trace(), /pm2 describe custom-web/)
+    assert.equal(f.trace().match(/pm2 restart custom-web/g).length, 2)
+    assert.equal(f.read('app.js'), 'old')
+    assert.equal(f.read('.next/marker'), 'old')
   } finally { f.remove() }
 })
 test('external upload symlinks stay in the live installation and never enter the build', () => {

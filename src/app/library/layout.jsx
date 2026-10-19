@@ -2,7 +2,7 @@ import Footer from '@/components/layout/Footer'
 
 export const metadata = {
   title: 'ספריית אוצריא',
-  description: 'ניהול ועריכת ספרים',
+  description: 'עריכה משותפת של ספרי קודש לספריית אוצריא.',
 }
 
 export default function LibraryLayout({ children }) {

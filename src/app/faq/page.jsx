@@ -2,6 +2,11 @@ import OtzariaSoftwareHeader from '@/components/layout/OtzariaSoftwareHeader'
 import OtzariaSoftwareFooter from '@/components/layout/OtzariaSoftwareFooter'
 import FaqListClient from './FaqListClient'
 
+export const metadata = {
+  title: 'שאלות נפוצות | אוצריא',
+  description: 'תשובות לשאלות נפוצות על אוצריא: התקנה ב-Windows, Mac, Linux, Android ו-iPhone, הספרייה, החיפוש והתאמה אישית.',
+}
+
 // רכיב שרת: רק רשימת השאלות (סינון + אקורדיון) רצה בדפדפן.
 export default function FAQPage() {
   return (

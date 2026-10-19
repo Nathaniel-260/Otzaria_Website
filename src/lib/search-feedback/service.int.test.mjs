@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import SearchFeedbackKey from '../../models/SearchFeedbackKey.js';
 import SearchFeedbackEvent from '../../models/SearchFeedbackEvent.js';
+import SearchFeedbackPolicy from '../../models/SearchFeedbackPolicy.js';
 import { handleRegisterPost, handleEventsPost } from './handler.js';
 import {
   getStats, exportEventsStream, buildExportFilter, setKeyStatus, invalidateStatsCache, buildPurgeFilter, previewPurge, purgeEvents,
@@ -334,6 +335,12 @@ test('carriedOffline: אירוע בן 80 יום נקלט; אחרי ניקוי ש
   const kp = randomKeyPair();
   await register(kp);
   const now = new Date();
+  // Enable the longer policy before the offline event was created, without storing training data.
+  const activation = new Date(now.getTime() - 81 * 24 * 3600 * 1000);
+  const activated = await sendEvents(kp, batch(activation, { carriedOffline: true,
+    events: [event('vote', activation, { vote: 'invalid' })] }), { deps: { now: () => activation } });
+  assert.equal(activated.status, 200);
+  assert.equal(activated.body.accepted, 0);
   const old = new Date(now.getTime() - 80 * 24 * 3600 * 1000);
   const body = batch(now, { carriedOffline: true, events: [event('vote', old)] });
   const first = await sendEvents(kp, body);
@@ -413,4 +420,65 @@ test('ניקוי: תצוגה מקדימה, אישור בספירה מדויקת,
   assert.ok(erased.every((event) => !event.payload && !event.context && !event.keyId && event.purgedUntil instanceof Date));
   // מוני המפתחות סופרים מה שנקלט ואינם יורדים בניקוי
   assert.equal((await SearchFeedbackKey.findOne({ keyId: keyIdOf(a) }).lean()).eventCount, 6);
+});
+
+
+test('carriedOffline rollout: בקשות מקבילות חולקות מועד קבוע ומשמרות את חלון 30 הימים', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const kp = randomKeyPair();
+  await register(kp);
+  const now = new Date();
+  const day = 24 * 3600 * 1000;
+  const responses = await Promise.all(Array.from({ length: 12 }, () =>
+    sendEvents(kp, batch(now, { carriedOffline: true, events: [event('vote', now)] }), { deps: { now: () => now } })));
+  assert.ok(responses.every((r) => r.status === 200 && r.body.accepted === 1), JSON.stringify(responses));
+  assert.equal(await SearchFeedbackPolicy.countDocuments(), 1);
+  assert.equal((await SearchFeedbackPolicy.findOne().lean()).carriedOfflineSince.getTime(), now.getTime());
+
+  for (const carriedOffline of [undefined, false, true]) {
+    const res = await sendEvents(kp, batch(now, { carriedOffline, events: [
+      event('vote', new Date(now.getTime() - 30 * day)),
+      event('vote', new Date(now.getTime() - 30 * day - 1)),
+    ] }), { deps: { now: () => now } });
+    assert.deepEqual(res.body, { accepted: 1, duplicates: 0, rejected: 1,
+      rejectedSamples: [{ index: 1, field: 'events[1].clientTime' }] });
+  }
+});
+
+test('carriedOffline rollout: מחיקה ישנה אינה חוזרת אחרי פקיעת מצבה של 30 יום', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const day = 24 * 3600 * 1000;
+  const kp = randomKeyPair();
+  await register(kp);
+  const enabledAt = new Date();
+  const expiredEvent = event('vote', new Date(enabledAt.getTime() - 45 * day));
+  const pendingEvent = event('vote', new Date(enabledAt.getTime() - 25 * day));
+  // מצבות מהגרסה הישנה: אחת כבר נמחקה ב-TTL, אחת עדיין קיימת בזמן השדרוג.
+  for (const e of [expiredEvent, pendingEvent]) {
+    await SearchFeedbackEvent.collection.insertOne({ eventId: e.eventId, ingestCommitted: false,
+      purgedUntil: new Date(Date.parse(e.clientTime) + 31 * day) });
+  }
+  await SearchFeedbackEvent.deleteMany({ purgedUntil: { $lte: enabledAt } });
+  const sendAt = (now, events) => sendEvents(kp, batch(now, { carriedOffline: true, events }), { deps: { now: () => now } });
+  const fresh = event('vote', enabledAt);
+  const first = await sendAt(enabledAt, [expiredEvent, pendingEvent, fresh]);
+  assert.equal(first.status, 200);
+  assert.deepEqual(first.body, { accepted: 1, duplicates: 1, rejected: 1,
+    rejectedSamples: [{ index: 0, field: 'events[0].clientTime' }] });
+
+  const later = new Date(enabledAt.getTime() + 45 * day);
+  await SearchFeedbackEvent.deleteMany({ purgedUntil: { $lte: later } });
+  assert.equal(await SearchFeedbackEvent.countDocuments({ purgedUntil: { $exists: true } }), 0);
+  const replay = await sendAt(later, [expiredEvent, pendingEvent, fresh]);
+  assert.deepEqual(replay.body, { accepted: 0, duplicates: 1, rejected: 2,
+    rejectedSamples: [{ index: 0, field: 'events[0].clientTime' }, { index: 1, field: 'events[1].clientTime' }] });
+  assert.equal(await SearchFeedbackEvent.countDocuments(committedEvents()), 1);
+  assert.equal(await SearchFeedbackEvent.countDocuments({ eventId: { $in: [expiredEvent.eventId, pendingEvent.eventId] } }), 0);
+
+  // תאריך ההפעלה אינו מתקדם בכל בקשה: אירוע חדש ממועד ההפעלה נקלט גם כעבור 90 יום.
+  const offline = event('vote', enabledAt);
+  const at90 = new Date(enabledAt.getTime() + 90 * day);
+  assert.equal((await sendAt(at90, [offline])).body.accepted, 1);
+  const tooLate = new Date(at90.getTime() + 1);
+  assert.equal((await sendAt(tooLate, [event('vote', enabledAt)])).body.rejected, 1);
 });

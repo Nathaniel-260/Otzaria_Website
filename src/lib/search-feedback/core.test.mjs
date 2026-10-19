@@ -227,14 +227,17 @@ test('events: carriedOffline:true מקבל אירוע עד 90 יום; בלעדי
   assert.equal(plain.ok, true);
   assert.deepEqual(plain.value.rejectedSamples, [{ index: 0, field: 'events[0].clientTime' }]);
 
-  const carried = validateEventsBatch(aged(90, { carriedOffline: true }), NOW);
+  const policy = { carriedOfflineSince: new Date(NOW.getTime() - 90 * DAY) };
+  const carried = validateEventsBatch(aged(90, { carriedOffline: true }), NOW, policy);
   assert.equal(carried.ok, true);
   assert.equal(carried.value.rejected, 0);
 
-  const tooOld = validateEventsBatch(aged(91, { carriedOffline: true }), NOW);
+  const tooOld = validateEventsBatch(aged(91, { carriedOffline: true }), NOW, policy);
   assert.deepEqual(tooOld.value.rejectedSamples, [{ index: 0, field: 'events[0].clientTime' }]);
 
-  assert.equal(validateEventsBatch(aged(31, { carriedOffline: false }), NOW).value.rejected, 1);
+  assert.equal(validateEventsBatch(aged(31, { carriedOffline: false }), NOW, policy).value.rejected, 1);
+  assert.equal(validateEventsBatch(aged(31, { carriedOffline: true }), NOW).value.rejected, 1, 'fail closed without a durable boundary');
+  assert.equal(validateEventsBatch(aged(30, { carriedOffline: true }), NOW).value.rejected, 0);
 });
 
 test('events: carriedOffline שאינו בוליאני → 422 על השדה', () => {

@@ -11,6 +11,11 @@ import StatsSection from '@/components/home/StatsSection'
 // מספרי בכוונה — ה-segment config של Next נחלץ בניתוח AST סטטי (ראו plugins/page.tsx).
 export const revalidate = 600
 
+export const metadata = {
+  title: 'אוצריא – תוכנה חינמית ללימוד ספרי קודש',
+  description: 'אוצריא היא תוכנה חופשית ובקוד פתוח לקריאה וללימוד ספרי קודש, למחשב ולנייד: אלפי ספרים, חיפוש מהיר, מפרשים וקישורים. הורדה חינם.',
+}
+
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">

@@ -17,6 +17,7 @@ import { formatPluginForPublic } from '@/lib/pluginSubmission'
 import { toPluginCardData } from '@/lib/pluginCardData'
 import { fetchPublicPluginsByIds, orderCategoryPlugins, resolveSortMode } from '@/lib/pluginStore'
 import { CACHE_TAGS, REVALIDATE_SECONDS } from '@/lib/cacheTags'
+import { pluginCategoryMetadata } from '@/lib/seoMetadata'
 import PluginCategoryClient from './PluginCategoryClient'
 import type { PluginCardData } from '@/components/plugins/types'
 import type { CategoryData } from './types'
@@ -59,6 +60,24 @@ const loadCategoryData = nextCache(loadCategoryDataUncached, ['plugins-category'
   tags: [CACHE_TAGS.PLUGINS_PUBLIC, CACHE_TAGS.PLUGIN_CATEGORIES],
   revalidate: REVALIDATE_SECONDS.PLUGINS_PUBLIC
 })
+
+// אותה שליפה (מטמון unstable_cache) כמו הדף — בלי שאילתה נוספת ל-DB
+export async function generateMetadata({
+  params
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  try {
+    const category = await loadCategoryData(slug)
+    if (category) return pluginCategoryMetadata(category)
+    // קטגוריה שאינה קיימת מוצגת כדף "לא נמצאה" ידידותי (200) — לא לאינדקס
+    return { title: 'חנות התוספים של אוצריא', robots: { index: false } }
+  } catch {
+    /* metadata היא תוספת בלבד — הדף עצמו מטפל בשגיאה */
+  }
+  return { title: 'חנות התוספים של אוצריא' }
+}
 
 export default async function PluginCategoryPage({
   params

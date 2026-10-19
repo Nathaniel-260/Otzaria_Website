@@ -116,7 +116,7 @@ export async function PATCH(request, { params }) {
       reviewNote: note,
     };
     await connectDB();
-    const sub = await PageProofSubmission.findById(id, { page: 1, user: 1, status: 1, exportedAt: 1, ops: 1, revision: 1, recutRequest: 1, round: 1 }).lean();
+    const sub = await PageProofSubmission.findById(id, { page: 1, user: 1, status: 1, exportedAt: 1, ops: 1, revision: 1, recutRequest: 1, round: 1, needsRecut: 1 }).lean();
     if (!sub) return notFound('ההגשה לא נמצאה');
 
     if (body.action === 'approve') {
@@ -138,7 +138,8 @@ export async function PATCH(request, { params }) {
         Object.assign(set, { ops, opCount: ops.length, reviewerEdited: true });
         finalOps = ops;
       }
-      const recut = needsRecut(finalOps);
+      // עריכת-מנהל — מחדש מול העמוד (גם מסגרות ששונו — ops.framesChanged); אחרת מה שנקבע בהגשה
+      const recut = edited ? needsRecut(finalOps, page.doc) : (sub.needsRecut ?? needsRecut(finalOps));
       set.needsRecut = recut;
       const done = await PageProofSubmission.findOneAndUpdate({ _id: id, status: 'submitted' }, { $set: set }, { returnDocument: 'after', lean: true });
       if (!done) return NextResponse.json({ success: false, error: 'ההגשה כבר טופלה' }, { status: 409 });

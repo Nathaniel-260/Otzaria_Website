@@ -23,6 +23,15 @@ const ImageRefSchema = new mongoose.Schema({
   publicToken: { type: String, required: true },
 }, { _id: false });
 
+// תמונה מתשובת מדווח במייל; טוקן ציבורי רק לתשובה מכתובת המדווח (רק היא מתפרסמת ב-issue)
+const ReplyImageRefSchema = new mongoose.Schema({
+  gridfsId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  size: { type: Number, default: 0 },
+  mimeType: { type: String, required: true },
+  fileName: { type: String, default: '' },
+  publicToken: { type: String, default: undefined },
+}, { _id: false });
+
 // out = פנייה של הצוות; in = תשובת המדווח במייל (נקלטה דרך כתובת ה-reply+)
 const ContactEntrySchema = new mongoose.Schema({
   direction: { type: String, enum: ['out', 'in'], default: 'out' },
@@ -35,6 +44,7 @@ const ContactEntrySchema = new mongoose.Schema({
   fromEmail: { type: String, default: undefined },
   messageId: { type: String, default: undefined },
   attachments: { type: Number, default: undefined },
+  images: { type: [ReplyImageRefSchema], default: undefined },
   // pending → posting → posted; held = נשלח מכתובת אחרת מזו של המדווח, לא מתפרסם אוטומטית
   issueComment: { type: String, enum: ['pending', 'posting', 'posted', 'held'], default: undefined },
   issueCommentUrl: { type: String, default: undefined },
@@ -98,6 +108,7 @@ AppReportSchema.index({ product: 1, issueNumber: 1 });
 AppReportSchema.index({ issuePending: 1, issueAttemptAt: 1, createdAt: 1 });
 AppReportSchema.index({ createdAt: -1 });
 AppReportSchema.index({ 'fileIds.images.publicToken': 1 }, { sparse: true });
+AppReportSchema.index({ 'contactLog.images.publicToken': 1 }, { sparse: true });
 AppReportSchema.index({ replyToken: 1 }, { unique: true, partialFilterExpression: { replyToken: { $type: 'string' } } });
 
 export default mongoose.models.AppReport || mongoose.model('AppReport', AppReportSchema);

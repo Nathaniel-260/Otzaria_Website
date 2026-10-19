@@ -2,6 +2,11 @@ import Header from '@/components/layout/OtzariaSoftwareHeader'
 import Image from 'next/image'
 import Link from 'next/link'
 
+export const metadata = {
+  title: 'אודות ספריית אוצריא | אוצריא',
+  description: 'מה יש בספריית אוצריא: אלפי ספרי קודש – תנ"ך, משנה, תלמוד, הלכה, מחשבה וקבלה – ומאילו מקורות הם מגיעים.',
+}
+
 export default function AboutPage() {
   return (
     <div className="flex min-h-screen flex-col">

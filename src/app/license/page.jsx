@@ -20,6 +20,11 @@ async function fetchLicenseText() {
   }
 }
 
+export const metadata = {
+  title: 'רישיון שימוש | אוצריא',
+  description: 'תנאי הרישיון של תוכנת אוצריא ושל ספריית הספרים שלה.',
+}
+
 export default async function LicensePage() {
   const licenseText = await fetchLicenseText()
   const error = licenseText === null
