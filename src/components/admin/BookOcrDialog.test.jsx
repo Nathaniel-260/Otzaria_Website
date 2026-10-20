@@ -193,6 +193,62 @@ describe('BookOcrDialog — ספק מחשב מקומי', () => {
     expect(new Set(calls.start.map((b) => b.requestId)).size).toBe(1)
   })
 
+  it('סגירת הדיאלוג באמצע הניסיונות החוזרים — אין בקשות start נוספות, וה-requestId נשמר לפתיחה הבאה', async () => {
+    const calls = mockApi({ start: () => reply(503, { error: 'השרת עמוס' }) })
+    const user = userEvent.setup()
+    const { unmount } = renderDialog({ localRetryDelayMs: 60000 })
+
+    await user.click(await screen.findByRole('button', { name: /מחשב מקומי/ }))
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+    await waitFor(() => expect(calls.start).toHaveLength(1))
+    expect(await screen.findByRole('status')).toHaveTextContent('מנסה שוב')
+    const startInit = fetchMock.mock.calls.find(([url]) => url === '/api/admin/books/ocr/start')[1]
+    expect(startInit.signal.aborted).toBe(false)
+    unmount()
+    // הסגירה מבטלת את הלולאה (ההמתנה של 60 שניות נקטעת) — לא נשלחת בקשה נוספת
+    expect(startInit.signal.aborted).toBe(true)
+    await new Promise((r) => setTimeout(r, 50))
+    expect(calls.start).toHaveLength(1)
+
+    // פתיחה מחדש (הדיאלוג נפתח על OCRWin) ובחירת "מחשב מקומי" — אותו requestId: ההכנה בשרת,
+    // אם התחילה, נמשכת ולא נוצרת עבודה כפולה
+    const firstId = calls.start[0].requestId
+    const again = mockApi({ start: () => reply(202, { success: true, jobId: 'j1', status: 'queued', totalPages: 10 }) })
+    renderDialog()
+    await user.click(await screen.findByRole('button', { name: /מחשב מקומי/ }))
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+    await waitFor(() => expect(again.start).toHaveLength(1))
+    expect(again.start[0].requestId).toBe(firstId)
+  })
+
+  it('requestId שמור של בקשה שהגיעה לשרת (עבודת local פעילה) — נמחק, וההתחלה אחרי הסיום חדשה', async () => {
+    const calls = mockApi({ start: () => { throw new TypeError('Failed to fetch') } })
+    const user = userEvent.setup()
+    const first = renderDialog()
+    await user.click(await screen.findByRole('button', { name: /מחשב מקומי/ }))
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('לא תיווצר עבודה כפולה')
+    const staleId = calls.start[0].requestId
+    first.unmount()
+
+    // פתיחה מחדש: הבקשה בכל זאת נקלטה בשרת והעבודה פעילה
+    mockApi({ status: () => statusBody({ job: localJob({ status: 'queued' }) }) })
+    const second = renderDialog()
+    expect(await screen.findByText('ממתין למחשב המקומי')).toBeInTheDocument()
+    second.unmount()
+
+    // אחרי שהעבודה הסתיימה — התחלה חדשה עם requestId חדש (לא "העבודה של הבקשה הזו כבר הסתיימה")
+    const later = mockApi({
+      status: () => statusBody({ job: localJob({ status: 'completed', summary: { applied: 10, failed: 0, conflicts: 0, missing: 0 } }) }),
+      start: () => reply(202, { success: true, jobId: 'j2', status: 'queued', totalPages: 10 }),
+    })
+    renderDialog()
+    await user.click(await screen.findByRole('button', { name: /מחשב מקומי/ }))
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+    await waitFor(() => expect(later.start).toHaveLength(1))
+    expect(later.start[0].requestId).not.toBe(staleId)
+  })
+
   it('ספק local מושבת כשאינו מוגדר בשרת', async () => {
     mockApi({ status: () => statusBody({ worker: { configured: false, lastSeenAt: null, availability: 'never' } }) })
     renderDialog()

@@ -4,7 +4,8 @@
 //   ולא יוצר כפילות. מתחדש כשמשנים פרמטרים (ספק/טיפול בעמודים ערוכים/אפשרויות), אחרי הצלחה,
 //   ואחרי תשובה סופית שאין טעם לחזור עליה (400/409/413/422 וכו').
 // - classifyStartResponse: תשובת השרת → started / retry / error (עם הודעה בעברית).
-// - postLocalStart: שליחה עם ניסיון חוזר אוטומטי (רשת, 502/503/504, 409 preparing).
+// - postLocalStart: שליחה עם ניסיון חוזר אוטומטי (רשת, 502/503/504, 409 preparing), ניתנת לביטול
+//   (AbortSignal) — הדיאלוג מבטל בסגירה, כך שהלולאה לא ממשיכה לשלוח אחרי שנסגר.
 import { TERMINAL_STATUSES, isActiveStatus } from '@/lib/ocr/localJobState'
 
 export const START_URL = '/api/admin/books/ocr/start'
@@ -126,12 +127,31 @@ export function classifyStartResponse(status, body) {
   }
 }
 
-const sleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+// המתנה שמסתיימת מוקדם אם הבקשה בוטלה (סגירת הדיאלוג) — בלי טיימר שנשאר תלוי
+function sleepMs(ms, signal) {
+  return new Promise((resolve) => {
+    if (signal?.aborted) return resolve()
+    const onAbort = () => {
+      clearTimeout(timer)
+      resolve()
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener?.('abort', onAbort)
+      resolve()
+    }, ms)
+    signal?.addEventListener?.('abort', onAbort, { once: true })
+  })
+}
+
+const ABORTED = Object.freeze({ kind: 'aborted' })
 
 /**
  * שולח את בקשת ה-start, ובמקרה זמני (רשת, 502/503/504, 409 preparing) חוזר עד `attempts` פעמים
  * נוספות כל `delayMs`, תמיד עם אותו payload (ואותו requestId). timeout של nginx בזמן בניית PDF
  * גדול לא יוצר כך עבודה כפולה — הניסיון הבא ממשיך את אותה בקשה בשרת.
+ * signal (AbortSignal): ביטול — למשל סגירת הדיאלוג. הבקשה שבדרך נקטעת, אין ניסיונות חוזרים נוספים,
+ * והתוצאה {kind:'aborted'} (הקורא לא מעדכן state). ההכנה בשרת, אם התחילה, נמשכת — ופתיחה
+ * מחדש של הדיאלוג תראה את העבודה (או תמשיך אותה באותו requestId השמור).
  */
 export async function postLocalStart({
   payload,
@@ -140,8 +160,10 @@ export async function postLocalStart({
   delayMs = START_RETRY_DELAY_MS,
   sleep = sleepMs,
   onRetry,
+  signal,
 }) {
   for (let attempt = 0; ; attempt++) {
+    if (signal?.aborted) return ABORTED
     let status = 0
     let body = {}
     try {
@@ -149,12 +171,14 @@ export async function postLocalStart({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        ...(signal ? { signal } : {}),
       })
       status = Number(res?.status) || 0
       body = await res.json().catch(() => ({}))
     } catch {
       status = 0
     }
+    if (signal?.aborted) return ABORTED
     const result = classifyStartResponse(status, body)
     if (result.kind !== 'retry') return result
     if (attempt >= attempts) {
@@ -164,6 +188,6 @@ export async function postLocalStart({
       )
     }
     onRetry?.(attempt + 1, attempts)
-    await sleep(delayMs)
+    await sleep(delayMs, signal)
   }
 }

@@ -121,7 +121,7 @@ describe('postLocalStart', () => {
       expect(call[0]).toBe(START_URL)
       expect(JSON.parse(call[1].body)).toEqual(payload)
     }
-    expect(sleep).toHaveBeenCalledWith(5000)
+    expect(sleep.mock.calls.every((c) => c[0] === 5000)).toBe(true)
     expect(onRetry.mock.calls.map((c) => c[0])).toEqual([1, 2, 3])
   })
 
@@ -131,6 +131,47 @@ describe('postLocalStart', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(7)
     expect(r).toMatchObject({ kind: 'error', keepRequestId: true })
     expect(r.message).toMatch(/לא תיווצר עבודה כפולה/)
+  })
+
+  it('ביטול (סגירת הדיאלוג) בזמן ההמתנה — ההמתנה נקטעת ואין ניסיון חוזר נוסף', async () => {
+    vi.useFakeTimers()
+    try {
+      const controller = new AbortController()
+      const fetchImpl = vi.fn().mockResolvedValue(reply(503, { error: 'עמוס' }))
+      const pending = postLocalStart({ payload, fetchImpl, delayMs: 60000, signal: controller.signal })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(fetchImpl).toHaveBeenCalledTimes(1)
+      expect(fetchImpl.mock.calls[0][1].signal).toBe(controller.signal)
+      controller.abort()
+      // בלי לקדם את השעון: ההמתנה של 60 שניות מסתיימת מיד עם הביטול
+      await expect(pending).resolves.toEqual({ kind: 'aborted' })
+      expect(vi.getTimerCount()).toBe(0)
+      await vi.advanceTimersByTimeAsync(10 * 60000)
+      expect(fetchImpl).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('ביטול בזמן שהבקשה בדרך — aborted גם אם התשובה הגיעה, ובלי לסווג אותה', async () => {
+    const controller = new AbortController()
+    const fetchImpl = vi.fn(async () => {
+      controller.abort()
+      throw new DOMException('aborted', 'AbortError')
+    })
+    const sleep = vi.fn()
+    const r = await postLocalStart({ payload, fetchImpl, sleep, signal: controller.signal })
+    expect(r).toEqual({ kind: 'aborted' })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    expect(sleep).not.toHaveBeenCalled()
+  })
+
+  it('signal שכבר בוטל — לא שולחים כלל', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const fetchImpl = vi.fn()
+    expect(await postLocalStart({ payload, fetchImpl, signal: controller.signal })).toEqual({ kind: 'aborted' })
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('תשובה סופית — בלי ניסיון חוזר', async () => {

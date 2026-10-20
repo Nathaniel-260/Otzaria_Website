@@ -67,6 +67,9 @@ export default function BookOcrDialog({ book, onClose, localRetryDelayMs = START
   const pollRef = useRef(null)
   // requestId של בקשת local: { id, paramsKey } — נשמר לניסיונות החוזרים של אותה בקשה
   const requestRef = useRef(null)
+  // ביטול בקשת ה-start של local (והניסיונות החוזרים שלה) בסגירת הדיאלוג
+  const startAbortRef = useRef(null)
+  useEffect(() => () => startAbortRef.current?.abort(), [])
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -104,17 +107,11 @@ export default function BookOcrDialog({ book, onClose, localRetryDelayMs = START
   const isLocal = method === 'local'
   const localUnavailableInServer = worker?.configured === false
 
-  // שינוי ספק / טיפול בעמודים ערוכים / אפשרויות → בקשה חדשה (requestId חדש)
+  // ה-requestId קשור לפרמטרים (paramsKey: ספר + טיפול בעמודים ערוכים + אפשרויות): פרמטרים אחרים →
+  // requestId חדש (ה-ref וה-sessionStorage נבדקים מול paramsKey). לא מוחקים את השמור בשינוי ספק או
+  // פרמטרים: הדיאלוג נפתח תמיד על OCRWin, ומחיקה בבחירת "מחשב מקומי" הייתה מאבדת את ה-requestId
+  // של בקשה שנקטעה (timeout / סגירת הדיאלוג) — ולחיצה חוזרת לא הייתה ממשיכה את אותה בקשה.
   const paramsKey = localParamsKey({ bookId: book.id, existingTextMode, options: localOptions })
-  const prevParamsRef = useRef(`${method}|${paramsKey}`)
-  useEffect(() => {
-    const current = `${method}|${paramsKey}`
-    if (prevParamsRef.current !== current) {
-      prevParamsRef.current = current
-      requestRef.current = null
-      clearRequestId(sessionStore(), book.id)
-    }
-  }, [method, paramsKey, book.id])
 
   const getRequestId = () => {
     if (requestRef.current?.paramsKey === paramsKey) return requestRef.current.id
@@ -125,19 +122,33 @@ export default function BookOcrDialog({ book, onClose, localRetryDelayMs = START
     return id
   }
 
-  const resetRequestId = () => {
+  const resetRequestId = useCallback(() => {
     requestRef.current = null
     clearRequestId(sessionStore(), book.id)
-  }
+  }, [book.id])
+
+  // עבודת local פעילה לספר — הבקשה השמורה (אם הייתה) כבר הגיעה לשרת, ובזמן עבודה פעילה אין
+  // התחלה חדשה. מוחקים אותה, כדי שהתחלה אחרי סיום העבודה לא תשלח requestId ישן ותקבל
+  // "העבודה של הבקשה הזו כבר הסתיימה".
+  const activeLocalJob = isRunning && isLocalJob(job)
+  useEffect(() => {
+    if (activeLocalJob) resetRequestId()
+  }, [activeLocalJob, resetRequestId])
 
   const handleStartLocal = async () => {
     const requestId = getRequestId()
     setStartNote('מכין את קובץ העמודים לעיבוד… בספר גדול זה עשוי להימשך כמה דקות.')
+    const controller = new AbortController()
+    startAbortRef.current = controller
     const result = await postLocalStart({
       payload: { bookId: book.id, method: 'local', requestId, existingTextMode, options: localOptions },
       delayMs: localRetryDelayMs,
       onRetry: (n, total) => setStartNote(`השרת עדיין לא השיב — מנסה שוב (${n}/${total}) עם אותה בקשה…`),
+      signal: controller.signal,
     })
+    if (startAbortRef.current === controller) startAbortRef.current = null
+    // הדיאלוג נסגר באמצע — לא נוגעים ב-state; ה-requestId נשאר שמור לפתיחה הבאה
+    if (result.kind === 'aborted') return
     setStartNote('')
     if (result.kind === 'started') {
       resetRequestId()
