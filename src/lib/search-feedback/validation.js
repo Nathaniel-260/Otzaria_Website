@@ -25,6 +25,8 @@ const VOTES = ['like', 'dislike', 'cleared'];
 
 export const CLOCK_SKEW_MS = 24 * 60 * 60 * 1000;
 export const MAX_EVENT_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+// מנה עם carriedOffline:true — אירועים שעדכוני אוצריא העבירו ממחשב מנותק, ולכן ישנים יותר.
+export const MAX_CARRIED_EVENT_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 export const MAX_DWELL_MS = 30 * 60 * 1000;
 
 const ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
@@ -288,12 +290,12 @@ const PAYLOAD_VALIDATORS = {
   }),
 };
 
-function validateEvent(e, f, now) {
+function validateEvent(e, f, now, maxAgeMs) {
   object(e, f);
   const type = oneOf(e.type, EVENT_TYPES, `${f}.type`);
   const clientTime = utcTime(e.clientTime, `${f}.clientTime`);
   const age = now.getTime() - clientTime.getTime();
-  if (age > MAX_EVENT_AGE_MS || age < -CLOCK_SKEW_MS) throw new Invalid(`${f}.clientTime`);
+  if (age > maxAgeMs || age < -CLOCK_SKEW_MS) throw new Invalid(`${f}.clientTime`);
   return {
     eventId: id(e.eventId, `${f}.eventId`),
     type,
@@ -307,19 +309,26 @@ function validateEvent(e, f, now) {
 export const MAX_REJECTED_SAMPLES = 20;
 
 /**
- * מעטפת שגויה → ok:false (422 לכל המנה). אירוע בודד שגוי, או ישן מ-30 יום, מדולג
+ * מעטפת שגויה → ok:false (422 לכל המנה). אירוע בודד שגוי, או ישן מ-30 יום (90 ב-carriedOffline), מדולג
  * ונספר ב-rejected (תיקון B לחוזה) — שאר המנה נקלטת.
  * @param {unknown} raw גוף הבקשה אחרי JSON.parse
  * @param {Date} now
+ * @param {{carriedOfflineSince?:Date}} policy Durable activation boundary for the extended window.
  * @returns {{ok:true, value:{batchId:string, sentAt:Date, context:object, events:object[], rejected:number, rejectedSamples:{index:number, field:string}[]}} | {ok:false, field:string}}
  */
-export function validateEventsBatch(raw, now = new Date()) {
+export function validateEventsBatch(raw, now = new Date(), { carriedOfflineSince = now } = {}) {
   return run(() => {
     object(raw, 'body');
     if (raw.schema !== 1) throw new Invalid('schema');
     const batchId = id(raw.batchId, 'batchId');
     const sentAt = withinSkew(utcTime(raw.sentAt, 'sentAt'), now, 'sentAt');
     const context = validateContext(raw.context);
+    const carriedOffline = raw.carriedOffline === undefined ? false : bool(raw.carriedOffline, 'carriedOffline');
+    // Before activation, old 31-day purge identities may already have expired.
+    // Grow the extended window from the durable boundary, preserving 30 days for legacy events.
+    const maxAgeMs = carriedOffline
+      ? Math.max(MAX_EVENT_AGE_MS, Math.min(MAX_CARRIED_EVENT_AGE_MS, now.getTime() - carriedOfflineSince.getTime()))
+      : MAX_EVENT_AGE_MS;
     if (!Array.isArray(raw.events) || raw.events.length < 1 || raw.events.length > MAX_EVENTS_PER_BATCH) {
       throw new Invalid('events');
     }
@@ -327,7 +336,7 @@ export function validateEventsBatch(raw, now = new Date()) {
     const rejectedSamples = [];
     let rejected = 0;
     raw.events.forEach((e, index) => {
-      const r = run(() => validateEvent(e, `events[${index}]`, now));
+      const r = run(() => validateEvent(e, `events[${index}]`, now, maxAgeMs));
       if (r.ok) {
         events.push(r.value);
         return;
