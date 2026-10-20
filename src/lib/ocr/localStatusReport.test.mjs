@@ -135,6 +135,23 @@ test('phase: טקסט חופשי — תווי בקרה/כיווניות מוסר
   assert.ok(r.report.phase.startsWith('recognize'));
 });
 
+test('phase: כל תווי Bidi_Control (כולל ALM U+061C) ומפרידי שורה/פסקה מוסרים', () => {
+  const bidi = '\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u2028\u2029';
+  const r = validateStatusReport(base({ progress: { phase: `re${bidi}cog`, pagesDone: 0, pagesTotal: 1 } }));
+  assert.equal(r.report.phase, 'recog');
+  // כל תו Bidi_Control לפי טבלאות Unicode של המנוע — מוסר
+  const all = [];
+  for (let c = 0; c <= 0xffff; c++) if (/\p{Bidi_Control}/u.test(String.fromCharCode(c))) all.push(String.fromCharCode(c));
+  assert.ok(all.length >= 12);
+  assert.equal(validateStatusReport(base({ progress: { phase: `a${all.join('')}b`, pagesDone: 0, pagesTotal: 1 } })).report.phase, 'ab');
+});
+
+test('phase: הקיצור לפי נקודות קוד — לא חוצה זוג surrogate (בלי חצי תו בסוף)', () => {
+  const r = validateStatusReport(base({ progress: { phase: `${'x'.repeat(STORED_PHASE_CHARS - 1)}\u{1F600}tail`, pagesDone: 0, pagesTotal: 1 } }));
+  assert.equal(r.report.phase, `${'x'.repeat(STORED_PHASE_CHARS - 1)}\u{1F600}`);
+  assert.equal(r.report.phase.isWellFormed(), true);
+});
+
 test('statusUpdateFilter: עבודה של העובד, פעילה, בלי החלטה, בסטטוס מדווח, reportSeq קטן מהנכנס', () => {
   assert.deepEqual(statusUpdateFilter('abc', 'worker-1', 7), {
     _id: 'abc',

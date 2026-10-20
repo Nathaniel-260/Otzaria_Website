@@ -47,18 +47,24 @@ function isValidMessage(msg) {
   return REASON_RE.test(msg.slice(0, sep)) && PRINTABLE_ASCII_RE.test(msg.slice(sep + 2));
 }
 
-// תווי בקרה (C0, DEL, C1) ותווי כיווניות (LRM/RLM, הטמעות/דריסות ובידודים) — מוסרים מ-phase
+// תווי בקרה (C0, DEL, C1, מפרידי שורה/פסקה U+2028/9) וכל תווי הכיווניות (Bidi_Control: ALM,
+// LRM/RLM, הטמעות/דריסות ובידודים) — מוסרים מ-phase
 const isUnsafeCodePoint = (c) =>
   c < 0x20 ||
   (c >= 0x7f && c <= 0x9f) ||
+  c === 0x061c ||
   c === 0x200e ||
   c === 0x200f ||
+  c === 0x2028 ||
+  c === 0x2029 ||
   (c >= 0x202a && c <= 0x202e) ||
   (c >= 0x2066 && c <= 0x2069);
 
-const stripUnsafe = (s) =>
+// מנקה ומקצר לפי נקודות קוד (לא יחידות UTF-16) — קיצור לא חוצה זוג surrogate ולא משאיר חצי תו
+const stripUnsafe = (s, maxChars) =>
   Array.from(s)
     .filter((ch) => !isUnsafeCodePoint(ch.codePointAt(0)))
+    .slice(0, maxChars)
     .join('');
 
 const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -92,7 +98,7 @@ export function validateStatusReport(body) {
       workerId,
       state,
       // phase הוא טקסט חופשי של צנרת ה-OCR — לא דוחים דיווח שלם בגללו, רק מנקים ומקצרים
-      phase: phase === null ? null : stripUnsafe(phase).slice(0, STORED_PHASE_CHARS),
+      phase: phase === null ? null : stripUnsafe(phase, STORED_PHASE_CHARS),
       pagesDone: progress.pagesDone,
       pagesTotal: progress.pagesTotal,
       reportSeq,
