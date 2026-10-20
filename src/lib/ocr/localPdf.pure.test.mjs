@@ -7,6 +7,8 @@ import {
   buildPageMap,
   pageMapEntryToContract,
   imageKind,
+  pageSizeForImage,
+  DECLARED_DPI,
   sniffImageKind,
   standaloneBytes,
   formatPageList,
@@ -102,6 +104,15 @@ test('pageMapEntryToContract: בדיוק שדות job-envelope.schema.json, ISO 
   assert.match(c.imageSha256, /^[0-9a-f]{64}$/);
   // אחרי lean() התאריך עשוי להגיע כ-Date; ממחרוזת — אותה תוצאה
   assert.equal(pageMapEntryToContract({ ...c, page: 'p', expectedUpdatedAt: T.toISOString() }).expectedUpdatedAt, c.expectedUpdatedAt);
+});
+
+test('pageSizeForImage: הצהרת 300dpi — px*72/300 נקודות', () => {
+  assert.equal(DECLARED_DPI, 300);
+  assert.deepEqual(pageSizeForImage(300, 600), [72, 144]);
+  // 1200×1600 (התמונות באתר) → 288×384 נקודות = 4×5.33 אינץ' ב-300dpi
+  assert.deepEqual(pageSizeForImage(1200, 1600), [288, 384]);
+  const [w] = pageSizeForImage(1123, 10);
+  assert.equal(Math.round(1123 / (w / 72)), 300);
 });
 
 test('imageKind / sniffImageKind', () => {

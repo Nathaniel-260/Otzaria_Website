@@ -102,7 +102,15 @@ test('buildJobInput: PDF בסדר pageNumber, JPEG מוטמע בלי דחיסה 
 
   const doc = await PDFDocument.load(pdf, { updateMetadata: false }); // load רגיל דורס Producer
   assert.equal(doc.getPageCount(), 4);
-  assert.deepEqual(doc.getPages().map((p) => [p.getWidth(), p.getHeight()]), [[120, 160], [100, 140], [80, 60], [50, 70]]);
+  // גודל עמוד = פיקסלים*72/300 (הצהרת 300dpi): הפייפליין מסיק בדיוק 300dpi ולא מגדיל
+  const sizes = doc.getPages().map((p) => [p.getWidth(), p.getHeight()]);
+  const px = [[120, 160], [100, 140], [80, 60], [50, 70]];
+  sizes.forEach(([w, h], i) => {
+    assert.ok(Math.abs(w - (px[i][0] * 72) / 300) < 1e-6, `width ${i}: ${w}`);
+    assert.ok(Math.abs(h - (px[i][1] * 72) / 300) < 1e-6, `height ${i}: ${h}`);
+    // ה-DPI כפי שהפייפליין מחשב אותו (פיקסלי התמונה / רוחב העמוד באינצ'ים)
+    assert.equal(Math.round(px[i][0] / (w / 72)), 300);
+  });
   assert.equal(doc.getProducer(), 'Otzaria');
   assert.equal(doc.getCreationDate(), undefined, 'בלי תאריכים — פלט דטרמיניסטי');
 });

@@ -3,7 +3,8 @@
 //
 // - JPEG מוטמע כמו שהוא (embedJpg → DCTDecode על הבייטים המקוריים), בלי דחיסה מחדש.
 //   PNG מוטמע lossless (embedPng). כל פורמט אחר → unsupported_image (לפי תוכן הקובץ, לא סיומת).
-// - pdfPageIndex מבוסס-1 לפי סדר pageNumber; גודל כל עמוד = גודל התמונה בפיקסלים (1px=1pt).
+// - pdfPageIndex מבוסס-1 לפי סדר pageNumber; גודל כל עמוד = פיקסלים*72/300 (הצהרת 300dpi —
+//   ראו DECLARED_DPI ב-localPdf.pure.js), כדי שהפייפליין ירנדר ברזולוציה המקורית.
 // - imageSha256 לכל עמוד = sha256 של בייטי קובץ התמונה; inputSha256 = sha256 של קובץ ה-PDF.
 // - תמונה חסרה או פגומה: אין דילוג שקט (בניגוד ל-export-pdf) — מיפוי חסר שובר את החוזה.
 // - הקובץ נכתב עמיד (זמני → fsync → rename) לשם input-<sha>.pdf לפני שה-DB מפנה אליו.
@@ -23,6 +24,7 @@ import {
   LocalInputError,
   buildPageMap,
   checkLimits,
+  pageSizeForImage,
   readLocalLimits,
   sniffImageKind,
   standaloneBytes,
@@ -120,8 +122,10 @@ export async function buildJobInput({ jobId, pages, limits = readLocalLimits(), 
       broken.push(p.pageNumber);
       continue;
     }
-    const page = pdfDoc.addPage([image.width, image.height]);
-    page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
+    // גודל העמוד בנקודות = פיקסלים*72/300 (DECLARED_DPI) — כך הפייפליין מרנדר ברזולוציה המקורית
+    const [width, height] = pageSizeForImage(image.width, image.height);
+    const page = pdfDoc.addPage([width, height]);
+    page.drawImage(image, { x: 0, y: 0, width, height });
   }
   if (unsupported.length) throw new LocalInputError('unsupported_image', { pageNumbers: unsupported });
   if (broken.length) throw new LocalInputError('missing_image', { pageNumbers: broken });

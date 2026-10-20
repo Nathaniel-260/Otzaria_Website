@@ -52,6 +52,19 @@ export function checkLimits({ count, totalBytes }, { maxPages, maxBytes }) {
   return null;
 }
 
+// הרזולוציה ה"מוצהרת" של כל עמוד ב-PDF הקלט. הבייטים של התמונה לא משתנים — רק גודל העמוד
+// בנקודות (1pt = 1/72 אינץ'): px*72/300. הסיבה: הפייפליין (ocr_torani/render.py, page_dpi)
+// מסיק את ה-DPI של הסריקה מיחס פיקסלי התמונה לרוחב העמוד, מעגל לכפולת 50 בטווח 200–400,
+// ומרנדר בו. בגודל פיקסל=נקודה הוא היה מסיק 72dpi, מעגל למינימום 200 ומרנדר בהגדלה פי ~2.78
+// בכל ציר (אינטרפולציה בלי מידע חדש, זיכרון וזמן מיותרים). בהצהרה על 300dpi הוא מרנדר בדיוק
+// ברזולוציה המקורית — פיקסל תמונה אחד לפיקסל רינדור אחד.
+export const DECLARED_DPI = 300;
+
+// גודל עמוד בנקודות לתמונה בגודל נתון בפיקסלים (ראו DECLARED_DPI)
+export function pageSizeForImage(widthPx, heightPx) {
+  return [(widthPx * 72) / DECLARED_DPI, (heightPx * 72) / DECLARED_DPI];
+}
+
 // סוג התמונה לפי סיומת: 'jpg' | 'png' | null
 export function imageKind(ext) {
   const e = String(ext || '').toLowerCase().replace(/^\./, '');
