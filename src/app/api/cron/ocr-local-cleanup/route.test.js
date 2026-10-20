@@ -63,7 +63,16 @@ describe('/api/cron/ocr-local-cleanup', () => {
       const body = await res.json()
       expect(body.ok).toBe(true)
       expect(body.purge).toEqual(PURGE)
-      expect(body.resumed).toEqual({ count: 0, ok: 0, results: [] })
+      expect(body.resumed).toEqual({
+        count: 0,
+        ok: 0,
+        attempted: 0,
+        succeeded: 0,
+        contention: 0,
+        failed: 0,
+        failedCodes: {},
+        results: [],
+      })
       expect(typeof body.ranAt).toBe('string')
     }
     expect(runLocalOcrCleanup).toHaveBeenCalledTimes(2)
@@ -76,6 +85,49 @@ describe('/api/cron/ocr-local-cleanup', () => {
     })
     const body = await (await POST(req(`Bearer ${SECRET}`))).json()
     expect(body.ok).toBe(false)
+  })
+
+  it('השלמה שנכשלה (result_unavailable / חריגה) → ok:false עם סיכום, HTTP 200 (סקירה W08)', async () => {
+    const results = [
+      { jobId: 'j1', ok: true, code: 'applied' },
+      { jobId: 'j2', ok: false, code: 'result_unavailable' },
+      { jobId: 'j3', ok: false, code: 'MongoNetworkError' },
+      { jobId: 'j4', ok: false, code: 'apply_in_progress' },
+    ]
+    vi.mocked(runLocalOcrCleanup).mockResolvedValue({ resumed: { count: 4, ok: 1, results }, purge: PURGE })
+    const res = await POST(req(`Bearer ${SECRET}`))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.ok).toBe(false)
+    expect(body.resumed).toEqual({
+      count: 4,
+      ok: 1,
+      attempted: 4,
+      succeeded: 1,
+      contention: 1,
+      failed: 2,
+      failedCodes: { result_unavailable: 1, MongoNetworkError: 1 },
+      results,
+    })
+  })
+
+  it('השחזור היחיד נכשל (result_unavailable) → ok:false (שחזור W08)', async () => {
+    vi.mocked(runLocalOcrCleanup).mockResolvedValue({
+      resumed: { count: 1, ok: 0, results: [{ jobId: 'j1', ok: false, code: 'result_unavailable' }] },
+      purge: PURGE,
+    })
+    const body = await (await POST(req(`Bearer ${SECRET}`))).json()
+    expect(body.ok).toBe(false)
+  })
+
+  it('תחרות צפויה בלבד (apply_in_progress/not_stalled/not_found) והצלחות (applied/cancelled/already_closed) → ok:true', async () => {
+    const results = ['apply_in_progress', 'not_stalled', 'not_found']
+      .map((code) => ({ jobId: code, ok: false, code }))
+      .concat(['applied', 'cancelled', 'already_closed'].map((code) => ({ jobId: code, ok: true, code })))
+    vi.mocked(runLocalOcrCleanup).mockResolvedValue({ resumed: { count: 6, ok: 3, results }, purge: PURGE })
+    const body = await (await POST(req(`Bearer ${SECRET}`))).json()
+    expect(body.ok).toBe(true)
+    expect(body.resumed).toMatchObject({ attempted: 6, succeeded: 3, contention: 3, failed: 0, failedCodes: {} })
   })
 
   it('חריגה → 500 cleanup_failed בלי פרטים', async () => {

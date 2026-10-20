@@ -120,6 +120,10 @@ location = /api/admin/books/ocr/start {
 
 - `--max-time` חובה: השלב הראשון בריצה (`resumeStalledApplies`) משלים קליטות תקועות ואינו מוגבל בזמן.
   בלי תקרה, ריצה תקועה תצבור תהליכי curl.
+- `ok:false` (השלמה שנכשלה, שגיאות ניקוי, דיסק לא מחובר) חוזר ב-**HTTP 200** כדי שהסיכום יירשם, ולכן
+  `curl -f` נכשל רק על 401/500. להתראה גם על `ok:false` (cron שולח בדואר כל פלט; `"ok"` הוא המפתח הראשון,
+  ו-`results[]` מכילים `"ok":true` משלהם — לכן העיגון ב-`^`):
+  `out=$(curl -fsS --max-time 600 -X POST -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:3000/api/cron/ocr-local-cleanup); echo "$out" | grep -q '^{"ok":true' || echo "ocr-local-cleanup: $out"`
 - כל ריצה: (1) משלימה עבודות שנתקעו ב-`applying` (קריסת שרת באמצע קליטה, וה-lease של 5 דקות פג)
   מקובץ התוצאה השמור; (2) מוחקת קובצי קלט ותוצאה **24 שעות אחרי ה-ack** (`ackAt`), לא מסיום העיבוד;
   (3) מוחקת קובצי קלט יתומים של עבודות שנכשלו או בוטלו בלי ack; (4) מוחקת תוצאות שנדחו אחרי 30 יום,
@@ -198,7 +202,9 @@ curl -fsS --max-time 600 -X POST -H "Authorization: Bearer $CRON_SECRET" http://
 ```
 
 התשובה כוללת `resumed` (מה הושלם, לכל עבודה `ok`/`code`) ו-`purge` (קבצים שנמחקו, שגיאות,
-`storageMissing`). `ok:false` עם `storageMissing:true` פירושו שהדיסק לא מחובר.
+`storageMissing`). `ok:false` עם `storageMissing:true` פירושו שהדיסק לא מחובר. `resumed` כולל גם סיכום:
+`succeeded` (applied/cancelled/already_closed), `contention` (apply_in_progress/not_stalled/not_found — צפוי,
+לא תקלה), `failed` ו-`failedCodes` (קובץ חסר/פגום/לא תקין, job_closed, או חריגה זמנית); `failed>0` ⇒ `ok:false`.
 
 ## 6. שער שבת
 
