@@ -11,6 +11,9 @@ import {
   pageApplyFilter,
   pageApplySet,
   pageErrorMessage,
+  RESUME_RETRY_MAX_MS,
+  resumeFailureBacksOff,
+  resumeRetryDelayMs,
   storedAckAnswer,
   storedPipelineVersion,
   STORED_ERROR_CHARS,
@@ -204,4 +207,21 @@ test('closingStatusFields: partial בלי שום עמוד שנקלט ובלי ה
   assert.deepEqual(closingStatusFields('success', none), { status: 'completed' });
   assert.deepEqual(closingStatusFields('failed', none), { status: 'failed' });
   assert.deepEqual(closingStatusFields('cancelled', none), { status: 'cancelled' });
+});
+
+test('resumeRetryDelayMs: שעה, ומוכפל עד תקרה של יממה (ממשיך לנסות לעד)', () => {
+  const H = 60 * 60 * 1000;
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 100].map(resumeRetryDelayMs), [H, 2 * H, 4 * H, 8 * H, 16 * H, 24 * H, 24 * H, 24 * H]);
+  assert.equal(resumeRetryDelayMs(0), H);
+  assert.equal(resumeRetryDelayMs(undefined), H);
+  assert.equal(resumeRetryDelayMs(1e9), RESUME_RETRY_MAX_MS);
+});
+
+test('resumeFailureBacksOff: קובץ חסר/פגום/חריגה → דוחים; החלה חיה / עבודה שנסגרה → לא', () => {
+  for (const c of ['result_unavailable', 'result_corrupt', 'result_invalid', 'job_closed', 'internal_error', 'EACCES']) {
+    assert.equal(resumeFailureBacksOff(c), true, c);
+  }
+  for (const c of ['applied', 'cancelled', 'already_closed', 'not_stalled', 'not_found', 'apply_in_progress']) {
+    assert.equal(resumeFailureBacksOff(c), false, c);
+  }
 });

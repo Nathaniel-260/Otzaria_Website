@@ -141,6 +141,15 @@ const OcrJobSchema = new mongoose.Schema({
   resultConflicts: { type: [ResultConflictSchema], default: undefined },
   resultRejections: { type: [ResultRejectionSchema], default: undefined },
 
+  // השלמת קליטה תקועה מהקובץ השמור (cron, resumeStalledApplies) שנכשלה — למשל result_unavailable /
+  // result_corrupt. העבודה לא נסגרת: היא נדחית עד resumeRetryAt (המתנה מוכפלת עד יממה, ראו
+  // resumeRetryDelayMs ב-localApply.pure.js) כדי שלא תחסום עבודות אחרות, ותנוסה שוב אחר כך (למשל
+  // אחרי שחזור הקובץ מגיבוי). נשארים גם אחרי ack — היסטוריה; הממשק מציג אותם רק לעבודה בלי ack.
+  resumeErrorCode: { type: String },
+  resumeFailedAt: { type: Date },
+  resumeFailures: { type: Number },
+  resumeRetryAt: { type: Date },
+
   // ניקוי קבצים (cron /api/cron/ocr-local-cleanup, src/lib/ocr/localCleanup.js) — רק קבצים נמחקים,
   // הרשומה וה-ack נשמרים בלי TTL. filesCheckedAt — הבדיקה האחרונה של התיקייה; filesPurgedAt —
   // התיקייה התרוקנה ונמחקה (null אם נשארו בה קבצים, למשל תוצאה מתנגשת שטרם נבדקה).

@@ -90,6 +90,11 @@ function serializeJob(job, now) {
       missing: job.missingPages ?? 0,
     },
     ackAt: job.ackAt ?? null,
+    // השלמת הקליטה מהקובץ השמור (cron) נכשלה — הקוד ומועד הניסיון הבא (resumeStalledApplies)
+    resumeErrorCode: job.resumeErrorCode ?? null,
+    resumeFailedAt: job.resumeFailedAt ?? null,
+    resumeFailures: job.resumeFailures ?? 0,
+    resumeRetryAt: job.resumeRetryAt ?? null,
     cancelReason: job.cancelReason ?? null,
     cancelledByName: job.cancelledByName ?? null,
     pageErrors: (job.pageErrors || []).slice(0, MAX_PAGE_ERRORS).map((e) => ({

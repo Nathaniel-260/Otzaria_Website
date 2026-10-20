@@ -165,6 +165,10 @@ describe("GET /api/admin/books/ocr/status - ספק local", () => {
       resultOutcome: null,
       summary: { applied: 0, failed: 0, conflicts: 0, missing: 0 },
       ackAt: null,
+      resumeErrorCode: null,
+      resumeFailedAt: null,
+      resumeFailures: 0,
+      resumeRetryAt: null,
       cancelReason: null,
       cancelledByName: null,
     });

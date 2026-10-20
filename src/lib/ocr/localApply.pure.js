@@ -169,3 +169,21 @@ export function failedOutcomeClasses(doc, pageMap) {
     .filter((entry) => byIndex.get(entry.pdfPageIndex)?.error)
     .map((entry) => ({ entry, kind: 'failed', message: pageErrorMessage(byIndex.get(entry.pdfPageIndex).error) }));
 }
+
+// השלמת קליטה תקועה מהקובץ השמור (resumeStalledApplies) שנכשלה — למשל קובץ התוצאה חסר/פגום
+// (result_unavailable / result_corrupt / result_invalid): העבודה לא נסגרת ולא נמחקת, אלא נדחית
+// לניסיון הבא (resumeRetryAt) בהמתנה מוכפלת — שעה, שעתיים, 4, 8, 16, ואז פעם ביממה לעד (אולי הקובץ
+// ישוחזר מגיבוי). בלי זה אותן 20 עבודות פגומות נבחרות בכל ריצה וחוסמות את כל מה שאחריהן (סקירה W02).
+export const RESUME_RETRY_BASE_MS = 60 * 60 * 1000;
+export const RESUME_RETRY_MAX_MS = 24 * 60 * 60 * 1000;
+/** @param {number} failures — מספר הכשלונות כולל הנוכחי (1 ומעלה) */
+export function resumeRetryDelayMs(failures) {
+  const n = Math.max(1, Math.floor(Number(failures) || 1));
+  return Math.min(RESUME_RETRY_MAX_MS, RESUME_RETRY_BASE_MS * 2 ** Math.min(n - 1, 30));
+}
+
+// תוצאות שאינן כשל של העבודה עצמה — לא דוחים בגללן: החלה חיה מקבילה, עבודה שכבר נסגרה/אינה תקועה
+const RESUME_NO_BACKOFF = new Set(['applied', 'cancelled', 'already_closed', 'not_stalled', 'not_found', 'apply_in_progress']);
+export function resumeFailureBacksOff(code) {
+  return !RESUME_NO_BACKOFF.has(code);
+}

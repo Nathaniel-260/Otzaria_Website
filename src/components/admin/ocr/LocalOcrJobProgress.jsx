@@ -7,7 +7,7 @@ import OcrStatusBadge from './OcrStatusBadge'
 import OcrProgressBar from './OcrProgressBar'
 import WorkerOfflineNotice from './WorkerOfflineNotice'
 import ResumePreparationNotice from './ResumePreparationNotice'
-import { canCancel, formatLastSeen, isWorkerUnavailable, progressCounts, progressPercent } from './ocrJobView'
+import { canCancel, formatLastSeen, isWorkerUnavailable, progressCounts, progressPercent, resumeIssue } from './ocrJobView'
 
 // הסבר קצר לכל מצב פעיל של עבודת local (מתחת לתג המצב)
 const STATUS_HINTS = {
@@ -55,6 +55,7 @@ export default function LocalOcrJobProgress({
   const cancellable = canCancel(job)
   const applying = job.status === 'applying' || job.decision === 'apply'
   const message = typeof job.workerMessage === 'string' ? job.workerMessage.trim() : ''
+  const resume = resumeIssue(job)
 
   const confirmCancel = async () => {
     setConfirming(false)
@@ -80,6 +81,23 @@ export default function LocalOcrJobProgress({
           <div>
             <p className="font-bold">דורש טיפול במחשב המעבד</p>
             {message && <p className="mt-1 whitespace-pre-wrap break-words">{message}</p>}
+          </div>
+        </div>
+      )}
+
+      {resume && (
+        <div role="alert" className="flex items-start gap-2 rounded-control bg-error-container p-3 text-sm text-on-error-container">
+          <AppIcon name="warning" className="text-base" />
+          <div>
+            <p className="font-bold">השלמת הקליטה מהקובץ השמור נכשלה</p>
+            <p className="mt-1 break-words">
+              {resume.label}
+              {resume.failedAt ? ` (${resume.failedAt})` : ''}.
+              {resume.retryAt ? ` ניסיון אוטומטי נוסף: ${resume.retryAt}.` : ''}
+            </p>
+            <p className="mt-1">
+              אם המחשב המקומי עדיין מחזיק את התוצאה, הוא ישלח אותה שוב והקליטה תושלם.
+            </p>
           </div>
         </div>
       )}

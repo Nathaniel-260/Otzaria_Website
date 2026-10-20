@@ -18,6 +18,7 @@ import {
   progressCounts,
   progressPercent,
   rejectionReasonLabel,
+  resumeIssue,
   statusIcon,
   statusLabel,
   statusTone,
@@ -188,5 +189,25 @@ describe('canResumePreparation / resumePreparationPayload', () => {
       existingTextMode: 'skip',
       options: { lm: 'modern', defaultScript: 'rashi' },
     })
+  })
+})
+
+describe('resumeIssue', () => {
+  it('תקלה פתוחה רק כשיש קוד ואין ack; קוד לא מוכר — עם הקוד', () => {
+    expect(resumeIssue(null)).toBeNull()
+    expect(resumeIssue({ resumeErrorCode: null })).toBeNull()
+    expect(resumeIssue({ resumeErrorCode: 'result_unavailable', ackAt: '2026-10-20T10:00:00Z' })).toBeNull()
+    const r = resumeIssue({
+      resumeErrorCode: 'result_unavailable',
+      resumeFailedAt: '2026-10-20T10:00:00Z',
+      resumeRetryAt: '2026-10-20T11:00:00Z',
+      resumeFailures: 1,
+      ackAt: null,
+    })
+    expect(r.label).toBe('קובץ התוצאה השמור חסר באחסון')
+    expect(r.failures).toBe(1)
+    expect(r.retryAt).not.toBe('')
+    expect(resumeIssue({ resumeErrorCode: 'EACCES' }).label).toBe('שגיאה (EACCES)')
+    expect(resumeIssue({ resumeErrorCode: 'result_corrupt' }).retryAt).toBe('')
   })
 })

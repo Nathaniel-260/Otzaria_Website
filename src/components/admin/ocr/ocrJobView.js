@@ -200,6 +200,27 @@ export function rejectionReasonLabel(reason) {
   return REJECTION_REASONS[reason] || 'התוצאה נדחתה'
 }
 
+const RESUME_ERROR_LABELS = Object.freeze({
+  result_unavailable: 'קובץ התוצאה השמור חסר באחסון',
+  result_corrupt: 'קובץ התוצאה השמור פגום (ה-hash אינו תואם)',
+  result_invalid: 'קובץ התוצאה השמור אינו תקין',
+})
+
+/**
+ * השלמת הקליטה מהקובץ השמור (cron) נכשלה ועדיין אין ack — תקלה למפעיל, עם מועד הניסיון האוטומטי
+ * הבא. null אם אין תקלה פתוחה (לא נכשלה מעולם, או שהעבודה כבר קיבלה ack).
+ */
+export function resumeIssue(job) {
+  const code = job?.resumeErrorCode
+  if (!code || job.ackAt) return null
+  return {
+    label: RESUME_ERROR_LABELS[code] || `שגיאה (${code})`,
+    failedAt: formatDateTime(job.resumeFailedAt),
+    retryAt: formatDateTime(job.resumeRetryAt),
+    failures: Number(job.resumeFailures) || 0,
+  }
+}
+
 export function formatBytes(bytes) {
   if (bytes == null) return ''
   const n = Number(bytes)

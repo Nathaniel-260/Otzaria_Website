@@ -19,7 +19,7 @@ import Page from '../../models/Page.js';
 import OcrConflict from '../../models/OcrConflict.js';
 import { intakeResult } from './localResultIntake.js';
 import { APPLY_LEASE_MS, resumeStalledApplies, resumeStalledApply } from './localApply.js';
-import { isValidAck } from './localApply.pure.js';
+import { isValidAck, resumeRetryDelayMs } from './localApply.pure.js';
 import { cancelLocalJob } from './localCancel.js';
 import { startMongo } from '../corrections/testing/mongo.js';
 
@@ -566,6 +566,68 @@ test('resumeStalledApply: תוצאה ננעלה בלי החלטה / בוטלה �
   );
   assert.deepEqual(await resumeStalledApply(c.job._id, { env }), { ok: false, code: 'result_unavailable' });
   assert.equal((await load(c.job._id)).status, 'applying');
+});
+
+test('resumeStalledApplies (סקירה W02): 20 עבודות עם קובץ תוצאה חסר לא חוסמות עבודה תקינה אחריהן', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const t0 = new Date(Date.now() - APPLY_LEASE_MS - 60000);
+  const bad = [];
+  for (let i = 0; i < 20; i++) {
+    const { job } = await makeJob({ n: 1 });
+    await OcrJob.updateOne(
+      { _id: job._id },
+      { $set: { resultSha256: A, resultOutcome: 'success', resultReceivedAt: t0, resultPath: `${job._id}/result-${A}.json`, decision: 'apply', status: 'applying' } }
+    );
+    bad.push(job);
+  }
+  // העבודה התקינה נוצרה אחרונה (_id גדול מכולן) — הקובץ שלה שמור ותקין
+  const good = await makeJob({ n: 1 });
+  const buf = Buffer.from(JSON.stringify(resultDoc(good.job)));
+  const sha = sha256(buf);
+  await fs.writeFile(path.join(root, String(good.job._id), `result-${sha}.json`), buf);
+  await OcrJob.updateOne(
+    { _id: good.job._id },
+    { $set: { resultSha256: sha, resultOutcome: 'success', resultPath: `${good.job._id}/result-${sha}.json`, resultReceivedAt: t0 } }
+  );
+
+  const now = new Date();
+  const first = await resumeStalledApplies({ now, env, limit: 20 });
+  assert.deepEqual(first.map((r) => r.code), Array(20).fill('result_unavailable'));
+  const second = await resumeStalledApplies({ now, env, limit: 20 });
+  assert.deepEqual(second, [{ jobId: String(good.job._id), ok: true, code: 'applied' }]);
+  assert.deepEqual((await load(good.job._id)).ack, { ack: 'accepted', jobId: String(good.job._id), resultSha256: sha, outcome: 'success' });
+
+  // העבודות הפגומות לא נסגרו ולא נמחקו: התוצאה וההחלטה נשמרו, התקלה מתועדת עם מועד ניסיון הבא
+  for (const b of bad) {
+    const j = await load(b._id);
+    assert.equal(j.status, 'applying');
+    assert.equal(j.active, true);
+    assert.equal(j.ack, null);
+    assert.equal(j.resultSha256, A);
+    assert.equal(j.resultPath, `${b._id}/result-${A}.json`);
+    assert.equal(j.resumeErrorCode, 'result_unavailable');
+    assert.equal(j.resumeFailures, 1);
+    assert.equal(j.resumeFailedAt.getTime(), now.getTime());
+    assert.equal(j.resumeRetryAt.getTime(), now.getTime() + resumeRetryDelayMs(1));
+  }
+  // לפני מועד הניסיון הבא — לא נבחרות
+  assert.deepEqual(await resumeStalledApplies({ now: new Date(now.getTime() + 60000), env }), []);
+
+  // הקובץ שוחזר מגיבוי לאחת מהן — אחרי מועד הניסיון הבא היא נוסית שוב ומושלמת; השאר נדחות שוב, ארוך יותר
+  const restored = bad[7];
+  const bufR = Buffer.from(JSON.stringify(resultDoc(restored)));
+  const shaR = sha256(bufR);
+  await fs.writeFile(path.join(root, String(restored._id), `result-${shaR}.json`), bufR);
+  await OcrJob.updateOne({ _id: restored._id }, { $set: { resultSha256: shaR, resultPath: `${restored._id}/result-${shaR}.json` } });
+  const later = new Date(now.getTime() + resumeRetryDelayMs(1) + 1000);
+  const third = await resumeStalledApplies({ now: later, env, limit: 20 });
+  assert.equal(third.length, 20);
+  assert.deepEqual(third.find((r) => r.jobId === String(restored._id)), { jobId: String(restored._id), ok: true, code: 'applied' });
+  assert.equal((await load(restored._id)).ack.ack, 'accepted');
+  const b0 = await load(bad[0]._id);
+  assert.equal(b0.resumeFailures, 2);
+  assert.equal(b0.resumeRetryAt.getTime(), later.getTime() + resumeRetryDelayMs(2));
+  assert.ok(resumeRetryDelayMs(2) > resumeRetryDelayMs(1));
 });
 
 test('pipelineVersion ענק (מעל 16MB) → accepted ולא 500; נשמר מקוצר', async (t) => {

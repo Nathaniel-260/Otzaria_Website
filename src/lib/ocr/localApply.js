@@ -34,6 +34,8 @@ import {
   pageApplyFilter,
   pageApplySet,
   pageErrorMessage,
+  resumeFailureBacksOff,
+  resumeRetryDelayMs,
   storedAckAnswer,
   storedPipelineVersion,
   summarizeApply,
@@ -350,20 +352,53 @@ export async function resumeStalledApply(jobId, { now = new Date(), env = proces
   return { ok: true, code: r.body.ack === 'cancelled' ? 'cancelled' : 'applied', ack: r.body };
 }
 
+// כשל השלמה: העבודה נשארת כמו שהיא (תוצאה, החלטה, היסטוריה), רק נרשמים הקוד ומועד הניסיון הבא.
+// מותנה ב-ack:null ובאותו resultSha256 — לא נוגעים בעבודה שנסגרה/השתנתה בינתיים. best-effort.
+async function recordResumeFailure(job, code, now) {
+  const failures = (Number(job.resumeFailures) || 0) + 1;
+  await OcrJob.updateOne(
+    { _id: job._id, method: 'local', ack: null, resultSha256: job.resultSha256 },
+    {
+      $set: {
+        resumeErrorCode: code,
+        resumeFailedAt: now,
+        resumeRetryAt: new Date(now.getTime() + resumeRetryDelayMs(failures)),
+      },
+      $inc: { resumeFailures: 1 },
+    }
+  ).catch((e) => {
+    console.error(`[ocr-local-resume] recording failure for ${job._id} failed: ${String(e?.code ?? e?.name ?? 'error')}`);
+  });
+}
+
 /**
- * כל העבודות התקועות (עד limit) — resumeStalledApply לכל אחת. לא זורקת על עבודה בודדת.
+ * העבודות התקועות (עד limit) — resumeStalledApply לכל אחת. לא זורקת על עבודה בודדת.
+ * עבודה שנכשלה (קובץ חסר/פגום וכו') נדחית עד resumeRetryAt, והבחירה מעדיפה עבודות שטרם נכשלו
+ * (resumeRetryAt null ממוין ראשון) — כך עבודות פגומות לא חוסמות את שאחריהן (סקירה W02).
  * @returns {Promise<{jobId:string, ok:boolean, code:string}[]>}
  */
 export async function resumeStalledApplies({ now = new Date(), env = process.env, limit = 20 } = {}) {
-  const jobs = await OcrJob.find(stalledApplyFilter(now)).select('_id').sort({ _id: 1 }).limit(limit).lean();
+  const jobs = await OcrJob.find({
+    ...stalledApplyFilter(now),
+    $and: [{ $or: [{ resumeRetryAt: null }, { resumeRetryAt: { $lte: now } }] }],
+  })
+    .select('_id resultSha256 resumeFailures')
+    .sort({ resumeRetryAt: 1, _id: 1 })
+    .limit(limit)
+    .lean();
   const out = [];
-  for (const { _id } of jobs) {
+  for (const job of jobs) {
+    let code;
+    let okFlag = false;
     try {
-      const r = await resumeStalledApply(_id, { now, env });
-      out.push({ jobId: String(_id), ok: r.ok, code: r.code });
+      const r = await resumeStalledApply(job._id, { now, env });
+      code = r.code;
+      okFlag = r.ok;
     } catch (e) {
-      out.push({ jobId: String(_id), ok: false, code: String(e?.code ?? e?.name ?? 'error') });
+      code = String(e?.code ?? e?.name ?? 'error');
     }
+    if (!okFlag && resumeFailureBacksOff(code)) await recordResumeFailure(job, code, now);
+    out.push({ jobId: String(job._id), ok: okFlag, code });
   }
   return out;
 }
