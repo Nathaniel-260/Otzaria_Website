@@ -39,24 +39,33 @@ export default function OcrConflictsPanel({ jobId, bookId, onChanged }) {
     return data
   }, [jobId, bookId])
 
-  const reload = useCallback(async () => {
+  const applyFirstPage = useCallback((data) => {
     setListError('')
+    setItems(data.conflicts)
+    setTotal(data.total)
+    setOpenCount(data.openCount)
+    setHasMore(data.hasMore)
+  }, [])
+
+  const reload = useCallback(async () => {
     try {
-      const data = await load(0)
-      setItems(data.conflicts)
-      setTotal(data.total)
-      setOpenCount(data.openCount)
-      setHasMore(data.hasMore)
+      applyFirstPage(await load(0))
     } catch (e) {
       setListError(e.message || 'טעינת ההתנגשויות נכשלה')
     } finally {
       setLoading(false)
     }
-  }, [load])
+  }, [load, applyFirstPage])
 
+  // טעינה ראשונית (וכשהיקף הרשימה משתנה): ה-state מתעדכן רק בתוך callback אסינכרוני, ותשובה מיושנת נזרקת
   useEffect(() => {
-    reload()
-  }, [reload])
+    let ignore = false
+    load(0)
+      .then((data) => { if (!ignore) applyFirstPage(data) })
+      .catch((e) => { if (!ignore) setListError(e.message || 'טעינת ההתנגשויות נכשלה') })
+      .finally(() => { if (!ignore) setLoading(false) })
+    return () => { ignore = true }
+  }, [load, applyFirstPage])
 
   const loadMore = async () => {
     setLoadingMore(true)
