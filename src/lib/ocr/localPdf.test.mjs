@@ -142,6 +142,13 @@ test('buildJobInput: תמונה חסרה, נתיב מחוץ להעלאות או 
     [4, 7]
   );
   await rejectsWith(buildJobInput({ jobId, pages: [page(1, 'page.1.jpg'), page(6, 'page.6.jpg')] }), 'missing_image', [6]);
+  // נתיב פגום שה-fs דוחה דטרמיניסטית (NUL → ERR_INVALID_ARG_VALUE, שם ארוך מדי → ENAMETOOLONG)
+  // הוא שגיאת קלט סופית, לא חריגה זמנית שמשאירה את העבודה בהכנה לנצח
+  await rejectsWith(
+    buildJobInput({ jobId, pages: [page(1, 'page.1.jpg'), page(8, 'bad\0name.jpg'), page(9, `${'x'.repeat(5000)}.jpg`)] }),
+    'missing_image',
+    [8, 9]
+  );
   assert.equal(await fs.stat(path.join(storage, jobId)).catch(() => null), null, 'לא נכתב קובץ');
 });
 

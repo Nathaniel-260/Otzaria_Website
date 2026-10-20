@@ -74,7 +74,13 @@ test('buildPageMap: pdfPageIndex מבוסס-1 לפי סדר הרשימה, expect
 test('buildPageMap: מאמת את דרישות החוזה', () => {
   const ok = { _id: 'x1', pageNumber: 1, updatedAt: T, imageSha256: SHA };
   assert.throws(() => buildPageMap([ok, { ...ok }]), /invalid_page_id/);
-  assert.throws(() => buildPageMap([{ ...ok, pageNumber: 0 }]), /invalid_page_number/);
+  // מספר עמוד לא תקין — שגיאת קלט סופית (LocalInputError), לא חריגה זמנית
+  for (const bad of [0, -3, 1.5, null]) {
+    assert.throws(
+      () => buildPageMap([{ ...ok, pageNumber: bad }]),
+      (e) => e instanceof LocalInputError && e.code === 'invalid_page_number' && e.permanent === true && e.messageHe.length > 0
+    );
+  }
   assert.throws(() => buildPageMap([{ ...ok, imageSha256: SHA.toUpperCase() }]), /invalid_image_sha256/);
   assert.throws(
     () => buildPageMap([{ ...ok, updatedAt: undefined }, { ...ok, _id: 'x2', pageNumber: 5, updatedAt: new Date('x') }]),

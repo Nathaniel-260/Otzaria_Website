@@ -28,7 +28,10 @@ import {
   standaloneBytes,
 } from './localPdf.pure.js';
 
-const MISSING_CODES = new Set(['ENOENT', 'ENOTDIR', 'EISDIR']);
+// שגיאות fs שנובעות מהנתיב עצמו (לא מתקלת I/O רגעית) — ניסיון חוזר לא יעזור, ולכן
+// מסווגות כתמונה חסרה (סופי): קובץ/תיקייה לא קיימים, נתיב ארוך מדי, לולאת קישורים,
+// או נתיב עם תו NUL (Node זורק ERR_INVALID_ARG_VALUE). EACCES/EIO וכד' — זמניים.
+const MISSING_CODES = new Set(['ENOENT', 'ENOTDIR', 'EISDIR', 'ENAMETOOLONG', 'ELOOP', 'ERR_INVALID_ARG_VALUE']);
 
 // שלב 1 (זול, בלי לקרוא תוכן): נתיב חוקי וקיים לכל עמוד, ומועד עדכון. מחזיר את הנתיבים
 // ואת סכום הגדלים לבדיקת התקרה. כל הבעיות נאספות ומדווחות יחד.
@@ -67,7 +70,7 @@ async function statPages(pages) {
  * @returns {Promise<{inputPath:string,inputSha256:string,inputBytes:number,pageMap:object[]}>}
  *   inputPath יחסי לשורש האחסון; pageMap בצורת PageMapEntrySchema (pageMapEntryToContract לחוזה).
  * @throws {LocalInputError} בשגיאת קלט סופית (no_pages, missing_image, unsupported_image,
- *   missing_timestamp, too_many_pages, input_too_large). כל חריגה אחרת — זמנית.
+ *   missing_timestamp, invalid_page_number, too_many_pages, input_too_large). כל חריגה אחרת — זמנית.
  */
 export async function buildJobInput({ jobId, pages, limits = readLocalLimits(), env = process.env }) {
   if (typeof jobId !== 'string' || !JOB_ID_RE.test(jobId)) throw new Error('invalid_job_id');

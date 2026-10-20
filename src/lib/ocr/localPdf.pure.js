@@ -90,6 +90,7 @@ const ERROR_MESSAGES_HE = {
   missing_image: (list) => `חסרות או פגומות תמונות בעמודים: ${list}`,
   unsupported_image: (list) => `פורמט תמונה שאינו נתמך (רק JPEG ו-PNG) בעמודים: ${list}`,
   missing_timestamp: (list) => `חסר מועד עדכון לעמודים: ${list}`,
+  invalid_page_number: (list) => `מספר עמוד לא תקין (חייב להיות שלם וחיובי): ${list}`,
 };
 
 // "1, 2, 3 ועוד 17" — עד 20 מספרים ברשימה
@@ -123,12 +124,15 @@ const isValidDate = (d) => d instanceof Date && !Number.isNaN(d.getTime());
 export function buildPageMap(pagesWithHashes) {
   const missingTs = pagesWithHashes.filter((p) => !isValidDate(p.updatedAt)).map((p) => p.pageNumber);
   if (missingTs.length) throw new LocalInputError('missing_timestamp', { pageNumbers: missingTs });
+  // החוזה דורש pageNumber שלם >= 1, וסכמת Page לא אוכפת זאת — נתון פגום ב-DB הוא שגיאת קלט
+  // סופית (ניסיון חוזר ייכשל שוב), לא חריגה זמנית.
+  const badNumbers = pagesWithHashes.filter((p) => !Number.isInteger(p.pageNumber) || p.pageNumber < 1).map((p) => p.pageNumber);
+  if (badNumbers.length) throw new LocalInputError('invalid_page_number', { pageNumbers: badNumbers });
   const seenIds = new Set();
   return pagesWithHashes.map((p, i) => {
     const id = String(p._id ?? '');
     if (!id || seenIds.has(id)) throw new Error('invalid_page_id');
     seenIds.add(id);
-    if (!Number.isInteger(p.pageNumber) || p.pageNumber < 1) throw new Error('invalid_page_number');
     if (typeof p.imageSha256 !== 'string' || !SHA256_RE.test(p.imageSha256)) throw new Error('invalid_image_sha256');
     return {
       pdfPageIndex: i + 1,
