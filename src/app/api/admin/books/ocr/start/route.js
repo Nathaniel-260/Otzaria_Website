@@ -9,6 +9,7 @@ import OcrJob from '@/models/OcrJob';
 import { hasBookLibraryAccess } from '@/lib/roles';
 import { runOcrJob } from '@/lib/ocr/runOcrJob';
 import { reapStaleOcrJobs } from '@/lib/ocr/staleJobs';
+import { activeFilter } from '@/lib/ocr/localJobState';
 import { badRequest, notFound, requireAccess, serverError } from '@/lib/apiResponse';
 
 const ALLOWED_METHODS = ['gemini', 'ocrwin'];
@@ -59,8 +60,8 @@ export async function POST(request) {
     // שחרור עבודה תקועה (שרת שהופעל מחדש באמצע) לפני הבדיקה, כדי לא לחסום לשווא
     await reapStaleOcrJobs(book._id);
 
-    // מניעת שתי עבודות במקביל על אותו ספר
-    const existing = await OcrJob.findOne({ book: book._id, status: 'running' });
+    // מניעת שתי עבודות פעילות במקביל על אותו ספר (בכל הספקים, כולל local)
+    const existing = await OcrJob.findOne({ book: book._id, ...activeFilter() });
     if (existing) {
       return NextResponse.json(
         { error: 'כבר רצה עבודת OCR על הספר הזה', jobId: existing._id.toString() },
@@ -100,6 +101,7 @@ export async function POST(request) {
         existingTextMode,
         splitColumns: !!splitColumns,
         status: 'running',
+        active: true,
         totalPages: totalToProcess,
         editedPagesCount,
         startedBy: session.user?._id || session.user?.id,
