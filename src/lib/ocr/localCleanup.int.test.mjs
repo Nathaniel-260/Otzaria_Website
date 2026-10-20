@@ -204,7 +204,7 @@ test('rejected של תוצאה מתנגשת שטרם נבדקה נשמר; אחר
   assert.equal(j.filesPurgedAt.getTime(), t2.getTime());
 });
 
-test('rejected של דחייה בקליטה: 10 ימים — נשמר, 31 יום — נמחק; לא רשום/תועה לפי mtime', async (t) => {
+test('rejected של דחייה בקליטה: 10 ימים — נשמר, 31 יום — נמחק; לא רשום/תועה — לא נמחק לעולם', async (t) => {
   if (db.skip) return t.skip(db.skip);
   const now = new Date();
   const job = await makeAcked(now, 25 * HOUR, {
@@ -218,15 +218,15 @@ test('rejected של דחייה בקליטה: 10 ימים — נשמר, 31 יום
   await writeFiles(job, [`result-${E}.json`], { mtime: ago(now, 2 * DAY) });
 
   const s = await run(now);
-  assert.equal(s.rejectedDeleted, 2);
-  assert.equal(s.kept, 2);
-  assert.deepEqual(await filesOf(job), [`rejected-${C}.json`, `result-${E}.json`]);
+  assert.equal(s.rejectedDeleted, 1);
+  assert.equal(s.kept, 3);
+  assert.deepEqual(await filesOf(job), [`rejected-${C}.json`, `rejected-${E}.json`, `result-${E}.json`]);
   assert.equal((await load(job._id)).filesPurgedAt, null);
 
-  // יום אחרי הבדיקה — נבדקת שוב; 21 יום אחר כך הדחייה בת 31 יום והתועה בת 23 — עדיין נשמר
+  // 21 יום אחר כך הדחייה בת 31 יום — נמחקת; הלא-רשומים (בני 52 ו-23 יום) — נשמרים
   const s2 = await run(new Date(now.getTime() + 21 * DAY));
   assert.equal(s2.scanned, 1);
-  assert.deepEqual(await filesOf(job), [`result-${E}.json`]);
+  assert.deepEqual(await filesOf(job), [`rejected-${E}.json`, `result-${E}.json`]);
 });
 
 test('ביטול לפני 25 שעות בלי ack: הקלט (וגם יתום) נמחק; לפני 23 — נשמר', async (t) => {

@@ -6,7 +6,6 @@ import {
   fileDecision,
   HOUR_MS,
   jobFilesEligibility,
-  needsMtime,
   parseJobFileName,
 } from './localCleanup.pure.js';
 
@@ -66,7 +65,7 @@ test('jobFilesEligibility: 24 שעות מ-ackAt; בלי ack — רק failed/canc
   assert.equal(jobFilesEligibility({ ...noAck, status: 'failed' }, NOW), null, 'בלי שום זמן — לא');
 });
 
-test('fileDecision: קלט ותוצאה מאושרת נמחקים; תוצאה מתנגשת עד שנבדקה; דחייה ותועה — 30 יום', () => {
+test('fileDecision: קלט ותוצאה מאושרת נמחקים; תוצאה מתנגשת עד שנבדקה; דחייה — 30 יום; לא רשום — לעולם לא', () => {
   const job = acked({
     resultConflicts: [{ sha256: B, receivedAt: ago(40 * DAY_MS) }],
     resultRejections: [
@@ -74,7 +73,7 @@ test('fileDecision: קלט ותוצאה מאושרת נמחקים; תוצאה מ
       { sha256: 'd'.repeat(64), receivedAt: ago(31 * DAY_MS) },
     ],
   });
-  const d = (name, mtimeMs) => fileDecision({ name, mtimeMs }, job, NOW);
+  const d = (name) => fileDecision({ name }, job, NOW);
   assert.equal(d(`input-${C}.pdf`).action, 'delete');
   assert.deepEqual(d(`result-${A}.json`), { action: 'delete', kind: 'result', reason: 'acknowledged_result' });
   assert.equal(d(`rejected-${B}.json`).reason, 'unreviewed_conflict');
@@ -85,11 +84,17 @@ test('fileDecision: קלט ותוצאה מאושרת נמחקים; תוצאה מ
   );
   assert.equal(d(`rejected-${C}.json`).reason, 'recent_rejection');
   assert.equal(d(`rejected-${'d'.repeat(64)}.json`).action, 'delete');
-  assert.equal(d(`rejected-${'e'.repeat(64)}.json`, ago(29 * DAY_MS).getTime()).action, 'keep');
-  assert.equal(d(`rejected-${'e'.repeat(64)}.json`, ago(31 * DAY_MS).getTime()).action, 'delete');
-  assert.equal(d(`rejected-${'e'.repeat(64)}.json`).action, 'keep', 'בלי mtime — לא מוחקים');
-  assert.equal(d(`result-${'f'.repeat(64)}.json`, ago(1 * DAY_MS).getTime()).reason, 'stray_result');
-  assert.equal(d(`result-${'f'.repeat(64)}.json`, ago(31 * DAY_MS).getTime()).action, 'delete');
+  // לא רשום (קריסה לפני הרישום) — לא מסיקים שאינו דורש בדיקה, גם אם הקובץ ישן מאוד (סקירה W01)
+  assert.deepEqual(d(`rejected-${'e'.repeat(64)}.json`), { action: 'keep', kind: 'rejected', reason: 'unlisted_rejected' });
+  assert.equal(fileDecision({ name: `rejected-${'e'.repeat(64)}.json`, mtimeMs: 0 }, job, NOW).action, 'keep');
+  assert.deepEqual(d(`result-${'f'.repeat(64)}.json`), { action: 'keep', kind: 'result', reason: 'stray_result' });
+  // result-<sha> רשום (קריסה בין הרישום להעברה ל-rejected) — לפי הרשומה
+  assert.equal(d(`result-${B}.json`).reason, 'unreviewed_conflict');
+  assert.equal(d(`result-${'d'.repeat(64)}.json`).reason, 'old_rejection');
+  assert.equal(
+    fileDecision({ name: `result-${B}.json` }, { ...job, resultConflicts: [{ sha256: B, reviewedAt: NOW }] }, NOW).reason,
+    'reviewed_conflict'
+  );
   assert.equal(d('notes.txt').action, 'keep');
 });
 
@@ -98,17 +103,6 @@ test('fileDecision: קובץ בשם ה-hash הנעול בלי ack — לא נמ�
   const old = ago(400 * DAY_MS).getTime();
   assert.equal(fileDecision({ name: `result-${A}.json`, mtimeMs: old }, job, NOW).action, 'keep');
   assert.equal(fileDecision({ name: `rejected-${A}.json`, mtimeMs: old }, job, NOW).action, 'keep');
-});
-
-test('needsMtime: רק לקובץ תועה/לא רשום', () => {
-  const job = acked({ resultConflicts: [{ sha256: B }], resultRejections: [{ sha256: C }] });
-  assert.equal(needsMtime(`input-${B}.pdf`, job), false);
-  assert.equal(needsMtime(`result-${A}.json`, job), false);
-  assert.equal(needsMtime(`result-${B}.json`, job), true);
-  assert.equal(needsMtime(`rejected-${B}.json`, job), false);
-  assert.equal(needsMtime(`rejected-${C}.json`, job), false);
-  assert.equal(needsMtime(`rejected-${'e'.repeat(64)}.json`, job), true);
-  assert.equal(needsMtime('x.txt', job), false);
 });
 
 test('cleanupCandidateFilter: local, סגורה, חיתוך 24 שעות', () => {

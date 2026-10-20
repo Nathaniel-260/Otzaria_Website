@@ -17,8 +17,9 @@ import mongoose from 'mongoose';
 import OcrJob from '../../models/OcrJob.js';
 import Page from '../../models/Page.js';
 import OcrConflict from '../../models/OcrConflict.js';
-import { intakeResult } from './localResultIntake.js';
-import { APPLY_LEASE_MS, resumeStalledApplies, resumeStalledApply } from './localApply.js';
+import { intakeResult, MAX_RESULT_REJECTIONS } from './localResultIntake.js';
+import { APPLY_LEASE_MS, MAX_RESULT_CONFLICTS, resumeStalledApplies, resumeStalledApply } from './localApply.js';
+import { purgeJobFiles } from './localCleanup.js';
 import { isValidAck, resumeRetryDelayMs } from './localApply.pure.js';
 import { cancelLocalJob } from './localCancel.js';
 import { startMongo } from '../corrections/testing/mongo.js';
@@ -190,6 +191,130 @@ test('hash אחר → 409 result_conflict, נשמר לבירור; ה-ack המק�
   // גוף שלא תואם לכותרת באותו מסלול — hash_mismatch
   const bad = await send(job._id, other, { sha });
   assert.deepEqual([bad.status, bad.body], [400, { error: 'hash_mismatch' }]);
+});
+
+// סקירה W01: רשומת התנגשות שלא נבדקה לא נדחקת, וקובץ שלה לא נמחק בניקוי
+const DAY = 24 * 60 * 60 * 1000;
+const docSha = (doc) => sha256(Buffer.from(JSON.stringify(doc)));
+const conflictDoc = (job, i) => resultDoc(job, 'success', { pipelineVersion: `conflict-${i}` });
+const rejectedFiles = (files) => files.filter((f) => f.startsWith('rejected-'));
+
+test('21 התנגשויות שלא נבדקו: הראשונה לא נדחקת ולא נמחקת בניקוי +31 יום; מעל התקרה 409 בלי קובץ; "נבדק" מפנה מקום', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const { job } = await makeJob({ n: 1 });
+  const t0 = new Date();
+  const doc = resultDoc(job);
+  expectAck(await send(job._id, doc, { now: t0 }), 'accepted', job, docSha(doc), 'success');
+
+  const shas = [];
+  for (let i = 0; i <= MAX_RESULT_CONFLICTS; i++) {
+    shas.push(docSha(conflictDoc(job, i)));
+    const r = await send(job._id, conflictDoc(job, i), { now: new Date(t0.getTime() + i + 1) });
+    assert.deepEqual([r.status, r.body], [409, { error: 'result_conflict' }]);
+  }
+  const first = `rejected-${shas[0]}.json`;
+  const over = shas[MAX_RESULT_CONFLICTS];
+  let j = await load(job._id);
+  assert.deepEqual(j.resultConflicts.map((c) => c.sha256), shas.slice(0, MAX_RESULT_CONFLICTS), 'הראשונה לא נדחקה');
+  let files = await filesOf(job);
+  assert.ok(files.includes(first));
+  assert.ok(!files.some((f) => f.includes(over)), 'מעל התקרה — הקובץ לא נשמר (אין רשומה שתאפשר לבדוק אותו)');
+
+  // ניקוי עם שעון +31 יום: אף תוצאה מתנגשת שלא נבדקה לא נמחקת
+  const later = new Date(t0.getTime() + 31 * DAY);
+  const out = await purgeJobFiles(j, { now: later, env });
+  assert.equal(out.deleted.rejected, 0);
+  files = await filesOf(job);
+  assert.ok(files.includes(first), 'הקובץ הראשון לא נמחק');
+  assert.equal(rejectedFiles(files).length, MAX_RESULT_CONFLICTS);
+
+  // "סמן כנבדק" (אותו עדכון כמו result-conflicts/route.js) → מקום להתנגשות חדשה; הניקוי מוחק רק את שנבדקה
+  await OcrJob.updateOne(
+    { _id: job._id, resultConflicts: { $elemMatch: { sha256: shas[0], reviewedAt: null } } },
+    { $set: { 'resultConflicts.$.reviewedAt': later } }
+  );
+  const again = await send(job._id, conflictDoc(job, MAX_RESULT_CONFLICTS), { now: later });
+  assert.equal(again.status, 409);
+  j = await load(job._id);
+  assert.equal(j.resultConflicts.length, MAX_RESULT_CONFLICTS + 1);
+  assert.ok((await filesOf(job)).includes(`rejected-${over}.json`));
+  const out2 = await purgeJobFiles(j, { now: new Date(later.getTime() + 1), env });
+  assert.equal(out2.deleted.rejected, 1);
+  files = await filesOf(job);
+  assert.ok(!files.includes(first));
+  assert.equal(rejectedFiles(files).length, MAX_RESULT_CONFLICTS);
+});
+
+test('קריסה בין רישום ההתנגשות להעברה ל-rejected: result-<sha> רשום נשמר; שליחה חוזרת משלימה; קובץ לא רשום לא נמחק', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const { job } = await makeJob({ n: 1 });
+  const t0 = new Date();
+  const doc = resultDoc(job);
+  expectAck(await send(job._id, doc, { now: t0 }), 'accepted', job, docSha(doc), 'success');
+
+  // מצב אחרי קריסה: הרשומה נכתבה (קודם), הקובץ עוד בשם result-<sha>
+  const other = conflictDoc(job, 'crash');
+  const otherSha = docSha(other);
+  const dir = path.join(root, String(job._id));
+  await fs.writeFile(path.join(dir, `result-${otherSha}.json`), JSON.stringify(other));
+  await OcrJob.updateOne(
+    { _id: job._id },
+    { $push: { resultConflicts: { sha256: otherSha, receivedAt: t0, bytes: 1, path: `${job._id}/rejected-${otherSha}.json` } } }
+  );
+  // וקובץ שאינו רשום כלל (קריסה לפני הרישום)
+  const stray = 'e'.repeat(64);
+  await fs.writeFile(path.join(dir, `rejected-${stray}.json`), '{}');
+  await fs.utimes(path.join(dir, `rejected-${stray}.json`), new Date(t0.getTime() - 60 * DAY), new Date(t0.getTime() - 60 * DAY));
+
+  const later = new Date(t0.getTime() + 31 * DAY);
+  await purgeJobFiles(await load(job._id), { now: later, env });
+  assert.deepEqual(await filesOf(job), [`rejected-${stray}.json`, `result-${otherSha}.json`]);
+
+  // שליחה חוזרת של אותה תוצאה מתנגשת: 409, הקובץ עובר ל-rejected, בלי רשומה כפולה
+  const r = await send(job._id, other, { now: later });
+  assert.equal(r.status, 409);
+  assert.deepEqual(await filesOf(job), [`rejected-${otherSha}.json`, `rejected-${stray}.json`]);
+  assert.equal((await load(job._id)).resultConflicts.length, 1);
+});
+
+test('hash אחר אחרי ack וניקוי: התיקייה נוצרת מחדש, ההתנגשות נשמרת עד "נבדק" ואז נמחקת', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const { job } = await makeJob({ n: 1 });
+  const t0 = new Date(Date.now() - 2 * DAY);
+  const doc = resultDoc(job);
+  expectAck(await send(job._id, doc, { now: t0 }), 'accepted', job, docSha(doc), 'success');
+  const t1 = new Date(t0.getTime() + 25 * 60 * 60 * 1000);
+  assert.equal((await purgeJobFiles(await load(job._id), { now: t1, env })).dirRemoved, true);
+
+  const other = conflictDoc(job, 'late');
+  const t2 = new Date(t1.getTime() + 60 * 1000);
+  assert.equal((await send(job._id, other, { now: t2 })).status, 409);
+  assert.deepEqual(await filesOf(job), [`rejected-${docSha(other)}.json`]);
+  const t3 = new Date(t2.getTime() + 31 * DAY);
+  assert.equal((await purgeJobFiles(await load(job._id), { now: t3, env })).deleted.rejected, 0);
+  assert.deepEqual(await filesOf(job), [`rejected-${docSha(other)}.json`]);
+
+  await OcrJob.updateOne({ _id: job._id }, { $set: { 'resultConflicts.0.reviewedAt': t3 } });
+  const out = await purgeJobFiles(await load(job._id), { now: t3, env });
+  assert.equal(out.deleted.rejected, 1);
+  assert.equal(out.dirRemoved, true);
+});
+
+test('דחיות בקליטה: רשומות לא נדחקות; מעל התקרה — אותה תשובה (422) בלי קובץ', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const { job } = await makeJob({ n: 1 });
+  const shas = [];
+  for (let i = 0; i <= MAX_RESULT_REJECTIONS; i++) {
+    const bad = resultDoc(job, 'success', { pages: [{ pdfPageIndex: 9, text: `x${i}` }] });
+    shas.push(docSha(bad));
+    assert.equal((await send(job._id, bad)).status, 422);
+  }
+  const j = await load(job._id);
+  assert.deepEqual(j.resultRejections.map((r) => r.sha256), shas.slice(0, MAX_RESULT_REJECTIONS));
+  const files = await filesOf(job);
+  assert.equal(rejectedFiles(files).length, MAX_RESULT_REJECTIONS);
+  assert.ok(files.includes(`rejected-${shas[0]}.json`));
+  assert.ok(!files.some((f) => f.includes(shas[MAX_RESULT_REJECTIONS])));
 });
 
 test('קריסה באמצע ההחלה → שליחה חוזרת ממשיכה (accepted), כל עמוד נכתב פעם אחת בדיוק', async (t) => {

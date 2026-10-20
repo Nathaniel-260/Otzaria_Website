@@ -24,7 +24,6 @@ import {
   fileDecision,
   FILE_RETENTION_MS,
   jobFilesEligibility,
-  needsMtime,
   parseJobFileName,
 } from './localCleanup.pure.js';
 
@@ -94,13 +93,7 @@ export async function purgeJobFiles(job, { now = new Date(), env = process.env, 
       anyLeft = true; // תיקייה/קישור/שם לא מוכר/קובץ זמני — לא נוגעים
       continue;
     }
-    let mtimeMs;
-    if (needsMtime(entry.name, job)) {
-      const st = await fs.lstat(/*turbopackIgnore: true*/ abs).catch(() => null);
-      if (!st) continue; // נעלם בינתיים
-      mtimeMs = st.mtimeMs;
-    }
-    const decision = fileDecision({ name: entry.name, mtimeMs }, job, now);
+    const decision = fileDecision({ name: entry.name }, job, now);
     if (decision.action === 'delete') {
       try {
         await fs.unlink(/*turbopackIgnore: true*/ abs);

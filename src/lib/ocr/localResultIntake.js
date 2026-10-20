@@ -9,11 +9,12 @@
 // imports יחסיים בלבד (נבדק ב-node:test).
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import OcrJob from '../../models/OcrJob.js';
 import { storageRoot, writeJobFileDurable } from './localStorage.js';
 import { MAX_RESULT_BYTES, parseResultBytes, validateResult, validationDetails } from './localResultValidate.js';
-import { moveToRejected, receiveResult, storedAnswerFor } from './localApply.js';
+import { receiveResult, recordRejectedFile, storedAnswerFor } from './localApply.js';
 
+// תקרת בטיחות לרשומות דחייה בעבודה (לא נדחקות — הניקוי מוחק קובץ דחייה לפי receivedAt שברשומה):
+// מעליה דחייה נוספת עונה אותו 400/422/410 בלי לשמור קובץ
 export const MAX_RESULT_REJECTIONS = 20;
 export const STORAGE_RETRY_AFTER_SEC = 300;
 // שגיאות דיסק/הרשאה בכתיבה — זמניות מבחינת העובד (503 + Retry-After), לא 500 עם פרטים
@@ -98,21 +99,19 @@ async function storageMissing(env) {
   }
 }
 
-// תוצאה שנדחתה: הקובץ עובר ל-rejected-<sha>.json ונרשם בעבודה (פעם אחת לכל hash, עד 20 אחרונות).
-// התוצאה הנעולה של העבודה (אם יש) לעולם לא מוזזת.
+// תוצאה שנדחתה: נרשמת בעבודה ואחר כך עוברת ל-rejected-<sha>.json (פעם אחת לכל hash, עד
+// MAX_RESULT_REJECTIONS רשומות). התוצאה הנעולה של העבודה (אם יש) לעולם לא מוזזת.
 async function recordRejection(job, sha, file, now, reason, details, env) {
-  const rel = job.resultSha256 === sha ? file.relPath : await moveToRejected(job._id, sha, file.absPath, env);
-  await OcrJob.updateOne(
-    { _id: job._id, 'resultRejections.sha256': { $ne: sha } },
-    {
-      $push: {
-        resultRejections: {
-          $each: [{ sha256: sha, receivedAt: now, bytes: file.bytes, path: rel, reason, details }],
-          $slice: -MAX_RESULT_REJECTIONS,
-        },
-      },
-    }
-  );
+  const locked = job.resultSha256 === sha;
+  await recordRejectedFile({
+    job,
+    sha,
+    file: locked ? null : file,
+    field: 'resultRejections',
+    entry: { receivedAt: now, bytes: file.bytes, reason, details, ...(locked ? { path: file.relPath } : {}) },
+    limitExpr: { $lt: [{ $size: { $ifNull: ['$resultRejections', []] } }, MAX_RESULT_REJECTIONS] },
+    env,
+  });
 }
 
 /**

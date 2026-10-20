@@ -47,6 +47,9 @@ const DURABLE = { writeConcern: { w: 1, j: true } };
 export const APPLY_LEASE_MS = 5 * 60 * 1000;
 export const APPLY_RETRY_AFTER_SEC = 30;
 export const APPLY_CONCURRENCY = 16;
+// תקרת בטיחות לתוצאות מתנגשות שטרם סומנו "נבדק" (כל אחת עד 100MiB בדיסק). רשומה לא נדחקת לעולם
+// מהרשימה (הניקוי מוחק קובץ מתנגש רק אחרי reviewedAt); מעל התקרה תוצאה מתנגשת חדשה נדחית באותו
+// 409 result_conflict בלי לשמור את הקובץ — "סמן כנבדק" מפנה מקום. היסטוריה שנבדקה לא נספרת.
 export const MAX_RESULT_CONFLICTS = 20;
 
 const ok = (body) => ({ status: 200, body });
@@ -59,10 +62,13 @@ const isCancelled = (job) => job?.decision === 'cancel' || job?.status === 'canc
 // ack (למשל נכשלה בהכנה) — לא נפתחת מחדש (410 job_closed).
 const acceptsResult = (job) => job?.active === true || isCancelled(job);
 
+const rejectedTarget = (jobId, sha, env) =>
+  path.join(/*turbopackIgnore: true*/ jobDir(String(jobId), env), jobFileName('rejected', sha));
+
 // result-<sha>.json → rejected-<sha>.json באותה תיקייה (קובץ שנדחה נשמר לבירור). חסר — בשקט.
 export async function moveToRejected(jobId, sha, absPath, env = process.env) {
   if (!absPath) return null;
-  const target = path.join(/*turbopackIgnore: true*/ jobDir(String(jobId), env), jobFileName('rejected', sha));
+  const target = rejectedTarget(jobId, sha, env);
   try {
     await fs.rename(/*turbopackIgnore: true*/ absPath, target);
   } catch (e) {
@@ -71,20 +77,68 @@ export async function moveToRejected(jobId, sha, absPath, env = process.env) {
   return absToRel(target, env);
 }
 
-// תוצאה עם hash שונה מהנעול: נשמרת לבירור (פעם אחת לכל hash, עד 20 אחרונות), העבודה וה-ack לא משתנים
-async function rejectConflict(job, sha, file, now, env) {
-  const rel = file?.absPath ? await moveToRejected(job._id, sha, file.absPath, env) : null;
-  await OcrJob.updateOne(
-    { _id: job._id, 'resultConflicts.sha256': { $ne: sha } },
+/**
+ * רישום קובץ תוצאה שנדחה (field: 'resultConflicts' / 'resultRejections') ואחריו העברתו ל-rejected.
+ * הסדר מכוון: קודם הרשומה (j:true), אחר כך ה-rename — קריסה ביניהם משאירה result-<sha>.json *רשום*,
+ * שהניקוי מטפל בו לפי הרשומה (localCleanup.pure.js), ולא קובץ "לא רשום". רשומה קיימת לא נדחקת
+ * (אין $slice); limitExpr — תנאי התקרה ($expr), ומעליה הקובץ נמחק בלי רישום.
+ * file: { absPath, bytes } או null (הקובץ נשאר במקומו — למשל ה-hash הנעול; entry.path מגיע מבחוץ).
+ * @returns {Promise<boolean>} האם ה-hash רשום בעבודה (חדש או מקודם)
+ */
+export async function recordRejectedFile({ job, sha, file, field, entry, limitExpr, env = process.env }) {
+  const rel = file?.absPath ? absToRel(rejectedTarget(job._id, sha, env), env) : (entry.path ?? null);
+  const res = await OcrJob.updateOne(
+    { _id: job._id, [`${field}.sha256`]: { $ne: sha }, $expr: limitExpr },
+    { $push: { [field]: { ...entry, sha256: sha, path: rel } } },
+    DURABLE
+  );
+  let listed = res.matchedCount > 0;
+  let lockedNow = job.resultSha256 === sha;
+  if (!listed) {
+    const fresh = await OcrJob.findById(job._id).select(`${field}.sha256 resultSha256`).lean();
+    listed = (fresh?.[field] || []).some((x) => x?.sha256 === sha);
+    lockedNow ||= fresh?.resultSha256 === sha;
+  }
+  if (!file?.absPath || lockedNow) return listed; // הקובץ הנעול לעולם לא מוזז/נמחק
+  if (listed) {
+    await moveToRejected(job._id, sha, file.absPath, env);
+  } else {
+    // מעל התקרה: לא שומרים קובץ שאין רשומה שתאפשר לבדוק ולסמן אותו
+    console.warn(`[ocr-worker] ${field} limit reached job=${String(job._id)} — result file not kept`);
+    await fs.unlink(/*turbopackIgnore: true*/ file.absPath).catch((e) => {
+      if (e?.code !== 'ENOENT') console.error(`[ocr-worker] discard failed code=${String(e?.code)}`);
+    });
+  }
+  return listed;
+}
+
+// מספר התוצאות המתנגשות שטרם סומנו "נבדק" קטן מהתקרה
+const unreviewedConflictsBelowLimit = {
+  $lt: [
     {
-      $push: {
-        resultConflicts: {
-          $each: [{ sha256: sha, receivedAt: now, bytes: file?.bytes ?? null, path: rel }],
-          $slice: -MAX_RESULT_CONFLICTS,
+      $size: {
+        $filter: {
+          input: { $ifNull: ['$resultConflicts', []] },
+          cond: { $eq: [{ $ifNull: ['$$this.reviewedAt', null] }, null] },
         },
       },
-    }
-  );
+    },
+    MAX_RESULT_CONFLICTS,
+  ],
+};
+
+// תוצאה עם hash שונה מהנעול: נשמרת לבירור (פעם אחת לכל hash, עד שתסומן "נבדק"; מעל התקרה של
+// התנגשויות פתוחות — לא נשמרת), העבודה וה-ack לא משתנים. התשובה תמיד 409 result_conflict.
+async function rejectConflict(job, sha, file, now, env) {
+  await recordRejectedFile({
+    job,
+    sha,
+    file,
+    field: 'resultConflicts',
+    entry: { receivedAt: now, bytes: file?.bytes ?? null },
+    limitExpr: unreviewedConflictsBelowLimit,
+    env,
+  });
   return err(409, 'result_conflict');
 }
 

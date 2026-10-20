@@ -5,11 +5,13 @@
 //
 // מדיניות לכל קובץ בתיקיית עבודה סגורה (active:false) שעברה את חלון השמירה:
 //   input-<sha>.pdf      → נמחק (כל קובץ קלט, כולל קובץ יתום של הכנה שהפסידה במרוץ).
-//   result-<sha>.json    → התוצאה הנעולה (resultSha256) נמחקת רק אם יש ack. קובץ result אחר
-//                          ("תועה" — בקשה שנקטעה בין הכתיבה להעברה ל-rejected) נמחק אחרי 30 יום.
+//   result-<sha>.json    → התוצאה הנעולה (resultSha256) נמחקת רק אם יש ack. קובץ result אחר —
+//                          כמו rejected (בקשה שנקטעה בין הרישום להעברה ל-rejected, או לפני הרישום).
 //   rejected-<sha>.json  → תוצאה מתנגשת (resultConflicts) נשמרת עד שסומנה כנבדקה (reviewedAt);
 //                          תוצאה שנדחתה בקליטה (resultRejections: 400/422/410) — 30 יום מקבלתה;
-//                          קובץ שאינו רשום (נדחק מרשימת ה-20 האחרונות) — 30 יום לפי mtime.
+//                          קובץ שאינו רשום באף רשימה — לא נמחק אוטומטית לעולם: היעדר רשומה (קריסה
+//                          לפני הרישום) אינו הוכחה שהקובץ לא דורש בדיקה. הרשימות לא נדחקות (ראו
+//                          recordRejectedFile ב-localApply.js), כך שקובץ רשום לא הופך ל"לא רשום".
 //   כל שם אחר (כולל קבצים זמניים — sweepTmpFiles מטפל בהם) → לא נוגעים.
 // קובץ ששמו מכיל את resultSha256 הנעול לא נמחק לעולם כשאין ack (גם אם שמו rejected-…).
 // imports: אין (נבדק ב-node:test).
@@ -56,7 +58,7 @@ export function jobFilesEligibility(job, now, retentionMs = FILE_RETENTION_MS) {
 
 /**
  * החלטה לקובץ אחד בתיקיית עבודה שכבר נמצאה כשירה (jobFilesEligibility ≠ null).
- * @param {{name:string, mtimeMs?:number}} file — mtimeMs נדרש רק לקבצים "תועים"/לא רשומים
+ * @param {{name:string}} file
  * @returns {{action:'delete'|'keep', kind:string|null, reason:string}}
  */
 export function fileDecision(file, job, now, { rejectedRetentionMs = REJECTED_RETENTION_MS } = {}) {
@@ -71,25 +73,13 @@ export function fileDecision(file, job, now, { rejectedRetentionMs = REJECTED_RE
   const oldEnough = (t) => Number.isFinite(t) && t <= now.getTime() - rejectedRetentionMs;
 
   if (kind === 'input') return del('input');
-  if (kind === 'result') {
-    if (sha === locked) return del('acknowledged_result');
-    return oldEnough(file.mtimeMs) ? del('stale_stray_result') : keep('stray_result');
-  }
-  // rejected
+  if (kind === 'result' && sha === locked) return del('acknowledged_result');
+  // rejected, או result שאינו הנעול (נשאר בשמו המקורי אם הבקשה נקטעה לפני ההעברה ל-rejected)
   const conflict = (job.resultConflicts || []).find((c) => c?.sha256 === sha);
   if (conflict) return conflict.reviewedAt ? del('reviewed_conflict') : keep('unreviewed_conflict');
   const rejection = (job.resultRejections || []).find((r) => r?.sha256 === sha);
   if (rejection) return oldEnough(time(rejection.receivedAt)) ? del('old_rejection') : keep('recent_rejection');
-  return oldEnough(file.mtimeMs) ? del('old_unlisted_rejected') : keep('unlisted_rejected');
-}
-
-// האם להחלטה דרוש mtime (קובץ "תועה" או לא רשום) — כדי לא לקרוא lstat לכל קובץ
-export function needsMtime(name, job) {
-  const parsed = parseJobFileName(name);
-  if (!parsed || parsed.kind === 'input') return false;
-  if (parsed.kind === 'result') return parsed.sha !== lockedSha(job);
-  const listed = (list) => (list || []).some((x) => x?.sha256 === parsed.sha);
-  return !listed(job.resultConflicts) && !listed(job.resultRejections);
+  return keep(kind === 'result' ? 'stray_result' : 'unlisted_rejected');
 }
 
 /**
