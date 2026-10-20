@@ -84,11 +84,16 @@ export default function BookOcrDialog({ book, onClose }) {
 
   const handleCancel = async () => {
     try {
-      await fetch('/api/admin/books/ocr/cancel', {
+      const res = await fetch('/api/admin/books/ocr/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookId: book.id }),
       })
+      // 409 apply_started — "הקליטה כבר החלה": מציגים את ההודעה מהשרת
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error || 'ביטול העבודה נכשל')
+      }
       await fetchStatus()
     } catch (e) {
       setError('תקלה בתקשורת')

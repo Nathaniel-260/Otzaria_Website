@@ -25,6 +25,8 @@ const { getServerSessionMock, buildCtl } = vi.hoisted(() => ({
   buildCtl: { failNext: 0, calls: 0, hold: null },
 }))
 vi.mock('@/lib/db', () => ({ default: vi.fn().mockResolvedValue(undefined) }))
+// ראוט מחיקת הספר מרענן תגית מטמון — מחוץ ל-Next אין store לזה
+vi.mock('next/cache', () => ({ revalidateTag: vi.fn() }))
 vi.mock('next-auth', () => ({ getServerSession: getServerSessionMock }))
 vi.mock('@/app/api/auth/[...nextauth]/route', () => ({ authOptions: {} }))
 vi.mock('@/lib/ocr/runOcrJob', () => ({ runOcrJob: vi.fn().mockResolvedValue(undefined) }))
@@ -63,6 +65,8 @@ import { startMongo } from '@/lib/corrections/testing/mongo.js'
 import { runOcrJob } from '@/lib/ocr/runOcrJob'
 import { relToAbs } from '@/lib/ocr/localStorage'
 import { POST } from './route'
+import { POST as cancelPOST } from '../cancel/route'
+import { DELETE as deleteBook } from '../../delete/route'
 
 vi.setConfig({ testTimeout: 30000 })
 
@@ -429,16 +433,22 @@ describe('QA שלב 4: מרוצים ומקרי קצה', () => {
     expect(sha(await fs.readFile(relToAbs(done.inputPath)))).toBe(done.inputSha256)
   })
 
-  it('ביטול בזמן ההכנה → אין 202, העבודה לא עוברת ל-queued והקובץ נמחק', async () => {
+  it('ביטול בזמן ההכנה (דרך ראוט הביטול) → אין 202, העבודה לא עוברת ל-queued והקובץ נמחק', async () => {
     const requestId = rid()
     const hold = holdBuild()
     const pending = start({ requestId })
     await hold.wait
     const job = await OcrJob.findOne({ requestId }).lean()
-    await OcrJob.updateOne(
-      { _id: job._id, status: 'preparing' },
-      { $set: { status: 'cancelled', active: false, cancelRequested: true, decision: 'cancel', prepLeaseUntil: null } }
-    )
+    const cancelRes = await cancelPOST(post({ bookId: String(book._id) }))
+    expect(cancelRes.status).toBe(200)
+    expect(await OcrJob.findById(job._id).lean()).toMatchObject({
+      status: 'cancelled',
+      active: false,
+      decision: 'cancel',
+      cancelReason: 'admin',
+      cancelledByName: 'מנהל ספרים',
+      prepLeaseUntil: null,
+    })
     hold.release()
     const { res, body } = await pending
     expect(res.status).toBe(409)
@@ -480,5 +490,69 @@ describe('QA שלב 4: מרוצים ומקרי קצה', () => {
     expect(ocrwin.status).toBe(200)
     expect(runOcrJob).toHaveBeenCalledTimes(1)
     expect(await OcrJob.findById(stale.body.jobId).lean()).toMatchObject({ status: 'failed', active: false, errorCode: 'prep_abandoned' })
+  })
+})
+
+describe('שלב 5: ביטול, נעילת החלטה ומחיקת ספר (ראוטים אמיתיים)', () => {
+  const cancel = async (body) => {
+    const res = await cancelPOST(post(body))
+    return { res, body: await res.json() }
+  }
+
+  it('ביטול queued → 200, cancelled מתועד, והספר פנוי לעבודה חדשה', async () => {
+    const first = await start({ requestId: rid() })
+    expect(first.res.status).toBe(202)
+    const c = await cancel({ jobId: first.body.jobId })
+    expect(c.res.status).toBe(200)
+    expect(c.body).toEqual({ success: true })
+    const job = await OcrJob.findById(first.body.jobId).lean()
+    expect(job).toMatchObject({ status: 'cancelled', active: false, cancelRequested: true, decision: 'cancel', cancelReason: 'admin' })
+    // קלט ופרטי האימות נשמרים לקליטה מאוחרת (ack=cancelled בשלב 8)
+    expect(job.inputSha256).toMatch(/^[0-9a-f]{64}$/)
+    expect(job.pageMap).toHaveLength(3)
+    expect(await fs.stat(relToAbs(job.inputPath))).toBeTruthy()
+    // ביטול נוסף — אין עבודה פעילה
+    expect((await cancel({ bookId: String(book._id) })).res.status).toBe(404)
+    const second = await start({ requestId: rid() })
+    expect(second.res.status).toBe(202)
+    expect(second.body.jobId).not.toBe(first.body.jobId)
+  })
+
+  it('ביטול אחרי שהקליטה החלה (decision=apply) → 409 בעברית, העבודה לא משתנה', async () => {
+    const first = await start({ requestId: rid() })
+    await OcrJob.updateOne({ _id: first.body.jobId }, { $set: { status: 'applying', decision: 'apply', resultSha256: 'f'.repeat(64) } })
+    const before = await OcrJob.findById(first.body.jobId).lean()
+    const c = await cancel({ bookId: String(book._id) })
+    expect(c.res.status).toBe(409)
+    expect(c.body).toEqual({ error: 'הקליטה כבר החלה — לא ניתן לבטל', code: 'apply_started' })
+    expect(await OcrJob.findById(first.body.jobId).lean()).toEqual(before)
+  })
+
+  it('מחיקת ספר עם עבודה פעילה → העבודה נשארת כהיסטוריה, cancelled עם cancelReason=book_deleted', async () => {
+    const first = await start({ requestId: rid() })
+    const res = await deleteBook(post({ bookId: String(book._id) }))
+    expect(res.status).toBe(200)
+    expect(await Book.findById(book._id).lean()).toBeNull()
+    expect(await Page.countDocuments({ book: book._id })).toBe(0)
+    const job = await OcrJob.findById(first.body.jobId).lean()
+    expect(job).toMatchObject({
+      status: 'cancelled',
+      active: false,
+      decision: 'cancel',
+      cancelReason: 'book_deleted',
+      cancelledByName: 'מנהל ספרים',
+    })
+    expect(job.cancelledAt).toBeInstanceOf(Date)
+  })
+
+  it('מחיקת ספר בזמן קליטת תוצאה → 409 ושום דבר לא נמחק', async () => {
+    const first = await start({ requestId: rid() })
+    await OcrJob.updateOne({ _id: first.body.jobId }, { $set: { status: 'applying', decision: 'apply' } })
+    const res = await deleteBook(post({ bookId: String(book._id) }))
+    expect(res.status).toBe(409)
+    expect((await res.json()).code).toBe('apply_started')
+    expect(await Book.findById(book._id).lean()).not.toBeNull()
+    expect(await Page.countDocuments({ book: book._id })).toBe(3)
+    expect((await OcrJob.findById(first.body.jobId).lean()).status).toBe('applying')
   })
 })

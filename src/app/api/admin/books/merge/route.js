@@ -11,6 +11,12 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { hasBookLibraryAccess } from '@/lib/roles';
 import { CACHE_TAGS, revalidateNow } from '@/lib/cacheTags';
 import { badRequest, notFound, requireAccess, serverError } from '@/lib/apiResponse';
+import {
+    BOOK_APPLY_IN_PROGRESS_MESSAGE_HE,
+    cancelActiveOcrForBooks,
+    cancelLateOcrJobsQuiet,
+    isOcrApplyInProgress,
+} from '@/lib/ocr/localCancel';
 
 const UPLOAD_ROOT = path.resolve(/*turbopackIgnore: true*/ process.env.UPLOAD_DIR || path.join(/*turbopackIgnore: true*/ process.cwd(), 'public', 'uploads'));
 
@@ -41,6 +47,22 @@ export async function POST(request) {
 
         if (sortedOldBooks.length < 2) {
             return notFound('חלק מהספרים לא נמצאו');
+        }
+
+        // הספרים הישנים נמחקים בסוף המיזוג — ביטול מתועד של עבודות OCR פעילות שלהם קודם,
+        // לפני יצירת הספר החדש ולפני כל שינוי. אם קליטת תוצאה מקומית בעיצומה — 409 ולא נוגעים.
+        const oldBookIds = sortedOldBooks.map(b => b._id);
+        const cancelOpts = { reason: 'book_merged', byName: session.user?.name || '' };
+        try {
+            await cancelActiveOcrForBooks(oldBookIds, cancelOpts);
+        } catch (err) {
+            if (isOcrApplyInProgress(err)) {
+                return NextResponse.json(
+                    { error: BOOK_APPLY_IN_PROGRESS_MESSAGE_HE, code: 'apply_started' },
+                    { status: 409 }
+                );
+            }
+            throw err;
         }
 
         const safeName = slugify(newName, { replacement: '-', remove: /[*+~.()'"!:@\/\\?]/g, lower: false, strict: false });
@@ -191,6 +213,9 @@ export async function POST(request) {
                 }
             }
         }
+
+        // עבודה שהתחילה על ספר ישן בזמן המיזוג — מבוטלת גם היא (לא זורק)
+        await cancelLateOcrJobsQuiet(oldBookIds, cancelOpts);
 
         revalidateNow(CACHE_TAGS.BOOKS_ADMIN_LIST);
 
