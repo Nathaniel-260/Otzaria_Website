@@ -1,0 +1,382 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import BookOcrDialog from './BookOcrDialog'
+
+const book = { id: '507f1f77bcf86cd799439011', name: 'ספר בדיקה' }
+const fetchMock = vi.fn()
+
+const reply = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
+
+const ONLINE = { configured: true, lastSeenAt: new Date().toISOString(), availability: 'online' }
+
+function statusBody({ job = null, worker = ONLINE, counts = { pagesWithImage: 10, editedPagesCount: 0 }, conflictsOpen = 0 } = {}) {
+  return { success: true, counts, job, worker, conflictsOpen }
+}
+
+function localJob(overrides = {}) {
+  return {
+    id: '507f1f77bcf86cd799439022',
+    method: 'local',
+    status: 'queued',
+    totalPages: 10,
+    processedPages: 0,
+    successPages: 0,
+    failedPages: 0,
+    progress: { phase: null, pagesDone: 0, pagesTotal: 10 },
+    workerMessage: null,
+    decision: null,
+    summary: { applied: 0, failed: 0, conflicts: 0, missing: 0 },
+    pageErrors: [],
+    resultConflicts: [],
+    resultRejections: [],
+    ...overrides,
+  }
+}
+
+/**
+ * routes: { status?: () => body | body[], start?: (body) => response, cancel?: (body) => response, ... }
+ * מחזיר את רשימת הקריאות לכל נתיב (גוף JSON מפוענח).
+ */
+function mockApi({ status = () => statusBody(), start, cancel, conflicts, conflictAction, review } = {}) {
+  const calls = { start: [], cancel: [], status: 0, conflicts: [], conflictAction: [], review: [] }
+  fetchMock.mockImplementation(async (url, init = {}) => {
+    const body = init.body ? JSON.parse(init.body) : undefined
+    if (url.startsWith('/api/admin/books/ocr/status')) {
+      calls.status++
+      return reply(200, status(calls.status))
+    }
+    if (url === '/api/admin/books/ocr/start') {
+      calls.start.push(body)
+      return start(body, calls.start.length)
+    }
+    if (url === '/api/admin/books/ocr/cancel') {
+      calls.cancel.push(body)
+      return cancel(body)
+    }
+    if (url.startsWith('/api/admin/books/ocr/conflicts/')) {
+      calls.conflictAction.push({ url, body })
+      return conflictAction(url, body)
+    }
+    if (url.startsWith('/api/admin/books/ocr/conflicts')) {
+      calls.conflicts.push(url)
+      return conflicts(url)
+    }
+    if (url === '/api/admin/books/ocr/result-conflicts') {
+      calls.review.push(body)
+      return review(body)
+    }
+    throw new Error(`unexpected fetch ${url}`)
+  })
+  return calls
+}
+
+const renderDialog = (props = {}) => render(<BookOcrDialog book={book} onClose={vi.fn()} localRetryDelayMs={0} {...props} />)
+
+beforeEach(() => {
+  fetchMock.mockReset()
+  global.fetch = fetchMock
+  window.sessionStorage.clear()
+})
+
+describe('BookOcrDialog — ספק מחשב מקומי', () => {
+  it('בחירת local ולחיצה שולחות method:local עם requestId ו-options; בלי splitColumns', async () => {
+    const calls = mockApi({ start: () => reply(202, { success: true, jobId: 'j1', status: 'queued', totalPages: 10 }) })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(await screen.findByRole('button', { name: /מחשב מקומי/ }))
+    // חיתוך לטורים אינו נתמך בעיבוד המקומי — מוסתר
+    expect(screen.queryByText('חיתוך ל-2 טורים (ימין/שמאל)')).not.toBeInTheDocument()
+    await user.click(screen.getByLabelText(/מודרני/))
+    await user.click(screen.getByLabelText('רש"י'))
+    await user.click(screen.getByRole('button', { name: /שלח לתור 10 עמודים/ }))
+
+    await waitFor(() => expect(calls.start).toHaveLength(1))
+    const sent = calls.start[0]
+    expect(sent).toMatchObject({
+      bookId: book.id,
+      method: 'local',
+      existingTextMode: 'skip',
+      options: { lm: 'modern', defaultScript: 'rashi' },
+    })
+    expect(sent.requestId).toMatch(/^[A-Za-z0-9_-]{8,64}$/)
+    expect(sent).not.toHaveProperty('splitColumns')
+  })
+
+  it('כשל רשת (כולל הניסיונות החוזרים) ולחיצה שוב — אותו requestId בכל הבקשות', async () => {
+    let fail = true
+    const calls = mockApi({
+      start: () => {
+        if (fail) throw new TypeError('Failed to fetch')
+        return reply(202, { success: true, jobId: 'j1', status: 'queued', totalPages: 10 })
+      },
+    })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(await screen.findByRole('button', { name: /מחשב מקומי/ }))
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('לא תיווצר עבודה כפולה')
+    // ניסיון ראשון + 6 ניסיונות חוזרים אוטומטיים
+    expect(calls.start).toHaveLength(7)
+
+    fail = false
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+    await waitFor(() => expect(calls.start).toHaveLength(8))
+    const ids = new Set(calls.start.map((b) => b.requestId))
+    expect(ids.size).toBe(1)
+  })
+
+  it('שינוי הטיפול בעמודים ערוכים יוצר requestId חדש', async () => {
+    const calls = mockApi({
+      status: () => statusBody({ counts: { pagesWithImage: 10, editedPagesCount: 4 } }),
+      start: () => reply(500, { error: 'הכנת קובץ הקלט נכשלה בשל תקלה זמנית. אפשר לנסות שוב', code: 'preparation_retry' }),
+    })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(await screen.findByRole('button', { name: /מחשב מקומי/ }))
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('הכנת קובץ הקלט נכשלה')
+    // 500 — אותו requestId נשמר ללחיצה חוזרת
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+    await waitFor(() => expect(calls.start).toHaveLength(2))
+    expect(calls.start[1].requestId).toBe(calls.start[0].requestId)
+
+    await user.click(screen.getByLabelText(/דרוס אותם/))
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+    await waitFor(() => expect(calls.start).toHaveLength(3))
+    expect(calls.start[2].existingTextMode).toBe('overwrite')
+    expect(calls.start[2].requestId).not.toBe(calls.start[0].requestId)
+  })
+
+  it('202 עם status:failed אינו "התחיל" — הודעה, והטופס נשאר', async () => {
+    mockApi({ start: () => reply(202, { success: true, jobId: 'j1', status: 'failed', totalPages: 0 }) })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(await screen.findByRole('button', { name: /מחשב מקומי/ }))
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('כבר נכשלה ולא התחילה')
+    expect(screen.getByRole('button', { name: /שלח לתור/ })).toBeInTheDocument()
+  })
+
+  it.each([
+    [409, { error: 'כבר קיימת עבודת OCR פעילה לספר הזה', code: 'active_job' }, 'כבר קיימת עבודת OCR פעילה לספר הזה'],
+    [413, { error: 'הספר גדול מדי', code: 'too_many_pages' }, 'הספר גדול מדי'],
+    [422, { error: 'חסרות תמונות', code: 'missing_image', pageNumbers: [3, 4] }, 'חסרות תמונות (עמודים: 3, 4)'],
+    [503, { error: 'ספק המחשב המקומי אינו מוגדר בשרת', code: 'local_not_configured' }, 'ספק המחשב המקומי אינו מוגדר בשרת'],
+  ])('תשובה %i מוצגת בעברית', async (code, body, text) => {
+    const calls = mockApi({ start: () => reply(code, body) })
+    const user = userEvent.setup()
+    renderDialog()
+    await user.click(await screen.findByRole('button', { name: /מחשב מקומי/ }))
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(text)
+    expect(calls.start).toHaveLength(1)
+  })
+
+  it('409 preparing — ניסיון חוזר אוטומטי עם אותו requestId עד 202', async () => {
+    const calls = mockApi({
+      start: (_b, n) => (n < 3
+        ? reply(409, { error: 'הבקשה עדיין בהכנה, נסו שוב בעוד רגע', code: 'preparing' })
+        : reply(202, { success: true, jobId: 'j1', status: 'queued', totalPages: 10 })),
+      status: (n) => statusBody({ job: n > 1 ? localJob() : null }),
+    })
+    const user = userEvent.setup()
+    renderDialog()
+    await user.click(await screen.findByRole('button', { name: /מחשב מקומי/ }))
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+    expect(await screen.findByText('ממתין למחשב המקומי')).toBeInTheDocument()
+    expect(calls.start).toHaveLength(3)
+    expect(new Set(calls.start.map((b) => b.requestId)).size).toBe(1)
+  })
+
+  it('ספק local מושבת כשאינו מוגדר בשרת', async () => {
+    mockApi({ status: () => statusBody({ worker: { configured: false, lastSeenAt: null, availability: 'never' } }) })
+    renderDialog()
+    const btn = await screen.findByRole('button', { name: /מחשב מקומי/ })
+    expect(btn).toBeDisabled()
+    expect(within(btn).getByText('לא מוגדר בשרת')).toBeInTheDocument()
+  })
+})
+
+describe('BookOcrDialog — מצבי עבודה מקומית', () => {
+  it('queued עם מחשב לא זמין — הודעת אי-הזמינות (תצוגה בלבד), בלי שום ביטול', async () => {
+    const calls = mockApi({
+      status: () => statusBody({
+        job: localJob({ status: 'queued' }),
+        worker: { configured: true, lastSeenAt: new Date(Date.now() - 30 * 60_000).toISOString(), availability: 'offline' },
+      }),
+    })
+    renderDialog()
+    expect(await screen.findByText('ממתין למחשב המקומי')).toBeInTheDocument()
+    expect(screen.getByText(/המחשב המעבד לא זמין \(נראה לאחרונה: לפני 30 דקות\)/)).toBeInTheDocument()
+    expect(screen.getByText(/העבודה שמורה בתור ותמשיך כשיחזור/)).toBeInTheDocument()
+    expect(calls.cancel).toHaveLength(0)
+  })
+
+  it('מחשב שמעולם לא התחבר — גם כן לא זמין', async () => {
+    mockApi({ status: () => statusBody({ job: localJob(), worker: { configured: true, lastSeenAt: null, availability: 'never' } }) })
+    renderDialog()
+    expect(await screen.findByText(/המחשב המעבד לא זמין \(נראה לאחרונה: מעולם לא התחבר\)/)).toBeInTheDocument()
+  })
+
+  it('running — פס התקדמות לפי pagesDone/pagesTotal', async () => {
+    mockApi({ status: () => statusBody({ job: localJob({ status: 'running', progress: { phase: 'ocr', pagesDone: 3, pagesTotal: 12 } }) }) })
+    renderDialog()
+    expect(await screen.findByText('בעיבוד')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25')
+    expect(screen.getByText('3 מתוך 12 עמודים')).toBeInTheDocument()
+    expect(screen.queryByText(/המחשב המעבד לא זמין/)).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['preparing', 'מכין קובץ לעיבוד'],
+    ['pausing', 'בהשהיה'],
+    ['paused_runner', 'מושהה — GitHub Runner פעיל'],
+    ['delivery_pending', 'העיבוד הסתיים — ממתין למסירה'],
+    ['applying', 'קולט תוצאות לעמודים'],
+  ])('מצב %s מוצג כ"%s"', async (status, label) => {
+    mockApi({ status: () => statusBody({ job: localJob({ status }) }) })
+    renderDialog()
+    expect(await screen.findByText(label)).toBeInTheDocument()
+  })
+
+  it('needs_attention — workerMessage כטקסט רגיל בלבד (לא HTML)', async () => {
+    const msg = 'חסר קובץ מודל <b>tess</b> <img src=x onerror=alert(1)>'
+    mockApi({ status: () => statusBody({ job: localJob({ status: 'needs_attention', workerMessage: msg }) }) })
+    const { container } = renderDialog()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('דורש טיפול במחשב המעבד')
+    expect(alert).toHaveTextContent(msg)
+    expect(container.querySelector('b')).toBeNull()
+    expect(container.querySelector('img')).toBeNull()
+  })
+
+  it('ביטול שמקבל 409 apply_started מציג "הקליטה כבר החלה"', async () => {
+    const calls = mockApi({
+      status: () => statusBody({ job: localJob({ status: 'delivery_pending' }) }),
+      cancel: () => reply(409, { error: 'הקליטה כבר החלה — לא ניתן לבטל', code: 'apply_started' }),
+    })
+    const user = userEvent.setup()
+    renderDialog()
+    await user.click(await screen.findByRole('button', { name: 'ביטול העבודה' }))
+    await user.click(screen.getByRole('button', { name: 'כן, לבטל' }))
+    expect(await screen.findByText('הקליטה כבר החלה — לא ניתן לבטל')).toBeInTheDocument()
+    expect(calls.cancel).toEqual([{ jobId: '507f1f77bcf86cd799439022' }])
+  })
+
+  it('ביטול מוצלח — לפי מזהה העבודה, ו"בוטל" מוצג לפי status', async () => {
+    let cancelled = false
+    const calls = mockApi({
+      status: () => statusBody({
+        job: cancelled
+          ? localJob({ status: 'cancelled', cancelReason: 'admin', cancelledByName: 'מנהל א' })
+          : localJob({ status: 'running', cancelReason: 'admin' }),
+      }),
+      cancel: () => {
+        cancelled = true
+        return reply(200, { success: true })
+      },
+    })
+    const user = userEvent.setup()
+    renderDialog()
+    // cancelReason לבדו (בלי status) אינו "בוטל"
+    expect(await screen.findByText('בעיבוד')).toBeInTheDocument()
+    expect(screen.queryByText('בוטל')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'ביטול העבודה' }))
+    await user.click(screen.getByRole('button', { name: 'כן, לבטל' }))
+    expect(await screen.findByText('בוטל')).toBeInTheDocument()
+    expect(screen.getByText('בוטלה בידי מנהל א.')).toBeInTheDocument()
+    expect(calls.cancel).toHaveLength(1)
+  })
+
+  it('applying — כפתור הביטול מנוטרל', async () => {
+    mockApi({ status: () => statusBody({ job: localJob({ status: 'applying', decision: 'apply' }) }) })
+    renderDialog()
+    expect(await screen.findByRole('button', { name: 'ביטול העבודה' })).toBeDisabled()
+  })
+
+  it('failed עם errorCode no_pages_succeeded — הודעת הכשל', async () => {
+    mockApi({
+      status: () => statusBody({
+        job: localJob({ status: 'failed', errorCode: 'no_pages_succeeded', error: '', summary: { applied: 0, failed: 3, conflicts: 0, missing: 0 } }),
+      }),
+    })
+    renderDialog()
+    expect(await screen.findByText(/העבודה נכשלה: אף עמוד לא נקלט/)).toBeInTheDocument()
+    expect(screen.getByText('נכשלו: 3')).toBeInTheDocument()
+  })
+
+  it('completed עם התנגשויות — סיכום ופאנל ההתנגשויות', async () => {
+    const calls = mockApi({
+      status: () => statusBody({
+        job: localJob({ status: 'completed', resultOutcome: 'success', summary: { applied: 7, failed: 0, conflicts: 1, missing: 2 } }),
+        conflictsOpen: 1,
+      }),
+      conflicts: () => reply(200, {
+        success: true,
+        total: 1,
+        openCount: 1,
+        hasMore: false,
+        conflicts: [{ id: 'c1', pageNumber: 4, status: 'open', ocrText: 'OCR', pageContent: 'אנושי', pageExists: true, pageUpdatedAt: '2026-10-20T10:00:00.000Z' }],
+      }),
+    })
+    renderDialog()
+    expect(await screen.findByText('הוחלו: 7')).toBeInTheDocument()
+    expect(screen.getByText('עמודים שנמחקו: 2')).toBeInTheDocument()
+    expect(await screen.findByText('עמוד 4')).toBeInTheDocument()
+    expect(calls.conflicts[0]).toContain('jobId=507f1f77bcf86cd799439022')
+  })
+
+  it('תוצאה מתנגשת — "סמן כנבדק" שולח את ה-sha', async () => {
+    const sha = 'a'.repeat(64)
+    const calls = mockApi({
+      status: () => statusBody({
+        job: localJob({ status: 'completed', resultConflicts: [{ sha256: sha, receivedAt: '2026-10-20T10:00:00.000Z', bytes: 2048, reviewedAt: null }] }),
+      }),
+      review: () => reply(200, { success: true, sha256: sha, reviewedAt: '2026-10-20T11:00:00.000Z' }),
+    })
+    const user = userEvent.setup()
+    renderDialog()
+    await user.click(await screen.findByRole('button', { name: 'סמן כנבדק' }))
+    expect(await screen.findByText('נבדק')).toBeInTheDocument()
+    expect(calls.review).toEqual([{ jobId: '507f1f77bcf86cd799439022', sha256: sha }])
+  })
+
+  it('תוצאה שנדחתה מוצגת עם הסיבה', async () => {
+    mockApi({
+      status: () => statusBody({
+        job: localJob({ status: 'delivery_pending', resultRejections: [{ sha256: 'b'.repeat(64), receivedAt: '2026-10-20T10:00:00.000Z', bytes: 10, reason: 'validation_failed', details: 'pages[0]: missing text' }] }),
+      }),
+    })
+    renderDialog()
+    expect(await screen.findByText('התוצאה לא עברה בדיקת תקינות')).toBeInTheDocument()
+    expect(screen.getByText('pages[0]: missing text')).toBeInTheDocument()
+  })
+})
+
+describe('BookOcrDialog — Gemini/OCRWin ללא שינוי', () => {
+  it('OCRWin: גוף הבקשה הקיים, בלי requestId', async () => {
+    const calls = mockApi({ start: () => reply(200, { success: true, jobId: 'j', totalPages: 10 }) })
+    const user = userEvent.setup()
+    renderDialog()
+    await user.click(await screen.findByRole('button', { name: /התחל OCR ל-10 עמודים/ }))
+    await waitFor(() => expect(calls.start).toHaveLength(1))
+    expect(calls.start[0]).toEqual({ bookId: book.id, method: 'ocrwin', model: 'gemini-2.5-pro', existingTextMode: 'skip', splitColumns: false })
+  })
+
+  it('עבודת OCRWin רצה — תצוגת ההתקדמות הקיימת ועצירה לפי bookId', async () => {
+    const calls = mockApi({
+      status: () => statusBody({ job: { id: 'j', method: 'ocrwin', status: 'running', totalPages: 4, processedPages: 1, successPages: 1, failedPages: 0, currentPageNumber: 2 } }),
+      cancel: () => reply(200, { success: true }),
+    })
+    const user = userEvent.setup()
+    renderDialog()
+    expect(await screen.findByText(/1 מתוך 4 עמודים/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /עצור את העבודה/ }))
+    await waitFor(() => expect(calls.cancel).toEqual([{ bookId: book.id }]))
+  })
+})

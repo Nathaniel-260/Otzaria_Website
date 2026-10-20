@@ -1,0 +1,115 @@
+'use client'
+
+import { useState } from 'react'
+import Button from '@/components/ui/Button'
+import AppIcon from '@/components/ui/AppIcon'
+import OcrStatusBadge from './OcrStatusBadge'
+import OcrProgressBar from './OcrProgressBar'
+import WorkerOfflineNotice from './WorkerOfflineNotice'
+import { canCancel, formatLastSeen, isWorkerUnavailable, progressCounts, progressPercent } from './ocrJobView'
+
+// הסבר קצר לכל מצב פעיל של עבודת local (מתחת לתג המצב)
+const STATUS_HINTS = {
+  preparing: 'השרת מכין את קובץ העמודים לעיבוד. בספר גדול זה עשוי להימשך כמה דקות.',
+  queued: 'העבודה בתור, וממתינה שהמחשב המקומי יאסוף אותה.',
+  running: 'המחשב המקומי מעבד את העמודים.',
+  pausing: 'המחשב המקומי עוצר את העיבוד באופן מסודר.',
+  paused_runner: 'המחשב המקומי עסוק כרגע במשימת GitHub Runner. העיבוד יימשך מאותה נקודה כשתסתיים.',
+  delivery_pending: 'העיבוד במחשב המקומי הסתיים, והתוצאה ממתינה למסירה לשרת.',
+  applying: 'השרת קולט את התוצאות לעמודי הספר. בשלב זה כבר לא ניתן לבטל.',
+  needs_attention: 'העיבוד נעצר וממתין לטיפול ידני במחשב המעבד.',
+}
+
+/**
+ * תצוגת עבודת OCR מקומי פעילה: מצב, התקדמות, זמינות המחשב המעבד, הודעת העובד וביטול.
+ * workerMessage מוצג כטקסט רגיל בלבד (React מבצע escape) — לעולם לא כ-HTML.
+ *
+ * @param {{
+ *   job: any,
+ *   worker: any,
+ *   onCancel: () => Promise<void>|void,
+ *   cancelling?: boolean,
+ *   now?: Date,
+ * }} props
+ */
+export default function LocalOcrJobProgress({ job, worker, onCancel, cancelling = false, now }) {
+  const [confirming, setConfirming] = useState(false)
+  const { done, total } = progressCounts(job)
+  const percent = progressPercent(job)
+  const cancellable = canCancel(job)
+  const applying = job.status === 'applying' || job.decision === 'apply'
+  const message = typeof job.workerMessage === 'string' ? job.workerMessage.trim() : ''
+
+  const confirmCancel = async () => {
+    setConfirming(false)
+    await onCancel()
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm text-on-surface-variant">עיבוד במחשב מקומי</span>
+        <OcrStatusBadge status={job.status} />
+      </div>
+
+      {STATUS_HINTS[job.status] && (
+        <p className="text-sm text-on-surface-variant">{STATUS_HINTS[job.status]}</p>
+      )}
+
+      {job.status === 'needs_attention' && (
+        <div role="alert" className="flex items-start gap-2 rounded-control bg-error-container p-3 text-sm text-on-error-container">
+          <AppIcon name="warning" className="text-base" />
+          <div>
+            <p className="font-bold">דורש טיפול במחשב המעבד</p>
+            {message && <p className="mt-1 whitespace-pre-wrap break-words">{message}</p>}
+          </div>
+        </div>
+      )}
+
+      {total > 0 && (
+        <OcrProgressBar percent={percent} caption={`${done} מתוך ${total} עמודים`} />
+      )}
+
+      {isWorkerUnavailable(job, worker) ? (
+        <WorkerOfflineNotice worker={worker} now={now} />
+      ) : worker?.availability === 'online' ? (
+        <p className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+          <AppIcon name="computer" className="text-sm" />
+          המחשב המעבד מחובר (נראה לאחרונה: {formatLastSeen(worker.lastSeenAt, now)})
+        </p>
+      ) : null}
+
+      <p className="text-xs text-on-surface-variant">
+        אפשר לסגור את החלון ולחזור מאוחר יותר — העבודה שמורה בשרת.
+      </p>
+
+      {confirming ? (
+        <div className="space-y-3 rounded-control border border-outline-variant p-3">
+          <p className="text-sm text-on-surface">
+            לבטל את העבודה? העיבוד במחשב המקומי ייעצר, ותוצאה שתגיע אחר כך לא תיקלט לעמודים.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="danger" size="sm" icon="stop_circle" onClick={confirmCancel} loading={cancelling}>
+              כן, לבטל
+            </Button>
+            <Button variant="text" size="sm" onClick={() => setConfirming(false)}>
+              לא, להמשיך
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          variant="outlined"
+          fullWidth
+          icon="stop_circle"
+          onClick={() => setConfirming(true)}
+          disabled={!cancellable}
+          loading={cancelling}
+          title={applying ? 'הקליטה כבר החלה — לא ניתן לבטל' : undefined}
+        >
+          ביטול העבודה
+        </Button>
+      )}
+    </div>
+  )
+}
