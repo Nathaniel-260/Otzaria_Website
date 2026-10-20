@@ -436,3 +436,88 @@ describe('BookOcrDialog — Gemini/OCRWin ללא שינוי', () => {
     await waitFor(() => expect(calls.cancel).toEqual([{ bookId: book.id }]))
   })
 })
+
+describe('BookOcrDialog — המשך הכנה של עבודת local שנתקעה', () => {
+  const prepJob = (overrides = {}) =>
+    localJob({
+      status: 'preparing',
+      totalPages: 0,
+      existingTextMode: 'skip',
+      options: { lm: 'rabbinic', defaultScript: 'square' },
+      requestId: 'server-req-1234',
+      preparingStale: true,
+      ...overrides,
+    })
+
+  it('אחרי 500 preparation_retry — "המשך הכנה" מוצג (ולא כפתור ההתחלה) ושולח את אותו requestId', async () => {
+    let started = false
+    let sentRequestId = null
+    const calls = mockApi({
+      status: () => {
+        if (!sentRequestId) return statusBody()
+        if (started) return statusBody({ job: localJob({ status: 'queued' }) })
+        // השרת השאיר את העבודה ב-preparing; ה-lease שוחרר (preparation_retry)
+        return statusBody({ job: prepJob({ requestId: sentRequestId }) })
+      },
+      start: (body, n) => {
+        sentRequestId = body.requestId
+        if (n === 1) {
+          return reply(500, { error: 'הכנת קובץ הקלט נכשלה בשל תקלה זמנית. אפשר לנסות שוב', code: 'preparation_retry', jobId: 'j1' })
+        }
+        started = true
+        return reply(202, { success: true, jobId: 'j1', status: 'queued', totalPages: 10 })
+      },
+    })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(await screen.findByRole('button', { name: /מחשב מקומי/ }))
+    await user.click(screen.getByRole('button', { name: /שלח לתור/ }))
+
+    const resume = await screen.findByRole('button', { name: /המשך הכנה/ })
+    expect(screen.getByRole('alert')).toHaveTextContent('תקלה זמנית')
+    expect(screen.queryByRole('button', { name: /שלח לתור/ })).not.toBeInTheDocument()
+
+    await user.click(resume)
+    await waitFor(() => expect(calls.start).toHaveLength(2))
+    expect(calls.start[1]).toEqual({
+      bookId: book.id,
+      method: 'local',
+      requestId: calls.start[0].requestId,
+      existingTextMode: 'skip',
+      options: { lm: 'rabbinic', defaultScript: 'square' },
+    })
+    expect(await screen.findByText('ממתין למחשב המקומי')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /המשך הכנה/ })).not.toBeInTheDocument()
+  })
+
+  it('המזהה השמור אבד (פתיחה מחדש) — ההמשך משתמש ב-requestId ובפרמטרים שהשרת מחזיר', async () => {
+    const calls = mockApi({
+      status: () => statusBody({ job: prepJob({ existingTextMode: 'overwrite', options: { lm: 'off', defaultScript: 'rashi' } }) }),
+      start: () => reply(409, { error: 'הבקשה עדיין בהכנה, נסו שוב בעוד רגע', code: 'preparing', jobId: 'j1' }),
+    })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(await screen.findByRole('button', { name: /המשך הכנה/ }))
+    // 409 preparing (בקשה אחרת מחזיקה את ה-lease) — ניסיונות חוזרים, תמיד אותה בקשה
+    expect(await screen.findByRole('alert')).toHaveTextContent('לא תיווצר עבודה כפולה')
+    expect(calls.start).toHaveLength(7)
+    for (const sent of calls.start) {
+      expect(sent).toEqual({
+        bookId: book.id,
+        method: 'local',
+        requestId: 'server-req-1234',
+        existingTextMode: 'overwrite',
+        options: { lm: 'off', defaultScript: 'rashi' },
+      })
+    }
+  })
+
+  it('הכנה פעילה (lease בתוקף) — אין "המשך הכנה"', async () => {
+    mockApi({ status: () => statusBody({ job: prepJob({ preparingStale: false }) }) })
+    renderDialog()
+    expect(await screen.findByText('מכין קובץ לעיבוד')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /המשך הכנה/ })).not.toBeInTheDocument()
+  })
+})

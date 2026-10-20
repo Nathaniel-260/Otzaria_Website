@@ -7,7 +7,14 @@ import LocalOcrJobProgress from '@/components/admin/ocr/LocalOcrJobProgress'
 import OcrJobSummary from '@/components/admin/ocr/OcrJobSummary'
 import OcrConflictsPanel from '@/components/admin/ocr/OcrConflictsPanel'
 import LocalResultIssues from '@/components/admin/ocr/LocalResultIssues'
-import { LOCAL_DEFAULT_OPTIONS, isJobActive, isLocalJob, pollIntervalMs } from '@/components/admin/ocr/ocrJobView'
+import {
+  LOCAL_DEFAULT_OPTIONS,
+  canResumePreparation,
+  isJobActive,
+  isLocalJob,
+  pollIntervalMs,
+  resumePreparationPayload,
+} from '@/components/admin/ocr/ocrJobView'
 import {
   START_RETRY_DELAY_MS,
   clearRequestId,
@@ -63,6 +70,11 @@ export default function BookOcrDialog({ book, onClose, localRetryDelayMs = START
   const [starting, setStarting] = useState(false)
   const [startNote, setStartNote] = useState('')
   const [cancelling, setCancelling] = useState(false)
+  // "המשך הכנה" לעבודת local שנתקעה ב-preparing (ראו canResumePreparation)
+  const [resuming, setResuming] = useState(false)
+  const [resumeNote, setResumeNote] = useState('')
+  // הבקשה האחרונה (התחלה או המשך) נכשלה בתקלה שאפשר להמשיך ממנה (500 preparation_retry וכו')
+  const [lastStartNeedsResume, setLastStartNeedsResume] = useState(false)
 
   const pollRef = useRef(null)
   // requestId של בקשת local: { id, paramsKey } — נשמר לניסיונות החוזרים של אותה בקשה
@@ -152,12 +164,47 @@ export default function BookOcrDialog({ book, onClose, localRetryDelayMs = START
     setStartNote('')
     if (result.kind === 'started') {
       resetRequestId()
+      setLastStartNeedsResume(false)
       await fetchStatus()
       return
     }
     if (!result.keepRequestId) resetRequestId()
+    setLastStartNeedsResume(!!result.keepRequestId)
     setError(result.message)
     if (result.refresh) await fetchStatus()
+  }
+
+  // המשך הכנה של עבודת local שנתקעה ב-preparing: אותה בקשה בדיוק — ה-requestId והפרמטרים מהשרת
+  // (ולא מהטופס או מהאחסון המקומי, שאולי כבר נמחקו), כך שהשרת ממשיך את אותה עבודה.
+  const handleResumePreparation = async () => {
+    if (!job) return
+    setResuming(true)
+    setError('')
+    setResumeNote('ממשיך את הכנת קובץ העמודים… בספר גדול זה עשוי להימשך כמה דקות.')
+    const controller = new AbortController()
+    startAbortRef.current = controller
+    try {
+      const result = await postLocalStart({
+        payload: resumePreparationPayload(job, book.id),
+        delayMs: localRetryDelayMs,
+        onRetry: (n, total) => setResumeNote(`השרת עדיין לא השיב — מנסה שוב (${n}/${total}) עם אותה בקשה…`),
+        signal: controller.signal,
+      })
+      if (startAbortRef.current === controller) startAbortRef.current = null
+      if (result.kind === 'aborted') return
+      if (result.kind === 'started') {
+        setLastStartNeedsResume(false)
+      } else {
+        setLastStartNeedsResume(!!result.keepRequestId)
+        setError(result.message)
+      }
+      await fetchStatus()
+    } finally {
+      if (!controller.signal.aborted) {
+        setResuming(false)
+        setResumeNote('')
+      }
+    }
   }
 
   const handleStart = async () => {
@@ -258,7 +305,16 @@ export default function BookOcrDialog({ book, onClose, localRetryDelayMs = START
           ) : isRunning && isLocalJob(job) ? (
             // ===== עבודת מחשב מקומי פעילה =====
             <div className="space-y-4">
-              <LocalOcrJobProgress job={job} worker={worker} onCancel={handleCancel} cancelling={cancelling} />
+              <LocalOcrJobProgress
+                job={job}
+                worker={worker}
+                onCancel={handleCancel}
+                cancelling={cancelling}
+                canResume={canResumePreparation(job, { lastStartNeedsResume })}
+                onResume={handleResumePreparation}
+                resuming={resuming}
+                resumeNote={resumeNote}
+              />
               <LocalResultIssues job={job} onChanged={fetchStatus} />
             </div>
           ) : isRunning ? (

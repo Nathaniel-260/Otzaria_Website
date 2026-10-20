@@ -6,6 +6,7 @@ import AppIcon from '@/components/ui/AppIcon'
 import OcrStatusBadge from './OcrStatusBadge'
 import OcrProgressBar from './OcrProgressBar'
 import WorkerOfflineNotice from './WorkerOfflineNotice'
+import ResumePreparationNotice from './ResumePreparationNotice'
 import { canCancel, formatLastSeen, isWorkerUnavailable, progressCounts, progressPercent } from './ocrJobView'
 
 // הסבר קצר לכל מצב פעיל של עבודת local (מתחת לתג המצב)
@@ -29,10 +30,25 @@ const STATUS_HINTS = {
  *   worker: any,
  *   onCancel: () => Promise<void>|void,
  *   cancelling?: boolean,
+ *   canResume?: boolean,
+ *   onResume?: () => Promise<void>|void,
+ *   resuming?: boolean,
+ *   resumeNote?: string,
  *   now?: Date,
  * }} props
+ * canResume — הכנה שנעצרה (canResumePreparation ב-ocrJobView.js): מוצג "המשך הכנה" במקום ההסבר הרגיל.
  */
-export default function LocalOcrJobProgress({ job, worker, onCancel, cancelling = false, now }) {
+export default function LocalOcrJobProgress({
+  job,
+  worker,
+  onCancel,
+  cancelling = false,
+  canResume = false,
+  onResume,
+  resuming = false,
+  resumeNote = '',
+  now,
+}) {
   const [confirming, setConfirming] = useState(false)
   const { done, total } = progressCounts(job)
   const percent = progressPercent(job)
@@ -52,9 +68,11 @@ export default function LocalOcrJobProgress({ job, worker, onCancel, cancelling 
         <OcrStatusBadge status={job.status} />
       </div>
 
-      {STATUS_HINTS[job.status] && (
+      {canResume && onResume ? (
+        <ResumePreparationNotice onResume={onResume} resuming={resuming} note={resumeNote} />
+      ) : STATUS_HINTS[job.status] ? (
         <p className="text-sm text-on-surface-variant">{STATUS_HINTS[job.status]}</p>
-      )}
+      ) : null}
 
       {job.status === 'needs_attention' && (
         <div role="alert" className="flex items-start gap-2 rounded-control bg-error-container p-3 text-sm text-on-error-container">

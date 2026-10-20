@@ -6,7 +6,9 @@ import {
   LOCAL_LM_OPTIONS,
   LOCAL_SCRIPT_OPTIONS,
   canCancel,
+  canResumePreparation,
   cancelReasonLabel,
+  resumePreparationPayload,
   formatBytes,
   formatLastSeen,
   isWorkerUnavailable,
@@ -164,5 +166,27 @@ describe('אפשרויות העיבוד המקומי', () => {
     expect(LOCAL_DEFAULT_OPTIONS).toEqual(DEFAULT_LOCAL_OPTIONS)
     expect(LOCAL_LM_OPTIONS.map((o) => o.value)).toEqual([...LOCAL_OPTION_VALUES.lm])
     expect(LOCAL_SCRIPT_OPTIONS.map((o) => o.value)).toEqual([...LOCAL_OPTION_VALUES.defaultScript])
+  })
+})
+
+describe('canResumePreparation / resumePreparationPayload', () => {
+  const prep = { method: 'local', status: 'preparing', requestId: 'req-12345678', existingTextMode: 'skip', options: { lm: 'modern', defaultScript: 'rashi' } }
+  it('רק עבודת local בהכנה עם requestId, כשה-lease פג או שהבקשה האחרונה דורשת המשך', () => {
+    expect(canResumePreparation({ ...prep, preparingStale: true })).toBe(true)
+    expect(canResumePreparation({ ...prep, preparingStale: false })).toBe(false)
+    expect(canResumePreparation({ ...prep, preparingStale: false }, { lastStartNeedsResume: true })).toBe(true)
+    expect(canResumePreparation({ ...prep, preparingStale: true, requestId: null })).toBe(false)
+    expect(canResumePreparation({ ...prep, preparingStale: true, status: 'queued' })).toBe(false)
+    expect(canResumePreparation({ ...prep, preparingStale: true, method: 'ocrwin' })).toBe(false)
+    expect(canResumePreparation(null)).toBe(false)
+  })
+  it('הגוף — אותו requestId ואותם פרמטרים של העבודה, בלי שדות זרים', () => {
+    expect(resumePreparationPayload({ ...prep, options: { ...prep.options, extra: 1 } }, 'b1')).toEqual({
+      bookId: 'b1',
+      method: 'local',
+      requestId: 'req-12345678',
+      existingTextMode: 'skip',
+      options: { lm: 'modern', defaultScript: 'rashi' },
+    })
   })
 })

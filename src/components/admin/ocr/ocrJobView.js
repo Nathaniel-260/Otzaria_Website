@@ -85,6 +85,30 @@ export function canCancel(job) {
   return true
 }
 
+// "המשך הכנה": עבודת local שנתקעה בהכנה — ה-lease של ההכנה פג (preparingStale מהשרת), או שהבקשה
+// האחרונה מהדיאלוג נכשלה בתקלה שאפשר להמשיך ממנה (preparation_retry וכו'). דורש את ה-requestId
+// מהשרת: ההמשך הוא אותה בקשה (אותה עבודה), לא בקשה חדשה.
+export function canResumePreparation(job, { lastStartNeedsResume = false } = {}) {
+  if (!isLocalJob(job) || job.status !== 'preparing') return false
+  if (typeof job.requestId !== 'string' || !job.requestId) return false
+  return job.preparingStale === true || lastStartNeedsResume === true
+}
+
+// גוף בקשת ה-start להמשך ההכנה — אותו requestId ואותם פרמטרים שהעבודה נוצרה איתם (השרת משווה
+// fingerprint; פרמטרים אחרים היו נדחים ב-409 request_conflict)
+export function resumePreparationPayload(job, bookId) {
+  const options = {}
+  if (job?.options?.lm) options.lm = job.options.lm
+  if (job?.options?.defaultScript) options.defaultScript = job.options.defaultScript
+  return {
+    bookId,
+    method: 'local',
+    requestId: job?.requestId,
+    existingTextMode: job?.existingTextMode,
+    options,
+  }
+}
+
 export function methodLabel(job) {
   if (!job) return ''
   if (job.method === 'gemini') return `Gemini · ${job.model || ''}`.trim()

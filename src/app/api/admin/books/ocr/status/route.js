@@ -10,6 +10,7 @@ import OcrWorkerState from '@/models/OcrWorkerState';
 import OcrConflict from '@/models/OcrConflict';
 import { readWorkerConfig } from '@/lib/ocr/workerAuth';
 import { WORKER_ONLINE_WINDOW_MS, workerAvailability } from '@/lib/ocr/localJobState';
+import { prepLeaseExpired } from '@/lib/ocr/localJobCreate.pure';
 import { hasBookLibraryAccess } from '@/lib/roles';
 import { reapStaleOcrJobs } from '@/lib/ocr/staleJobs';
 import { badRequest, notFound, requireAccess, serverError } from '@/lib/apiResponse';
@@ -34,7 +35,21 @@ async function readWorkerInfo(now) {
   };
 }
 
-function serializeJob(job) {
+// עבודת local בהכנה: requestId (כדי שהממשק יוכל להמשיך את אותה בקשה גם אם המזהה השמור אצלו
+// אבד), ו-preparingStale — ה-lease של ההכנה פג (הכנה שנקטעה / תקלה זמנית שהחזירה
+// preparation_retry), כלומר אף בקשה לא בונה כרגע את הקובץ ואפשר ללחוץ "המשך הכנה".
+function preparationInfo(job, now) {
+  if (job.method !== 'local' || job.status !== 'preparing') {
+    return { requestId: null, prepLeaseUntil: null, preparingStale: false };
+  }
+  return {
+    requestId: typeof job.requestId === 'string' ? job.requestId : null,
+    prepLeaseUntil: job.prepLeaseUntil ?? null,
+    preparingStale: prepLeaseExpired(job, now),
+  };
+}
+
+function serializeJob(job, now) {
   return {
     id: job._id.toString(),
     status: job.status,
@@ -63,6 +78,7 @@ function serializeJob(job) {
     workerMessage: job.workerMessage ?? null,
     lastSeenAt: job.lastSeenAt ?? null,
     preparedAt: job.preparedAt ?? null,
+    ...preparationInfo(job, now),
     cancelRequested: !!job.cancelRequested,
     decision: job.decision ?? null,
     resultOutcome: job.resultOutcome ?? null,
@@ -153,7 +169,7 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       counts: { pagesWithImage, editedPagesCount },
-      job: job ? serializeJob(job) : null,
+      job: job ? serializeJob(job, now) : null,
       worker,
       conflictsOpen,
     });

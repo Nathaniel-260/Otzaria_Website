@@ -215,6 +215,26 @@ describe("GET /api/admin/books/ocr/status - ספק local", () => {
     ]);
   });
 
+  it("עבודת local בהכנה: requestId ו-preparingStale לפי ה-lease (בלי נתיבים); עבודה אחרת — null/false", async () => {
+    OcrWorkerState.findOne.mockReturnValue(chain(null));
+    const base = { _id: { toString: () => JOB_ID }, method: "local", status: "preparing", totalPages: 0, requestId: "req-12345678" };
+
+    OcrJob.findOne.mockReturnValue(chain({ ...base, prepLeaseUntil: new Date(Date.now() - 1000) }));
+    const stale = await (await GET(makeRequest(BOOK_ID))).json();
+    expect(stale.job).toMatchObject({ requestId: "req-12345678", preparingStale: true });
+
+    Page.countDocuments.mockResolvedValueOnce(10).mockResolvedValueOnce(4);
+    const until = new Date(Date.now() + 60_000);
+    OcrJob.findOne.mockReturnValue(chain({ ...base, prepLeaseUntil: until }));
+    const fresh = await (await GET(makeRequest(BOOK_ID))).json();
+    expect(fresh.job).toMatchObject({ requestId: "req-12345678", preparingStale: false, prepLeaseUntil: until.toISOString() });
+
+    Page.countDocuments.mockResolvedValueOnce(10).mockResolvedValueOnce(4);
+    OcrJob.findOne.mockReturnValue(chain({ ...base, status: "queued", prepLeaseUntil: null }));
+    const queued = await (await GET(makeRequest(BOOK_ID))).json();
+    expect(queued.job).toMatchObject({ requestId: null, preparingStale: false, prepLeaseUntil: null });
+  });
+
   it("עובד שלא פנה יותר משתי דקות → offline", async () => {
     OcrJob.findOne.mockReturnValue(chain(null));
     OcrWorkerState.findOne.mockReturnValue(chain({ lastSeenAt: new Date(Date.now() - 10 * 60_000) }));
