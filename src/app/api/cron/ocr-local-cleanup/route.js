@@ -6,8 +6,9 @@ import { runLocalOcrCleanup } from '@/lib/ocr/localCleanup';
 // ניקוי שעתי של קבצי עבודות OCR מקומי (ספק local): השלמת קליטות תקועות (resumeStalledApplies),
 // מחיקת קבצי קלט/תוצאה 24 שעות אחרי אישור המסירה (ackAt), קבצי קלט יתומים של עבודות שנכשלו/בוטלו
 // בלי ack, דחיות ישנות (30 יום) וקבצים זמניים. רשומות ה-DB וה-ack לא נמחקים. ראו src/lib/ocr/localCleanup.js.
-// מופעל מ-crontab ב-VPS (מוחרג משער השבת ב-src/proxy.js כמו כל /api/cron):
-//   0 * * * * curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:3000/api/cron/ocr-local-cleanup
+// מופעל מ-crontab ב-VPS (מוחרג משער השבת ב-src/proxy.js כמו כל /api/cron;
+// --max-time חובה — resumeStalledApplies אינו מוגבל בזמן, ראו docs/ocr-local-worker/OPERATIONS.md):
+//   0 * * * * curl -fsS --max-time 600 -X POST -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:3000/api/cron/ocr-local-cleanup
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 

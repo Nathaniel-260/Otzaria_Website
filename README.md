@@ -51,6 +51,7 @@ npm install "github:Otzaria/otzaria-plugin-validator#v1" --legacy-peer-deps --no
   התוספים דברים שהם דרישת חנות ואינם קיימים באפליקציה.
 - שינוי בנתוני המשטח (API/הרשאה חדשים) → בריפו של אוצריא, שממנו `spec.json`
   מחולל. לא כאן ולא בוולידטור.
+
 ## OCR מקומי (ספק `local`)
 
 ספק OCR שלישי בדיאלוג "OCR לספר שלם": האתר מכין PDF מתמונות העמודים, ושירות Windows ייעודי
