@@ -60,8 +60,9 @@ const isUnsafeCodePoint = (c) =>
   (c >= 0x202a && c <= 0x202e) ||
   (c >= 0x2066 && c <= 0x2069);
 
-// מנקה ומקצר לפי נקודות קוד (לא יחידות UTF-16) — קיצור לא חוצה זוג surrogate ולא משאיר חצי תו
-const stripUnsafe = (s, maxChars) =>
+// מנקה ומקצר לפי נקודות קוד (לא יחידות UTF-16) — קיצור לא חוצה זוג surrogate ולא משאיר חצי תו.
+// משמש גם את קליטת התוצאה (localApply.pure.js) לטקסט שגיאה מהעובד.
+export const stripUnsafe = (s, maxChars) =>
   Array.from(s)
     .filter((ch) => !isUnsafeCodePoint(ch.codePointAt(0)))
     .slice(0, maxChars)

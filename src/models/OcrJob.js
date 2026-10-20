@@ -42,6 +42,17 @@ const ResultConflictSchema = new mongoose.Schema({
   reviewedAt: { type: Date },
 }, { _id: false });
 
+// קובץ תוצאה שנדחה בקליטה (400 invalid_result / 422 validation_failed / 410 job_closed) — נשמר
+// לבירור כ-rejected-<sha>.json, לא נועל את resultSha256 ולא מוחל
+const ResultRejectionSchema = new mongoose.Schema({
+  sha256: { type: String },
+  receivedAt: { type: Date },
+  bytes: { type: Number },
+  path: { type: String },
+  reason: { type: String },
+  details: { type: String },
+}, { _id: false });
+
 const OcrJobSchema = new mongoose.Schema({
   book: { type: mongoose.Schema.Types.ObjectId, ref: 'Book', required: true },
   bookName: { type: String, default: '' },
@@ -126,6 +137,7 @@ const OcrJobSchema = new mongoose.Schema({
   conflictPages: { type: Number, default: 0 },
   missingPages: { type: Number, default: 0 },
   resultConflicts: { type: [ResultConflictSchema], default: undefined },
+  resultRejections: { type: [ResultRejectionSchema], default: undefined },
 
   inputPurgedAt: { type: Date },
   resultPurgedAt: { type: Date },
