@@ -23,6 +23,24 @@ export function workerError(status, code, extra = {}, extraHeaders = {}) {
 
 export const isJobIdParam = (id) => typeof id === 'string' && /^[a-f0-9]{24}$/.test(id);
 
+// גוף JSON קטן (בקרה, למשל דיווח מצב) עם תקרת גודל: Content-Length גדול מהתקרה נדחה בלי
+// לקרוא את הגוף; גם גוף בלי Content-Length נבדק אחרי הקריאה. מחזיר { ok:true, body } או
+// { ok:false, status, error } — 413 payload_too_large, 400 bad_request (לא UTF-8/JSON).
+export async function readJsonBody(request, maxBytes) {
+  const declared = Number(request.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    return { ok: false, status: 413, error: 'payload_too_large' };
+  }
+  const buf = Buffer.from(await request.arrayBuffer());
+  if (buf.length > maxBytes) return { ok: false, status: 413, error: 'payload_too_large' };
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(buf);
+    return { ok: true, body: JSON.parse(text) };
+  } catch {
+    return { ok: false, status: 400, error: 'bad_request' };
+  }
+}
+
 // handler(request, { workerId, params }) — חריגה מחזירה 500 internal_error בלי טקסט החריגה.
 // הלוג מינימלי בכוונה: רק name/code של החריגה ושם הנתיב — לא message/stack (עלולים להכיל
 // נתיבי קבצים, תוכן בקשה או סודות).

@@ -5,7 +5,7 @@ const { updateOne, connectDB } = vi.hoisted(() => ({ updateOne: vi.fn(), connect
 vi.mock('@/models/OcrWorkerState', () => ({ default: { updateOne } }));
 vi.mock('@/lib/db', () => ({ default: connectDB }));
 
-import { workerJson, workerError, withWorker, isJobIdParam } from './workerHttp';
+import { workerJson, workerError, withWorker, isJobIdParam, readJsonBody } from './workerHttp';
 
 const SECRET = 'A'.repeat(48);
 const mk = (auth) => new Request('http://x/api/worker/v1/jobs', { headers: auth ? { authorization: auth } : {} });
@@ -100,5 +100,18 @@ describe('workerHttp', () => {
   it('isJobIdParam', () => {
     expect(isJobIdParam('64b7f0c2a1b2c3d4e5f60001')).toBe(true);
     for (const v of ['64B7F0C2A1B2C3D4E5F60001', 'abc', '', undefined, '64b7f0c2a1b2c3d4e5f6000g']) expect(isJobIdParam(v)).toBe(false);
+  });
+  it('readJsonBody: JSON תקין (גם עם BOM), 400 ללא-JSON/UTF-8 שבור, 413 לפי Content-Length או אחרי קריאה', async () => {
+    const mkBody = (body, headers = {}) => new Request('http://x/s', { method: 'POST', body, headers });
+    expect(await readJsonBody(mkBody('{"a":1}'), 100)).toEqual({ ok: true, body: { a: 1 } });
+    expect(await readJsonBody(mkBody('﻿{"a":2}'), 100)).toEqual({ ok: true, body: { a: 2 } });
+    for (const b of ['', 'nope', '{"a":', new Uint8Array([0x7b, 0xff, 0x7d])]) {
+      expect(await readJsonBody(mkBody(b), 100)).toEqual({ ok: false, status: 400, error: 'bad_request' });
+    }
+    expect(await readJsonBody(mkBody('{}', { 'content-length': '101' }), 100)).toEqual({ ok: false, status: 413, error: 'payload_too_large' });
+    // בלי Content-Length (זרם) — נבדק אחרי הקריאה
+    const stream = new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode('"' + 'x'.repeat(200) + '"')); c.close(); } });
+    const r = new Request('http://x/s', { method: 'POST', body: stream, duplex: 'half' });
+    expect(await readJsonBody(r, 100)).toEqual({ ok: false, status: 413, error: 'payload_too_large' });
   });
 });
