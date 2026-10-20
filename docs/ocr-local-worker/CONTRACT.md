@@ -99,7 +99,7 @@
 | `404 input_unavailable` | `/input` | הקובץ נמחק (ניקוי) או אבד. קבוע אצל השירות → `needs_attention`. |
 | `409 input_corrupt` | `/input` | גודל הקובץ בדיסק שונה מהרשום. קבוע → `needs_attention`. |
 | `503 storage_unavailable` | `/input`, `/result` | שורש האחסון חסר (דיסק לא מחובר). זמני, עם `Retry-After: 300`. |
-| `410 job_closed` | `/result` | תוצאה לעבודה סגורה שלא בוטלה במפורש ואין לה תוצאה נעולה. נשמרת ב-`resultRejections`. |
+| `410 job_closed` | `/result` | תוצאה לעבודה סגורה שלא בוטלה במפורש ואין לה תוצאה נעולה. נשמרת ב-`resultRejections` (עד 20 דחיות לעבודה; מעבר לכך אותה תשובה בלי שמירת הקובץ). |
 | `408 upload_incomplete` | `/result` | ההעלאה נקטעה. זמני אצל השירות → שליחה חוזרת. |
 | `403 wrong_worker` | `/status` | `workerId` בגוף שונה מהמוגדר. |
 | `503 shabbat` | כל הנתיבים | שער השבת (`src/proxy.js`) בשבת ויו"ט, עם `Retry-After: 3600`. ראו OPERATIONS סעיף 6. |
