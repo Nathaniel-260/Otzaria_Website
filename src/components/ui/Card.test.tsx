@@ -62,3 +62,18 @@ describe('cardClasses', () => {
     expect(cardClasses({ interactive: true })).toMatch(/hover:/)
   })
 })
+
+describe('Card — href מסוכן', () => {
+  it('javascript: לא מרונדר כקישור פעיל', () => {
+    render(<Card href="javascript:alert(1)" data-testid="bad">רע</Card>)
+    const el = screen.getByTestId('bad')
+    expect(el.tagName).toBe('A')
+    expect(el).not.toHaveAttribute('href')
+    expect(el).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('mailto: נשאר <a> רגיל', () => {
+    render(<Card href="mailto:a@b.c">מייל</Card>)
+    expect(screen.getByRole('link', { name: 'מייל' })).toHaveAttribute('href', 'mailto:a@b.c')
+  })
+})

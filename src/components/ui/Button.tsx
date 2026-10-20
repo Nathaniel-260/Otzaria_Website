@@ -50,11 +50,32 @@ type AsLink = CommonProps &
     prefetch?: boolean
   }
 
-export type ButtonProps = AsButton | AsLink
+/** iconOnly חייב שם נגיש — aria-label או aria-labelledby (אכיפה בזמן הידור) */
+type IconOnlyName =
+  | { iconOnly?: false }
+  | { iconOnly: true; 'aria-label': string }
+  | { iconOnly: true; 'aria-labelledby': string }
+
+export type ButtonProps = (AsButton | AsLink) & IconOnlyName
 
 /** עוגן באותו דף, כתובת מלאה, mailto: וכו' — <a> רגיל ולא ניווט של Next */
 export function isPlainAnchor(href: string): boolean {
   return href.startsWith('#') || href.startsWith('//') || /^[a-z][a-z\d+.-]*:/i.test(href)
+}
+
+const SAFE_ANCHOR_SCHEMES = new Set(['http:', 'https:', 'mailto:', 'tel:'])
+
+/**
+ * הקשחת href: כתובת עם scheme מותרת רק ב-http:, https:, mailto:, tel:. כל scheme אחר
+ * (javascript:, data:, vbscript: ...) מוחזר כ-undefined — הקורא לא מרנדר קישור פעיל.
+ * דפדפנים מתעלמים מרווחים/תווי בקרה (כולל TAB ו-LF) בתחילת הכתובת ובתוך ה-scheme,
+ * ולכן הבדיקה נעשית על גרסה מנורמלת בלי תווי בקרה ורווחים. נתיבים יחסיים, # ו-// עוברים כמו שהם.
+ */
+export function safeHref(href: string): string | undefined {
+  // eslint-disable-next-line no-control-regex
+  const match = /^([a-z][a-z\d+.-]*:)/i.exec(href.replace(/[\u0000- ]/g, ''))
+  if (match && !SAFE_ANCHOR_SCHEMES.has(match[1].toLowerCase())) return undefined
+  return href
 }
 
 function renderIcon(icon: ButtonIcon, className: string) {
@@ -114,10 +135,15 @@ export default function Button(props: ButtonProps) {
         : onClick,
       ...(external ? { target: '_blank', rel: 'noopener noreferrer' } : null)
     }
-    if (external || isPlainAnchor(href)) {
-      return <a href={href} {...linkProps}>{content}</a>
+    const safe = safeHref(href)
+    // scheme מסוכן (javascript: וכו') — לא קישור פעיל: <a> בלי href, מושבת ומחוץ לסדר הטאב
+    if (safe === undefined) {
+      return <a {...linkProps} aria-disabled tabIndex={-1} onClick={(event: MouseEvent<HTMLAnchorElement>) => event.preventDefault()}>{content}</a>
     }
-    return <Link href={href} prefetch={prefetch} {...linkProps}>{content}</Link>
+    if (external || isPlainAnchor(safe)) {
+      return <a href={safe} {...linkProps}>{content}</a>
+    }
+    return <Link href={safe} prefetch={prefetch} {...linkProps}>{content}</Link>
   }
 
   const { type = 'button', ...buttonRest } = rest as Omit<AsButton, keyof CommonProps>

@@ -1,7 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Link from 'next/link';
-import { headingId } from '@/lib/wiki';
+import { extractHeadings, headingId } from '@/lib/wiki';
 import { PROSE, SCROLL_REGION } from '@/components/docs/proseClasses';
 
 // הסגנון של כל אלמנט מגיע מ-components/docs/proseClasses (מקור אחד לכל דפי המדריכים).
@@ -10,16 +10,40 @@ import { PROSE, SCROLL_REGION } from '@/components/docs/proseClasses';
 // קישור פנימי → Link של Next (ניווט SPA ללא טעינת דף); חיצוני → טאב חדש.
 // "//host/..." הוא קישור לשרת אחר (protocol-relative), לא נתיב באתר — חיצוני, אחרת עורך בוויקי
 // יכול לשתול קישור שנראה פנימי ונפתח באותה לשונית. "/\host" — הדפדפן מפרש \ כ-/ (כלומר //host).
+// הדפדפן מסיר TAB/LF/CR מכל מקום בכתובת (ורווחים/תווי בקרה בתחילתה) לפני הפענוח, ולכן
+// "/\t/evil.com" הוא בפועל "//evil.com". ההחלטה נעשית על הצורה המנורמלת, כמו שהדפדפן יראה אותה.
+const SITE_BASE = 'https://site.invalid';
+// תווי בקרה ורווחים: זה בדיוק מה שהדפדפן מנקה
+const CONTROL_OR_SPACE = /[\u0000-\u0020]/g;
+
 export function isInternalHref(href) {
-  return href.startsWith('#') || (href.startsWith('/') && !href.startsWith('//') && !href.startsWith('/\\'));
+  if (typeof href !== 'string') return false;
+  const h = href.replace(CONTROL_OR_SPACE, '');
+  if (h.startsWith('#')) return true;
+  if (!h.startsWith('/') || h.startsWith('//') || h.startsWith('/\\')) return false;
+  try {
+    return new URL(h, SITE_BASE).origin === SITE_BASE;
+  } catch {
+    return false;
+  }
 }
 
 function SmartLink({ href = '', children }) {
+  // href ריק — אין יעד (קישור שבור בוויקי); לא קישור חיצוני ולא טעינה מחדש של הדף
+  if (href === '') return <>{children}</>;
   if (isInternalHref(href)) {
     return (
       <Link href={href} className={PROSE.link}>
         {children}
       </Link>
+    );
+  }
+  // mailto:/tel: — יעד לאפליקציה חיצונית, לא לטאב חדש
+  if (/^(?:mailto|tel):/i.test(href.replace(CONTROL_OR_SPACE, ''))) {
+    return (
+      <a href={href} className={PROSE.link}>
+        {children}
+      </a>
     );
   }
   return (
@@ -38,7 +62,6 @@ const IMAGE_HOSTS = new Set([
   'github.com',
   'user-images.githubusercontent.com',
   'private-user-images.githubusercontent.com',
-  'camo.githubusercontent.com',
   'media.githubusercontent.com',
   'otzaria.org',
   'www.otzaria.org',
@@ -46,7 +69,7 @@ const IMAGE_HOSTS = new Set([
 
 export function isAllowedImageSrc(src) {
   if (typeof src !== 'string' || src === '') return false;
-  if (isInternalHref(src) && !src.startsWith('#')) {
+  if (isInternalHref(src) && !src.replace(CONTROL_OR_SPACE, '').startsWith('#')) {
     // הנתיב כפי שהדפדפן יבקש אותו: בלי ../ ובלי קידוד (/docs/../api או /%61pi)
     let path;
     try {
@@ -75,17 +98,21 @@ function WikiImage({ src, alt, title }) {
   );
 }
 
-const components = {
-  h2: ({ children }) => (
-    <h2 id={headingId(childrenToText(children))} className={PROSE.h2}>
-      {children}
-    </h2>
-  ),
-  h3: ({ children }) => (
-    <h3 id={headingId(childrenToText(children))} className={PROSE.h3}>
-      {children}
-    </h3>
-  ),
+// מזהה כותרת: לפי מספר השורה במקור (extractHeadings — אותו מקור כמו ה-TOC, כולל כפילויות);
+// כותרת שלא נמצאה שם (למשל בתוך ציטוט) — גזירה מהטקסט המוצג.
+function makeHeading(Tag, className, idByLine) {
+  return function Heading({ node, children }) {
+    const line = node?.position?.start?.line;
+    const id = idByLine.get(line) ?? (headingId(childrenToText(children)) || undefined);
+    return (
+      <Tag id={id} className={className}>
+        {children}
+      </Tag>
+    );
+  };
+}
+
+const baseComponents = {
   h4: ({ children }) => <h4 className={PROSE.h4}>{children}</h4>,
   p: ({ children }) => <p className={PROSE.p}>{children}</p>,
   ul: ({ children }) => <ul className={`mb-5 ${PROSE.ul}`}>{children}</ul>,
@@ -127,6 +154,12 @@ function childrenToText(children) {
 }
 
 export default function WikiMarkdown({ markdown }) {
+  const idByLine = new Map(extractHeadings(markdown).map((h) => [h.line, h.id]));
+  const components = {
+    ...baseComponents,
+    h2: makeHeading('h2', PROSE.h2, idByLine),
+    h3: makeHeading('h3', PROSE.h3, idByLine),
+  };
   return (
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
       {markdown}

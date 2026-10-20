@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
-import { isPlainAnchor } from './Button'
+import { isPlainAnchor, safeHref } from './Button'
 import { cx } from './cx'
 import { FOCUS_RING } from './focusRing'
 
@@ -77,8 +77,11 @@ export default function Card(props: CardProps) {
     const { href, external = false, prefetch = false, tone: _t, padding: _p, className: _c, children: _ch, ...rest } = props
     const classes = cardClasses({ tone, padding, interactive: true, className })
     const extra = external ? { target: '_blank', rel: 'noopener noreferrer' } : null
-    if (external || isPlainAnchor(href)) return <a {...rest} {...extra} {...data(true)} href={href} className={classes}>{children}</a>
-    return <Link {...rest} {...extra} {...data(true)} href={href} prefetch={prefetch} className={classes}>{children}</Link>
+    const safe = safeHref(href)
+    // scheme מסוכן (javascript: וכו') — לא קישור פעיל: <a> בלי href
+    if (safe === undefined) return <a {...rest} {...data(true)} aria-disabled tabIndex={-1} className={classes}>{children}</a>
+    if (external || isPlainAnchor(safe)) return <a {...rest} {...extra} {...data(true)} href={safe} className={classes}>{children}</a>
+    return <Link {...rest} {...extra} {...data(true)} href={safe} prefetch={prefetch} className={classes}>{children}</Link>
   }
 
   if (props.onClick) {

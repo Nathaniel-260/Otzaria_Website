@@ -1,19 +1,10 @@
 import { NextResponse } from 'next/server';
+import { fetchLicenseText } from '@/lib/licenseSource';
 
 export async function GET() {
   try {
-    // ענף dev ולא main — בכוונה: הרישיון החדש (Personal Use License 1.0) קיים כרגע רק
-    // ב-dev, וב-main של otzaria עדיין יש GPL. לחזור ל-main (כאן וב-src/app/license/page.jsx)
-    // אחרי שהרישיון ימוזג ל-main.
-    const res = await fetch('https://raw.githubusercontent.com/Otzaria/otzaria/dev/LICENSE', {
-      next: { revalidate: 3600 } // רענון פעם בשעה
-    });
-
-    if (!res.ok) {
-      throw new Error('Failed to fetch license from GitHub');
-    }
-
-    const text = await res.text();
+    // מקור הרישיון (URL מוצמד ל-commit, timeout, מגבלת אורך ובדיקת שפיות) — src/lib/licenseSource.js
+    const text = await fetchLicenseText();
 
     return new NextResponse(text, {
       status: 200,
@@ -25,6 +16,10 @@ export async function GET() {
     });
   } catch (error) {
     console.error('License fetch error:', error);
-    return new NextResponse('Error loading license', { status: 500 });
+    return new NextResponse('Error loading license', {
+      status: 500,
+      // גם שגיאה זהה לכל המבקרים — TTL קצר מאוד כדי לא להכביד על GitHub בכשל זמני.
+      headers: { 'Cache-Control': 'public, max-age=60' },
+    });
   }
 }

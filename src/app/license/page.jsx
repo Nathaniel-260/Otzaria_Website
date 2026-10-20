@@ -1,21 +1,19 @@
+import { fetchLicenseText, LICENSE_BLOB_URL } from '@/lib/licenseSource'
 import LegalPage, { ForumContact, LegalHeading } from '@/components/legal/LegalPage'
+import { pageMetadata } from '@/lib/seo'
 
-// אותה נקודת קצה וחלון רענון (פעם בשעה) כמו ב-/api/license, אך נטענת ישירות
-// בצד השרת כדי למנוע מסך טעינה ו-JavaScript מיותר בצד הלקוח.
-// ענף dev ולא main — בכוונה: הרישיון החדש (Personal Use License 1.0, שהדף מתאר) קיים
-// כרגע רק ב-dev, וב-main של otzaria עדיין יש GPL. לחזור ל-main (כאן, בקישורים למטה
-// וב-/api/license) אחרי שהרישיון ימוזג ל-main.
-async function fetchLicenseText() {
+export const metadata = pageMetadata({
+  title: 'רישיון שימוש',
+  description:
+    'רישיון השימוש של תוכנת אוצריא (Personal Use License 1.0) והפניה לרישיון הספרייה, כפי שמתפרסם ב-GitHub.',
+  path: '/license',
+})
+
+// אותו מקור (URL מוצמד ל-commit, timeout ובדיקת שפיות) כמו ב-/api/license — src/lib/licenseSource.js,
+// אך נטען ישירות בצד השרת כדי למנוע מסך טעינה ו-JavaScript מיותר בצד הלקוח.
+async function loadLicenseText() {
   try {
-    const res = await fetch('https://raw.githubusercontent.com/Otzaria/otzaria/dev/LICENSE', {
-      next: { revalidate: 3600 } // רענון פעם בשעה
-    })
-
-    if (!res.ok) {
-      throw new Error('Failed to fetch license from GitHub')
-    }
-
-    return await res.text()
+    return await fetchLicenseText()
   } catch (error) {
     console.error('License fetch error:', error)
     return null
@@ -28,7 +26,7 @@ export const metadata = {
 }
 
 export default async function LicensePage() {
-  const licenseText = await fetchLicenseText()
+  const licenseText = await loadLicenseText()
   const error = licenseText === null
 
   return (
@@ -38,7 +36,7 @@ export default async function LicensePage() {
         <p>
           פרויקט "אוצריא" הוא מיזם שמטרתו הנגשת ספרי קודש לציבור.
           התוכנה מופצת תחת <strong>Personal Use License 1.0</strong> — רישיון שימוש אישי בלבד.
-          הספרייה (הספרים והתכנים) מופצת תחת רישיון נפרד — <a href="/library/license" className="text-primary hover:underline">לפרטים לחצו כאן</a>.
+          הספרייה (הספרים והתכנים) מופצת תחת רישיון נפרד — <a href="/library/license" className="text-primary hover:underline">לפרטי רישיון הספרייה</a>.
         </p>
       </div>
 
@@ -51,12 +49,12 @@ export default async function LicensePage() {
             <div className="text-danger-500 text-center py-4">
               <p>לא ניתן היה לטעון את הרישיון.</p>
               <a
-                href="https://github.com/Otzaria/otzaria/blob/dev/LICENSE"
+                href={LICENSE_BLOB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline"
               >
-                לחץ כאן לצפייה במקור
+                צפייה בקובץ הרישיון במקור (GitHub)
               </a>
             </div>
           ) : (
@@ -71,12 +69,12 @@ export default async function LicensePage() {
            <p>
             לצפייה בקובץ הרישיון המקורי והעדכני ב-GitHub:{' '}
             <a
-              href="https://github.com/Otzaria/otzaria/blob/dev/LICENSE"
+              href={LICENSE_BLOB_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary font-bold hover:underline"
             >
-              לחצו כאן
+              קובץ הרישיון ב-GitHub
             </a>
           </p>
         </div>

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import Button, { isPlainAnchor } from './Button'
+import Button, { isPlainAnchor, safeHref } from './Button'
 
 describe('Button', () => {
   it('בלי href — <button type="button"> עם הטקסט, והאייקון מוסתר מקורא מסך', () => {
@@ -80,5 +80,47 @@ describe('isPlainAnchor', () => {
     ['plugins/all', false]
   ])('%s → %s', (href, expected) => {
     expect(isPlainAnchor(href)).toBe(expected)
+  })
+})
+
+describe('safeHref', () => {
+  it.each([
+    ['/about', '/about'],
+    ['#top', '#top'],
+    ['//cdn.example.com/x', '//cdn.example.com/x'],
+    ['https://example.com', 'https://example.com'],
+    ['HTTP://example.com', 'HTTP://example.com'],
+    ['mailto:a@b.c', 'mailto:a@b.c'],
+    ['tel:+972500000000', 'tel:+972500000000'],
+    ['javascript:alert(1)', undefined],
+    ['JaVaScRiPt:alert(1)', undefined],
+    [' javascript:alert(1)', undefined],
+    ['java\nscript:alert(1)', undefined],
+    ['java\tscript:alert(1)', undefined],
+    ['data:text/html,<script>1</script>', undefined],
+    ['vbscript:msgbox(1)', undefined]
+  ])('%j → %j', (href, expected) => {
+    expect(safeHref(href)).toBe(expected)
+  })
+})
+
+describe('Button — href מסוכן', () => {
+  it('javascript: לא מרונדר כקישור פעיל (בלי href, מושבת)', () => {
+    render(<Button href="javascript:alert(1)">רע</Button>)
+    const el = screen.getByText('רע').closest('a')!
+    expect(el).not.toHaveAttribute('href')
+    expect(el).toHaveAttribute('aria-disabled', 'true')
+    expect(el).toHaveAttribute('tabindex', '-1')
+  })
+
+  it('גם עם external — scheme מסוכן לא עובר', () => {
+    render(<Button href="data:text/html,x" external>רע</Button>)
+    expect(screen.getByText('רע').closest('a')).not.toHaveAttribute('href')
+  })
+
+  it('mailto: ו-tel: נשארים <a> רגיל', () => {
+    render(<><Button href="mailto:a@b.c">מייל</Button><Button href="tel:123">טלפון</Button></>)
+    expect(screen.getByRole('link', { name: 'מייל' })).toHaveAttribute('href', 'mailto:a@b.c')
+    expect(screen.getByRole('link', { name: 'טלפון' })).toHaveAttribute('href', 'tel:123')
   })
 })

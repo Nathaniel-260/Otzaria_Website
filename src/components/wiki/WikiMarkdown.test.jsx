@@ -54,3 +54,54 @@ describe('isAllowedImageSrc', () => {
     expect(container).toHaveTextContent('פיקסל')
   })
 })
+
+describe('נרמול TAB/LF/CR (עקיפת protocol-relative)', () => {
+  it('isInternalHref: "/\t/evil" ודומיו — חיצוניים', () => {
+    expect(isInternalHref('/\t/evil.example')).toBe(false)
+    expect(isInternalHref('/\n/evil.example')).toBe(false)
+    expect(isInternalHref('/\r/evil.example')).toBe(false)
+    expect(isInternalHref('/ /evil.example')).toBe(false)
+    expect(isInternalHref('/\t\\evil.example')).toBe(false)
+    expect(isInternalHref('/docs/a%20b')).toBe(true)
+  })
+
+  it('isAllowedImageSrc: תמונה "/\t/tracker" חסומה; נתיב תקין ועוגן-בלבד כמו קודם', () => {
+    expect(isAllowedImageSrc('/\t/tracker.example/p.gif')).toBe(false)
+    expect(isAllowedImageSrc('/\n/tracker.example/p.gif')).toBe(false)
+    expect(isAllowedImageSrc('/\t/api/x')).toBe(false)
+    expect(isAllowedImageSrc('/a\tpi/x')).toBe(false)
+    expect(isAllowedImageSrc('/img/a.png')).toBe(true)
+  })
+
+  it('camo.githubusercontent.com אינו מארח מותר', () => {
+    expect(isAllowedImageSrc('https://camo.githubusercontent.com/abc')).toBe(false)
+  })
+})
+
+describe('SmartLink — מקרי קצה', () => {
+  it('mailto/tel — בלי target=_blank', () => {
+    render(<WikiMarkdown markdown="[כתבו](mailto:a@b.co)" />)
+    const a = screen.getByRole('link', { name: 'כתבו' })
+    expect(a).toHaveAttribute('href', 'mailto:a@b.co')
+    expect(a).not.toHaveAttribute('target')
+  })
+
+  it('href ריק — טקסט בלבד, לא קישור', () => {
+    render(<WikiMarkdown markdown="[ריק]()" />)
+    expect(screen.queryByRole('link')).toBeNull()
+    screen.getByText('ריק')
+  })
+})
+
+describe('מזהי כותרות', () => {
+  it('כותרות כפולות — מזהים ייחודיים, זהים ל-TOC', () => {
+    const { container } = render(<WikiMarkdown markdown={'## שלום\n\ntext\n\n## שלום\n\n### [קישור](/x) **מודגש**\n'} />)
+    const ids = [...container.querySelectorAll('h2, h3')].map((h) => h.id)
+    expect(ids).toEqual(['שלום', 'שלום-2', 'קישור-מודגש'])
+  })
+
+  it('## בתוך בלוק קוד אינה כותרת ולא מסיטה את המזהים', () => {
+    const { container } = render(<WikiMarkdown markdown={'```\n## x\n```\n\n## א\n\n## א\n'} />)
+    expect([...container.querySelectorAll('h2')].map((h) => h.id)).toEqual(['א', 'א-2'])
+  })
+})
