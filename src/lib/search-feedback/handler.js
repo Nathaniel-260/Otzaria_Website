@@ -12,6 +12,7 @@ import {
   MAX_EVENTS_BODY_BYTES, MAX_REGISTER_BODY_BYTES, extractPublicKey, validateEventsBatch, validateRegister,
 } from './validation.js';
 import { findKey, ingestEvents, registerKey } from './service.js';
+import { getCarriedOfflineSince } from './retention-policy.js';
 
 const RATE_LIMIT_RETRY_AFTER_S = 300;
 const DISABLED_RETRY_AFTER_S = 3600;
@@ -126,7 +127,8 @@ export async function handleEventsPost(request, deps) {
     const parsed = parseJson(bytes);
     if (!parsed.ok) return fail('invalid_json', 400);
     const now = d.now();
-    const valid = validateEventsBatch(parsed.value, now);
+    const carriedOfflineSince = parsed.value?.carriedOffline === true ? await getCarriedOfflineSince(now) : now;
+    const valid = validateEventsBatch(parsed.value, now, { carriedOfflineSince });
     if (!valid.ok) return fail('invalid_payload', 422, { field: valid.field });
 
     return json(await ingestEvents(keyId, valid.value, { now }));
