@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { zipSync, strToU8 } from 'fflate'
 
 const push = vi.fn()
 const showAlert = vi.fn()
@@ -77,6 +78,34 @@ describe('/plugins/upload (מחובר — ה-proxy מפנה אורח להתחב�
     fireEvent.change(screen.getByLabelText(/צילומי מסך/), { target: { files: [new File(['x'], 'a.bmp', { type: 'image/bmp' })] } })
     expect(showAlert).toHaveBeenCalledWith('שגיאה', 'צילומי מסך חייבים להיות בפורמט PNG, JPEG, WEBP או GIF')
     await waitFor(() => expect(screen.getByLabelText(/צילומי מסך/)).toHaveAttribute('aria-invalid', 'true'))
+  })
+
+  it('קובץ תוסף שנגרר מאפשר שליחה גם כששדה הקובץ המקורי ריק', async () => {
+    fetchSpy.mockResolvedValue({ ok: true, json: async () => ({}) })
+    const { container } = render(<UploadPluginPage tagPool={[]} />)
+    const bytes = zipSync({ 'manifest.json': strToU8(JSON.stringify({
+      id: 'com.example.plugin', name: 'בדיקה', author: 'מפתח', version: '1.0.0',
+      description: 'תיאור קצר', stability: 'stable', minAppVersion: '99.0.0'
+    })) })
+    const file = new File([Uint8Array.from(bytes)], 'example.otzplugin')
+    Object.defineProperty(file, 'arrayBuffer', { value: async () => Uint8Array.from(bytes).buffer })
+    const input = screen.getByLabelText(/קובץ תוסף/) as HTMLInputElement
+    fireEvent.drop(input.closest('[data-dragging]') ?? input.parentElement!, {
+      dataTransfer: { files: [file], types: ['Files'] }
+    })
+    await screen.findByText('נבחר: example.otzplugin')
+    expect(input.files).toHaveLength(0)
+    expect(input.validity.valueMissing).toBe(false)
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'תיאור מלא' }), { target: { value: 'תיאור מלא' } })
+    fireEvent.change(screen.getByLabelText(/צילומי מסך/), {
+      target: { files: [new File(['image'], 'screen.png', { type: 'image/png' })] }
+    })
+    fireEvent.click(screen.getByRole('checkbox', { name: /אני מאשר קבלת דיווחים/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'העלה תוסף' }))
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith('/api/plugins/upload', expect.objectContaining({ method: 'POST' })))
+    const body = fetchSpy.mock.calls[0][1].body as FormData
+    expect(body.get('pluginFile')).toBe(file)
   })
 
   it('תגיות: Enter מוסיף, בלי כפילויות, והסרה', () => {

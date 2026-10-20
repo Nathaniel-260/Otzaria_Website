@@ -16,6 +16,7 @@ export default function UploadFilesStep({ form, step }: { form: UploadPluginForm
         icon="folder_zip"
         label={<>קובץ תוסף (<bdi dir="ltr">.otzplugin</bdi>)</>}
         required
+        inputRequired={!form.pluginFile}
         accept=".otzplugin"
         onChange={form.handlePluginFile}
         onDropFiles={form.dropPluginFile}
