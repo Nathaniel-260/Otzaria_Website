@@ -140,6 +140,8 @@ export async function ingestAppReport(raw, deps) {
   }
 
   const published = await publishReport(value.reportId, deps);
+  // הדיווח נמחק במקביל בין השמירה לפרסום — 5xx כדי שהלקוח ישלח שוב (כמו בכשל הקבצים)
+  if (!published) return { status: 500, body: { error: 'Report disappeared before publishing' } };
   return { status: 200, body: replyFor(published) };
 }
 

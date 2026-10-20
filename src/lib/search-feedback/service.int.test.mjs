@@ -13,6 +13,7 @@ import {
   getStats, exportEventsStream, buildExportFilter, setKeyStatus, invalidateStatsCache, buildPurgeFilter, previewPurge, purgeEvents,
 } from './service.js';
 import { getSearchFeedbackConfig } from './config.js';
+import { getCarriedOfflineSince } from './retention-policy.js';
 import { checkRateLimit } from '../rate-limit.js';
 import { MAX_EVENTS_BODY_BYTES } from './validation.js';
 import { committedEvents } from './ingestion.js';
@@ -443,6 +444,22 @@ test('carriedOffline rollout: בקשות מקבילות חולקות מועד ק
     assert.deepEqual(res.body, { accepted: 1, duplicates: 0, rejected: 1,
       rejectedSamples: [{ index: 1, field: 'events[1].clientTime' }] });
   }
+});
+
+test('getCarriedOfflineSince: יצירה ראשונה, קריאה חוזרת לא מזיזה, וקריאות מקבילות מחזירות ערך יחיד', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const t0 = new Date('2026-01-01T00:00:00Z');
+  const first = await getCarriedOfflineSince(t0);
+  assert.equal(first.getTime(), t0.getTime());
+  const second = await getCarriedOfflineSince(new Date(t0.getTime() + 5000));
+  assert.equal(second.getTime(), t0.getTime());
+
+  await SearchFeedbackPolicy.deleteMany({});
+  const nows = Array.from({ length: 10 }, (_, i) => new Date(t0.getTime() + i * 1000));
+  const results = await Promise.all(nows.map((n) => getCarriedOfflineSince(n)));
+  assert.equal(new Set(results.map((d) => d.getTime())).size, 1);
+  assert.equal(await SearchFeedbackPolicy.countDocuments(), 1);
+  assert.equal((await SearchFeedbackPolicy.findOne().lean()).carriedOfflineSince.getTime(), results[0].getTime());
 });
 
 test('carriedOffline rollout: מחיקה ישנה אינה חוזרת אחרי פקיעת מצבה של 30 יום', async (t) => {

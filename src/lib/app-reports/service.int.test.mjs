@@ -285,6 +285,21 @@ test('כשל בשמירת קבצים → 500 והדיווח לא נשמר (הל�
   assert.equal(gh.issues.size, 0);
 });
 
+test('דיווח שנמחק במקביל בין השמירה לפרסום → 500 (הלקוח ישלח שוב) ולא קריסה', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const body = manual();
+  // המחיקה מדומה בתוך שמירת הקובץ הראשון, כלומר אחרי ה-upsert ולפני publishReport
+  const deletingSave = async (...args) => {
+    const saved = await saveFile(...args);
+    await AppReport.deleteOne({ reportId: body.reportId });
+    return saved;
+  };
+  const res = await post(body, { deps: { saveFile: deletingSave } });
+  assert.equal(res.status, 500);
+  assert.deepEqual(res.body, { error: 'Report disappeared before publishing' });
+  assert.equal(gh.issues.size, 0);
+});
+
 test('ניהול: המייל חוזר רק למנהל כללי; רשימה עם סינון; דיווחים קשורים', async (t) => {
   if (db.skip) return t.skip(db.skip);
   const a = await post(crash({ trigger: 'crash_prompt', reporterEmail: 'secret@example.com' }));
