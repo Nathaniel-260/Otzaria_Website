@@ -37,3 +37,18 @@ export function anchorId(href: string): string {
     return raw
   }
 }
+
+/**
+ * האם זו לחיצה "רגילה" של הלחצן הראשי — רק כזו מנווטת באותו חלון ולכן מצדיקה סימון וננעלת spy.
+ * Ctrl/Cmd/Shift/Alt (טאב חדש, חלון חדש, הורדה) ולחצן אמצעי/ימני לא מגללים את הדף הזה.
+ */
+export function isPlainPrimaryClick(e: {
+  button: number
+  metaKey: boolean
+  ctrlKey: boolean
+  shiftKey: boolean
+  altKey: boolean
+  defaultPrevented?: boolean
+}): boolean {
+  return !e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
+}

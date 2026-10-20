@@ -1,5 +1,6 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { cx } from '@/components/ui/cx'
 import { scrollDeltaToReveal } from './scrollSpy'
@@ -14,12 +15,14 @@ const SCROLLBAR_LINGER_MS = 900
  *   scrollbar-end-right), במרחק מהטקסט — ריפוד בין התוכן לפס, והפס עצמו יוצא לשוליים
  *   (pr-3 / -mr-3, פיזיים כי המכל LTR) כך שהתוכן נשאר מיושר לעמודה. גלוי רק בריחוף, בפוקוס
  *   מקלדת או בזמן גלילה (data-scrolling).
- * - בטעינה: הפריט הנוכחי (aria-current="page") נגלל לתוך התצוגה, בלי אנימציה.
+ * - בטעינה ובכל מעבר דף: הפריט הנוכחי (aria-current="page") נגלל לתוך התצוגה, בלי אנימציה.
  * [data-sidebar-scroll] — המכל שבו DocsTocLinks מחזיק את הסעיף הנוכחי גלוי.
  */
 export default function DocsSidebar({ children, className }: { children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null)
+  const pathname = usePathname()
 
+  // הפריט הנוכחי נגלל לתצוגה בטעינה ובכל מעבר בין דפים (קודם/הבא) — הסרגל נשאר מרונדר בין דפי מדריך
   useEffect(() => {
     const box = ref.current
     if (!box) return
@@ -28,6 +31,11 @@ export default function DocsSidebar({ children, className }: { children: ReactNo
       const delta = scrollDeltaToReveal(current.getBoundingClientRect(), box.getBoundingClientRect(), 48)
       if (delta !== null) box.scrollTop += delta
     }
+  }, [pathname])
+
+  useEffect(() => {
+    const box = ref.current
+    if (!box) return
 
     let timer = 0
     const onScroll = () => {

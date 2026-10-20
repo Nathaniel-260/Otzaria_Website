@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { anchorId, lastHeadingAbove, scrollDeltaToReveal } from './scrollSpy'
+import { anchorId, isPlainPrimaryClick, lastHeadingAbove, scrollDeltaToReveal } from './scrollSpy'
 
 describe('lastHeadingAbove', () => {
   it('האחרונה שמעל הגבול (סעיפים קצרים בסוף הדף)', () => {
@@ -30,5 +30,18 @@ describe('anchorId', () => {
     expect(anchorId('#intro')).toBe('intro')
     expect(anchorId('/docs/x')).toBe('')
     expect(anchorId('#%E0%A')).toBe('%E0%A')
+  })
+})
+
+describe('isPlainPrimaryClick', () => {
+  const base = { button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false }
+  it('לחיצה רגילה — כן', () => expect(isPlainPrimaryClick(base)).toBe(true))
+  it('Ctrl/Cmd/Shift/Alt, לחצן לא ראשי או defaultPrevented — לא', () => {
+    expect(isPlainPrimaryClick({ ...base, ctrlKey: true })).toBe(false)
+    expect(isPlainPrimaryClick({ ...base, metaKey: true })).toBe(false)
+    expect(isPlainPrimaryClick({ ...base, shiftKey: true })).toBe(false)
+    expect(isPlainPrimaryClick({ ...base, altKey: true })).toBe(false)
+    expect(isPlainPrimaryClick({ ...base, button: 1 })).toBe(false)
+    expect(isPlainPrimaryClick({ ...base, defaultPrevented: true })).toBe(false)
   })
 })

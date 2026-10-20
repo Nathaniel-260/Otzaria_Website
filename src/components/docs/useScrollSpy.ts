@@ -37,18 +37,24 @@ export function useScrollSpy(ids: readonly string[]) {
       commit(index)
       lockRef.current = true
       let timer = 0
+      let frame = 0
       const release = () => {
         lockRef.current = false
         window.removeEventListener('scrollend', onEnd)
         window.clearTimeout(timer)
+        cancelAnimationFrame(frame)
         if (releaseRef.current === release) releaseRef.current = null
       }
       // אחרי scrollend — עוד פריים, כדי שה-callback של ה-IO מהקפיצה עצמה ייבלע בנעילה
-      const onEnd = () =>
-        requestAnimationFrame(() => {
+      const onEnd = () => {
+        cancelAnimationFrame(frame)
+        frame = requestAnimationFrame(() => {
+          // select חדש/unmount כבר שיחררו את הנעילה הזו — אסור להקים טיימר יתום שישחרר נעילה חדשה
+          if (releaseRef.current !== release) return
           window.clearTimeout(timer)
           timer = window.setTimeout(release, 50)
         })
+      }
       window.addEventListener('scrollend', onEnd)
       // דפדפן בלי scrollend, או קפיצה שלא גללה (היעד כבר במקום)
       timer = window.setTimeout(release, 'onscrollend' in window ? 3000 : 1000)
@@ -94,8 +100,9 @@ export function useScrollSpy(ids: readonly string[]) {
     blocks.forEach((el) => band.observe(el))
 
     const end = document.querySelector('[data-docs-end]')
-    const endObserver = new IntersectionObserver(([entry]) => {
-      atEnd = entry.isIntersecting
+    const endObserver = new IntersectionObserver((entries) => {
+      // כמה רשומות באותה מנה — המצב העדכני הוא של האחרונה
+      atEnd = entries[entries.length - 1].isIntersecting
       update()
     })
     if (end) endObserver.observe(end)

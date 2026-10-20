@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import Section from '@/components/ui/Section'
 import { cx } from '@/components/ui/cx'
+import { DocsScrollSpyProvider } from './DocsScrollSpyProvider'
 import DocsSidebar from './DocsSidebar'
 import DocsToc from './DocsToc'
 import type { TocItem } from './docsNav'
@@ -33,7 +34,7 @@ export default function DocsLayout({ titleId, breadcrumbs, hero, nav, toc, child
 
   const sideToc = hasToc && toc ? <DocsToc title={toc.title} items={toc.items} variant="panel" /> : null
 
-  return (
+  const body = (
     <Section labelledBy={titleId} spacing="none" className="pt-2 pb-14 md:pt-4 md:pb-20">
       <div
         className={cx(
@@ -64,4 +65,7 @@ export default function DocsLayout({ titleId, breadcrumbs, hero, nav, toc, child
       </div>
     </Section>
   )
+
+  // spy אחד לשתי תצוגות ה-TOC (סרגל ומקפל)
+  return hasToc && toc ? <DocsScrollSpyProvider items={toc.items}>{body}</DocsScrollSpyProvider> : body
 }

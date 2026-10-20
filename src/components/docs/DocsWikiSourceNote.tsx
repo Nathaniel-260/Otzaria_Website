@@ -9,7 +9,7 @@ export default function DocsWikiSourceNote({ pageName, className }: { pageName: 
       <p>
         דף זה נטען אוטומטית מהוויקי של הפרויקט ב-GitHub. מצאתם טעות או רוצים להוסיף?{' '}
         <a
-          href={`https://github.com/Otzaria/otzaria/wiki/${pageName}`}
+          href={`https://github.com/Otzaria/otzaria/wiki/${encodeURIComponent(pageName)}`}
           target="_blank"
           rel="noopener noreferrer"
           className={PROSE.link}

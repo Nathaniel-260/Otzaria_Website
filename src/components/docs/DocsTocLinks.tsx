@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef } from 'react'
 import { cx } from '@/components/ui/cx'
 import { FOCUS_RING_INSET } from '@/components/ui/focusRing'
 import { REDUCED_MOTION_QUERY } from '@/lib/reducedMotion'
-import { anchorId, scrollDeltaToReveal } from './scrollSpy'
+import { anchorId, isPlainPrimaryClick, scrollDeltaToReveal } from './scrollSpy'
+import { useSharedScrollSpy } from './DocsScrollSpyProvider'
 import { useScrollSpy } from './useScrollSpy'
 import type { TocItem } from './docsNav'
 
@@ -15,9 +16,14 @@ import type { TocItem } from './docsNav'
  * אנימציה.
  * compact — שורות צפופות (סרגל במסך רחב, עכבר); בלעדיו — מטרת מגע מלאה (מקפל בנייד).
  */
+// בלי ids ה-hook לא מקים observer — כשה-spy משותף (DocsScrollSpyProvider) הרשימה לא מפעילה spy משלה
+const NO_IDS: readonly string[] = []
+
 export default function DocsTocLinks({ items, compact }: { items: TocItem[]; compact: boolean }) {
   const ids = useMemo(() => items.map((item) => anchorId(item.href)), [items])
-  const { active, select } = useScrollSpy(ids)
+  const shared = useSharedScrollSpy()
+  const own = useScrollSpy(shared ? NO_IDS : ids)
+  const { active, select } = shared ?? own
   const listRef = useRef<HTMLUListElement>(null)
   // הגלילה הראשונה (בטעינה) — מיידית; אחר כך חלקה, אלא אם reduced-motion
   const revealedRef = useRef(false)
@@ -44,7 +50,9 @@ export default function DocsTocLinks({ items, compact }: { items: TocItem[]; com
             <a
               href={item.href}
               aria-current={current ? 'location' : undefined}
-              onClick={() => select(index)}
+              onClick={(e) => {
+                if (isPlainPrimaryClick(e)) select(index)
+              }}
               className={cx(
                 // בלי רקע לשורה: הנוכחי — צבע ומשקל, ופס דק מעוגל בצד ההתחלה (ימין), כך שלא רק צבע מסמן
                 'relative flex items-center rounded-control px-3 py-1.5 text-body-sm transition-colors',

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import DocsHeadingLevels from './DocsHeadingLevels'
 
@@ -10,5 +10,14 @@ describe('DocsHeadingLevels', () => {
     expect(items).toHaveLength(2)
     expect(items[1]).toHaveTextContent('2פרק ראשון')
     expect(items[1].className).toContain('ms-6')
+  })
+})
+
+describe('DocsHeadingLevels — מפתחות', () => {
+  it('תוויות זהות — בלי אזהרת key כפול', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(<DocsHeadingLevels title="x" rows={[{ level: 2, label: 'פרק' }, { level: 2, label: 'פרק' }]} />)
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
   })
 })

@@ -18,10 +18,10 @@ export default function DocsHeadingLevels({ title, rows }: { title: string; rows
     <div className="rounded-card bg-surface-container-low p-4 sm:p-5">
       <h3 className="mb-4 text-title-lg text-on-surface">{title}</h3>
       <ul className="space-y-2">
-        {rows.map((row) => {
+        {rows.map((row, index) => {
           const style = LEVEL[row.level]
           return (
-            <li key={row.label} className={cx('flex items-center gap-3 rounded-control p-3', style.row, style.indent)}>
+            <li key={`${index}-${row.label}`} className={cx('flex items-center gap-3 rounded-control p-3', style.row, style.indent)}>
               <span
                 className={cx('flex size-8 shrink-0 items-center justify-center rounded-pill text-label-md', style.dot)}
               >
