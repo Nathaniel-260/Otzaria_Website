@@ -130,6 +130,29 @@ test('writeJobFileDurable: שם לפי תוכן, נתיב יחסי, וקובץ �
   assert.deepEqual(await listDir(jobDir(JOB, env)), [`input-${sha(data)}.pdf`]);
 });
 
+test('writeJobFileDurable עם expectedSha256 שגוי: הקובץ הסופי לא נוצר ולא נוגעים בקובץ קיים באותו שם', async () => {
+  const JOB2 = '64b7f0c2a1b2c3d4e5f60002';
+  const data = Buffer.from('{"result":1}');
+  const final = path.join(jobDir(JOB2, env), jobFileName('result', sha(data)));
+
+  // אין קובץ סופי: mismatch → לא נוצר כלום (גם לא זמני)
+  const r1 = await writeJobFileDurable(JOB2, 'result', data, env, { expectedSha256: 'f'.repeat(64) });
+  assert.deepEqual(r1, { mismatch: true, relPath: null, absPath: null, bytes: data.length, sha256: sha(data), reused: false });
+  assert.deepEqual(await listDir(jobDir(JOB2, env)), []);
+
+  // קובץ באותו שם כבר קיים (של בקשה מקבילה) — גם אם תוכנו שונה, לא מוחלף ולא נמחק
+  await fs.writeFile(final, 'locked-by-another-request');
+  const r2 = await writeJobFileDurable(JOB2, 'result', data, env, { expectedSha256: 'f'.repeat(64) });
+  assert.equal(r2.mismatch, true);
+  assert.equal(await fs.readFile(final, 'utf8'), 'locked-by-another-request');
+  assert.deepEqual(await listDir(jobDir(JOB2, env)), [path.basename(final)]);
+
+  // expectedSha256 תואם — כרגיל
+  const r3 = await writeJobFileDurable(JOB2, 'result', data, env, { expectedSha256: sha(data) });
+  assert.equal(r3.mismatch, undefined);
+  assert.deepEqual(await fs.readFile(final), data);
+});
+
 test('removeQuiet: לא זורק על קובץ שאינו קיים', async () => {
   await removeQuiet(path.join(tmp, 'nope', 'x'));
 });

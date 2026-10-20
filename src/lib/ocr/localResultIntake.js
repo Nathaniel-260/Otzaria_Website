@@ -10,7 +10,7 @@
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import OcrJob from '../../models/OcrJob.js';
-import { removeQuiet, storageRoot, writeJobFileDurable } from './localStorage.js';
+import { storageRoot, writeJobFileDurable } from './localStorage.js';
 import { MAX_RESULT_BYTES, parseResultBytes, validateResult, validationDetails } from './localResultValidate.js';
 import { moveToRejected, receiveResult, storedAnswerFor } from './localApply.js';
 
@@ -146,17 +146,18 @@ export async function intakeResult({ job, claimedSha, body, now, env = process.e
   }
   let file;
   try {
-    file = await writeJobFileDurable(String(job._id), 'result', limitedBody(body, maxBytes), env);
+    // ה-hash נבדק על הקובץ הזמני (ייחודי לבקשה הזו) לפני ה-rename: גוף שלא תואם לכותרת לא
+    // מגיע לשם הסופי בכלל, ולכן אין מה למחוק — ובקשה מקבילה תקינה עם אותו גוף, שכבר נעלה את
+    // result-<sha>.json, לא יכולה לאבד את הקובץ שלה
+    file = await writeJobFileDurable(String(job._id), 'result', limitedBody(body, maxBytes), env, {
+      expectedSha256: claimedSha,
+    });
   } catch (e) {
     const failure = uploadFailure(e);
     if (failure) return failure;
     throw e;
   }
-  if (file.sha256 !== claimedSha) {
-    // קובץ באותו שם שכבר היה (reused) שייך לבקשה אחרת — לא מוחקים אותו
-    if (!file.reused) await removeQuiet(file.absPath);
-    return answer(400, { error: 'hash_mismatch' });
-  }
+  if (file.mismatch || file.sha256 !== claimedSha) return answer(400, { error: 'hash_mismatch' });
   const sha = file.sha256;
   const at = now ?? new Date();
 

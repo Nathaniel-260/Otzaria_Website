@@ -567,3 +567,58 @@ test('resumeStalledApply: תוצאה ננעלה בלי החלטה / בוטלה �
   assert.deepEqual(await resumeStalledApply(c.job._id, { env }), { ok: false, code: 'result_unavailable' });
   assert.equal((await load(c.job._id)).status, 'applying');
 });
+
+test('pipelineVersion ענק (מעל 16MB) → accepted ולא 500; נשמר מקוצר', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const { job } = await makeJob({ n: 1 });
+  const doc = resultDoc(job, 'success', { pipelineVersion: `v${'9'.repeat(17 * 1024 * 1024)}` });
+  const buf = Buffer.from(JSON.stringify(doc));
+  expectAck(await send(job._id, buf), 'accepted', job, sha256(buf), 'success');
+  const j = await load(job._id);
+  assert.equal(j.pipelineVersion.length, 200);
+  assert.ok(j.pipelineVersion.startsWith('v999'));
+  assert.equal(j.status, 'completed');
+});
+
+test('partial שבו שום עמוד לא הצליח → status failed עם errorCode; ה-ack נשאר partial', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const { job, pages } = await makeJob({ n: 2 });
+  const doc = resultDoc(job, 'partial', {
+    pages: [
+      { pdfPageIndex: 1, error: { code: 'ocr_failed', message: 'x' } },
+      { pdfPageIndex: 2, error: { code: 'ocr_failed', message: 'y' } },
+    ],
+  });
+  const buf = Buffer.from(JSON.stringify(doc));
+  expectAck(await send(job._id, buf), 'accepted', job, sha256(buf), 'partial');
+  const j = await load(job._id);
+  assert.equal(j.status, 'failed');
+  assert.equal(j.active, false);
+  assert.equal(j.errorCode, 'no_pages_succeeded');
+  assert.match(j.error, /אף עמוד/);
+  assert.equal(j.resultOutcome, 'partial');
+  assert.equal(j.ack.outcome, 'partial');
+  assert.equal(j.successPages, 0);
+  assert.equal(j.failedPages, 2);
+  assert.equal((await Page.findById(pages[0]._id).lean()).content, '');
+  // שליחה חוזרת — already_received עם outcome partial (לא failed)
+  expectAck(await send(job._id, buf), 'already_received', job, sha256(buf), 'partial');
+});
+
+test('מרוץ hash_mismatch: בקשה עם כותרת שגויה במקביל לבקשה תקינה עם אותו גוף לא מוחקת את הקובץ הנעול', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  for (let i = 0; i < 8; i++) {
+    const { job } = await makeJob({ n: 1 });
+    const buf = Buffer.from(JSON.stringify(resultDoc(job)));
+    const sha = sha256(buf);
+    const [bad, good] = await Promise.all([
+      send(job._id, buf, { sha: 'e'.repeat(64) }),
+      send(job._id, buf),
+    ]);
+    assert.deepEqual([bad.status, bad.body], [400, { error: 'hash_mismatch' }]);
+    expectAck(good, 'accepted', job, sha, 'success');
+    assert.deepEqual(await filesOf(job), [`result-${sha}.json`]);
+    const j = await load(job._id);
+    assert.equal(j.resultPath, `${job._id}/result-${sha}.json`);
+  }
+});

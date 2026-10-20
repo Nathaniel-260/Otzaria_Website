@@ -2,6 +2,7 @@
 // imports יחסיים בלבד (נבדק ב-node:test).
 import { buildPageUpdate } from './runOcrJob.pure.js';
 import { stripUnsafe } from './localStatusReport.js';
+import { terminalStatusForOutcome } from './localJobState.js';
 
 export const ACK_KINDS = Object.freeze(['accepted', 'already_received', 'cancelled']);
 export const ACK_OUTCOMES = Object.freeze(['success', 'partial', 'failed', 'cancelled']);
@@ -75,6 +76,32 @@ export function pageApplySet(text, jobId, sha, now) {
 }
 
 const clean = (s) => stripUnsafe(String(s ?? ''), STORED_ERROR_CHARS).trim();
+
+// pipelineVersion נשמר ב-OcrJob. הסכמה (result.schema.json) לא מגבילה את אורכו, ולכן לא דוחים
+// (422) אלא מקצרים בשמירה: ערך ענק היה חורג ממגבלת 16MB של מסמך → 500 → העובד שולח שוב לנצח.
+export const STORED_PIPELINE_VERSION_CHARS = 200;
+export function storedPipelineVersion(v) {
+  return typeof v === 'string' ? stripUnsafe(v, STORED_PIPELINE_VERSION_CHARS).trim() : '';
+}
+
+export const NO_PAGES_SUCCEEDED_CODE = 'no_pages_succeeded';
+export const NO_PAGES_SUCCEEDED_MESSAGE = 'אף עמוד לא נקלט: כל העמודים נכשלו בעיבוד במחשב המקומי או נמחקו מהספר';
+
+/**
+ * שדות הסטטוס בסגירה. outcome=partial שבו שום עמוד לא נקלט ואין התנגשות שממתינה להחלטה
+ * (successPages=0, conflictPages=0) נסגר כ-failed עם errorCode — אחרת היה מוצג "הסתיים" בלי שום
+ * טקסט. ה-ack לא מושפע (outcome נשאר partial כפי שנשלח — חוזה). partial עם התנגשויות נשאר completed
+ * (יש טקסט OCR שממתין להחלטת מנהל), כמו success שכל עמודיו התנגשו.
+ * @param {string} outcome
+ * @param {{successPages:number, conflictPages:number}} counters
+ */
+export function closingStatusFields(outcome, counters) {
+  const status = terminalStatusForOutcome(outcome);
+  if (outcome === 'partial' && counters.successPages === 0 && counters.conflictPages === 0) {
+    return { status: 'failed', errorCode: NO_PAGES_SUCCEEDED_CODE, error: NO_PAGES_SUCCEEDED_MESSAGE };
+  }
+  return { status };
+}
 
 // שגיאת עמוד מהעובד → הודעה בעברית לתצוגה (טקסט רגיל, מנוקה ומקוצר)
 export function pageErrorMessage(err) {

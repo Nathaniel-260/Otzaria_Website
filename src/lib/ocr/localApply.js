@@ -24,17 +24,18 @@ import path from 'node:path';
 import OcrJob from '../../models/OcrJob.js';
 import Page from '../../models/Page.js';
 import OcrConflict from '../../models/OcrConflict.js';
-import { terminalStatusForOutcome } from './localJobState.js';
 import { jobDir, jobFileName, relToAbs, absToRel } from './localStorage.js';
 import { parseResultBytes, validateResult } from './localResultValidate.js';
 import {
   ackBody,
+  closingStatusFields,
   failedOutcomeClasses,
   MISSING_PAGE_MESSAGE,
   pageApplyFilter,
   pageApplySet,
   pageErrorMessage,
   storedAckAnswer,
+  storedPipelineVersion,
   summarizeApply,
 } from './localApply.pure.js';
 
@@ -203,7 +204,7 @@ async function runApply(job, sha, doc, now, hooks) {
       {
         $set: {
           ...counters,
-          status: terminalStatusForOutcome(doc.outcome),
+          ...closingStatusFields(doc.outcome, counters),
           active: false,
           finishedAt: now,
           ack,
@@ -276,7 +277,7 @@ export async function receiveResult({ jobId, sha, doc, file = null, now = new Da
           resultPath: file?.relPath ?? null,
           resultBytes: file?.bytes ?? null,
           resultReceivedAt: now,
-          pipelineVersion: doc.pipelineVersion,
+          pipelineVersion: storedPipelineVersion(doc.pipelineVersion),
         },
       },
       DURABLE

@@ -61,12 +61,20 @@ const isUnsafeCodePoint = (c) =>
   (c >= 0x2066 && c <= 0x2069);
 
 // מנקה ומקצר לפי נקודות קוד (לא יחידות UTF-16) — קיצור לא חוצה זוג surrogate ולא משאיר חצי תו.
-// משמש גם את קליטת התוצאה (localApply.pure.js) לטקסט שגיאה מהעובד.
-export const stripUnsafe = (s, maxChars) =>
-  Array.from(s)
-    .filter((ch) => !isUnsafeCodePoint(ch.codePointAt(0)))
-    .slice(0, maxChars)
-    .join('');
+// משמש גם את קליטת התוצאה (localApply.pure.js) לטקסט שגיאה/גרסה מהעובד.
+// זיכרון חסום: עוצר אחרי maxChars תווים בטוחים, בלי Array.from על כל הקלט — שדה בתוצאה יכול
+// להיות עשרות MB (הגוף עד 100MiB), ומערך של תו-לכל-איבר היה מנפח אותו פי עשרות.
+export const stripUnsafe = (s, maxChars) => {
+  let out = '';
+  let n = 0;
+  if (!(maxChars > 0)) return out;
+  for (const ch of String(s)) {
+    if (isUnsafeCodePoint(ch.codePointAt(0))) continue;
+    out += ch;
+    if (++n >= maxChars) break;
+  }
+  return out;
+};
 
 const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isCount = (v, min) => Number.isSafeInteger(v) && v >= min;

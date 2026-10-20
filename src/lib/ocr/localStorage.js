@@ -157,10 +157,17 @@ export async function writeFileDurable(absPath, data) {
 // אם כבר קיים קובץ סופי באותו שם עם אותו גודל ו-hash — הוא נשמר כמו שהוא (הקובץ לא
 // מתחלף אחרי שנקבע) והזמני נמחק. קובץ קיים פגום (גודל/hash אחר) — מוחלף בתוכן הנכון.
 // מחזירה { relPath, absPath, bytes, sha256, reused }.
-export async function writeJobFileDurable(jobId, kind, data, env = process.env) {
+// expectedSha256 (רשות): אם ה-hash בפועל שונה — הזמני (הייחודי לבקשה הזו) נמחק, הקובץ הסופי
+// לא נוצר ולא נוגעים בו, ומוחזר { mismatch:true, bytes, sha256 } בלי נתיבים. כך בקשה עם כותרת
+// hash שגויה לא יכולה למחוק קובץ באותו שם שבקשה מקבילה תקינה כבר נעלה (מרוץ hash_mismatch).
+export async function writeJobFileDurable(jobId, kind, data, env = process.env, { expectedSha256 } = {}) {
   const dir = jobDir(jobId, env);
   if (!Object.hasOwn(FILE_KINDS, kind)) throw new Error('invalid_file_kind');
   const { tmpPath, bytes, sha256 } = await writeTmp(dir, kind, data);
+  if (expectedSha256 != null && sha256 !== expectedSha256) {
+    await removeQuiet(tmpPath);
+    return { mismatch: true, relPath: null, absPath: null, bytes, sha256, reused: false };
+  }
   const absPath = path.join(/*turbopackIgnore: true*/ dir, jobFileName(kind, sha256));
   let reused = false;
   try {

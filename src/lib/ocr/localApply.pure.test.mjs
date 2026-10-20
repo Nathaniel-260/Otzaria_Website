@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ackBody,
+  closingStatusFields,
   failedOutcomeClasses,
   isValidAck,
   jobErrorText,
@@ -11,8 +12,12 @@ import {
   pageApplySet,
   pageErrorMessage,
   storedAckAnswer,
+  storedPipelineVersion,
+  STORED_ERROR_CHARS,
+  STORED_PIPELINE_VERSION_CHARS,
   summarizeApply,
 } from './localApply.pure.js';
+import { stripUnsafe } from './localStatusReport.js';
 import { buildPageUpdate, pageHasText } from './runOcrJob.pure.js';
 
 const C = 'c'.repeat(64);
@@ -157,4 +162,46 @@ test('summarizeApply: failed — כל העמודים נכשלו, error; cancelle
   const cancelled = summarizeApply({ outcome: 'cancelled' }, MAP, []);
   assert.equal('processedPages' in cancelled, false);
   assert.equal(cancelled.successPages, 0);
+});
+
+test('storedPipelineVersion: מקוצר ל-200 תווים ומנוקה (הסכמה לא מגבילה — לא 422, ולא 500 על ערך ענק)', () => {
+  assert.equal(storedPipelineVersion('0.1.0'), '0.1.0');
+  assert.equal(storedPipelineVersion(' tess' + String.fromCharCode(0x202e) + '-5 \t'), 'tess-5');
+  assert.equal(storedPipelineVersion(''), '');
+  assert.equal(storedPipelineVersion(undefined), '');
+  const huge = 'v'.repeat(20 * 1024 * 1024);
+  const t0 = Date.now();
+  const out = storedPipelineVersion(huge);
+  assert.equal(out.length, STORED_PIPELINE_VERSION_CHARS);
+  assert.ok(Date.now() - t0 < 1000, 'לא סורק/מעתיק את כל הקלט');
+  // קיצור לפי נקודות קוד — לא חוצה זוג surrogate
+  assert.equal(Array.from(storedPipelineVersion('😀'.repeat(300))).length, STORED_PIPELINE_VERSION_CHARS);
+});
+
+test('stripUnsafe: עוצר אחרי maxChars (זיכרון חסום), אותה תוצאה כמו קודם', () => {
+  assert.equal(stripUnsafe('a\u0000b\u200fc', 2), 'ab');
+  assert.equal(stripUnsafe('abc', 0), '');
+  assert.equal(stripUnsafe('😀x', 1), '😀');
+  const out = stripUnsafe('\u0001'.repeat(1000) + 'x'.repeat(30 * 1024 * 1024), 5);
+  assert.equal(out, 'xxxxx');
+});
+
+test('jobErrorText/pageErrorMessage: הודעת שגיאה ענקית מהעובד מקוצרת בלי לנפח זיכרון', () => {
+  const message = 'm'.repeat(30 * 1024 * 1024);
+  const text = jobErrorText({ outcome: 'failed', error: { code: 'x', message } });
+  assert.ok(Array.from(text).length <= STORED_ERROR_CHARS);
+  assert.ok(Array.from(pageErrorMessage({ code: 'c'.repeat(1e6), message })).length <= STORED_ERROR_CHARS);
+});
+
+test('closingStatusFields: partial בלי שום עמוד שנקלט ובלי התנגשות → failed עם errorCode; אחרת לפי ה-outcome', () => {
+  const none = { successPages: 0, conflictPages: 0 };
+  assert.deepEqual(Object.keys(closingStatusFields('partial', none)).sort(), ['error', 'errorCode', 'status']);
+  assert.equal(closingStatusFields('partial', none).status, 'failed');
+  assert.equal(closingStatusFields('partial', none).errorCode, 'no_pages_succeeded');
+  assert.match(closingStatusFields('partial', none).error, /אף עמוד/);
+  assert.deepEqual(closingStatusFields('partial', { successPages: 1, conflictPages: 0 }), { status: 'completed' });
+  assert.deepEqual(closingStatusFields('partial', { successPages: 0, conflictPages: 2 }), { status: 'completed' });
+  assert.deepEqual(closingStatusFields('success', none), { status: 'completed' });
+  assert.deepEqual(closingStatusFields('failed', none), { status: 'failed' });
+  assert.deepEqual(closingStatusFields('cancelled', none), { status: 'cancelled' });
 });
