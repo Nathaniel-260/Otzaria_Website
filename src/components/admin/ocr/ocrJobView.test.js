@@ -1,0 +1,168 @@
+import { describe, it, expect } from 'vitest'
+import { ALL_STATUSES } from '@/lib/ocr/localJobState'
+import { DEFAULT_LOCAL_OPTIONS, LOCAL_OPTION_VALUES } from '@/lib/ocr/localJobCreate.pure'
+import {
+  LOCAL_DEFAULT_OPTIONS,
+  LOCAL_LM_OPTIONS,
+  LOCAL_SCRIPT_OPTIONS,
+  canCancel,
+  cancelReasonLabel,
+  formatBytes,
+  formatLastSeen,
+  isWorkerUnavailable,
+  jobErrorText,
+  methodLabel,
+  pollIntervalMs,
+  progressCounts,
+  progressPercent,
+  rejectionReasonLabel,
+  statusIcon,
+  statusLabel,
+  statusTone,
+  summaryParts,
+} from './ocrJobView'
+
+describe('statusLabel / statusTone / statusIcon', () => {
+  it('לכל מצב תווית עברית, גוון ואייקון', () => {
+    for (const s of ALL_STATUSES) {
+      expect(statusLabel(s)).not.toBe('מצב לא ידוע')
+      expect(statusTone(s)).toMatch(/^(neutral|info|warning|error|success)$/)
+      expect(statusIcon(s)).not.toBe('help')
+    }
+  })
+
+  it('התוויות הנדרשות', () => {
+    expect(statusLabel('queued')).toBe('ממתין למחשב המקומי')
+    expect(statusLabel('paused_runner')).toBe('מושהה — GitHub Runner פעיל')
+    expect(statusLabel('cancelled')).toBe('בוטל')
+    expect(statusTone('needs_attention')).toBe('error')
+    expect(statusTone('completed')).toBe('success')
+  })
+
+  it('מצב לא מוכר', () => {
+    expect(statusLabel('weird')).toBe('מצב לא ידוע')
+    expect(statusTone(undefined)).toBe('neutral')
+  })
+})
+
+describe('progress', () => {
+  it('local — לפי progress של העובד, ונפילה ל-totalPages', () => {
+    const job = { method: 'local', status: 'running', progress: { pagesDone: 30, pagesTotal: 120 }, totalPages: 100 }
+    expect(progressCounts(job)).toEqual({ done: 30, total: 120 })
+    expect(progressPercent(job)).toBe(25)
+    expect(progressCounts({ method: 'local', progress: { pagesDone: 0, pagesTotal: 0 }, totalPages: 8 })).toEqual({ done: 0, total: 8 })
+  })
+
+  it('שרת — processedPages/totalPages', () => {
+    expect(progressPercent({ method: 'ocrwin', processedPages: 1, totalPages: 3 })).toBe(33)
+  })
+
+  it('גבולות: אין סך → 0, חריגה → 100', () => {
+    expect(progressPercent({ method: 'local', progress: {} })).toBe(0)
+    expect(progressPercent({ method: 'local', progress: { pagesDone: 9, pagesTotal: 3 } })).toBe(100)
+    expect(progressPercent(null)).toBe(0)
+  })
+})
+
+describe('canCancel', () => {
+  it('פעילה שטרם החלה בקליטה', () => {
+    for (const s of ['preparing', 'queued', 'running', 'pausing', 'paused_runner', 'delivery_pending', 'needs_attention']) {
+      expect(canCancel({ method: 'local', status: s, decision: null })).toBe(true)
+    }
+  })
+
+  it('applying / decision=apply / סופית — לא', () => {
+    expect(canCancel({ method: 'local', status: 'applying' })).toBe(false)
+    expect(canCancel({ method: 'local', status: 'delivery_pending', decision: 'apply' })).toBe(false)
+    expect(canCancel({ method: 'local', status: 'cancelled' })).toBe(false)
+    expect(canCancel(null)).toBe(false)
+  })
+})
+
+describe('pollIntervalMs', () => {
+  it('local 10 שניות, שרת 2.5 שניות, לא פעילה — בלי polling', () => {
+    expect(pollIntervalMs({ method: 'local', status: 'queued' })).toBe(10000)
+    expect(pollIntervalMs({ method: 'ocrwin', status: 'running' })).toBe(2500)
+    expect(pollIntervalMs({ method: 'local', status: 'completed' })).toBeNull()
+    expect(pollIntervalMs(null)).toBeNull()
+  })
+})
+
+describe('methodLabel', () => {
+  it('שלושת הספקים', () => {
+    expect(methodLabel({ method: 'gemini', model: 'gemini-2.5-pro' })).toBe('Gemini · gemini-2.5-pro')
+    expect(methodLabel({ method: 'ocrwin' })).toBe('OCRWin')
+    expect(methodLabel({ method: 'local' })).toBe('מחשב מקומי')
+  })
+})
+
+describe('formatLastSeen', () => {
+  const now = new Date('2026-10-20T12:00:00Z')
+  const ago = (ms) => new Date(now.getTime() - ms).toISOString()
+  it('זמן יחסי', () => {
+    expect(formatLastSeen(null, now)).toBe('מעולם לא התחבר')
+    expect(formatLastSeen('garbage', now)).toBe('מעולם לא התחבר')
+    expect(formatLastSeen(ago(20_000), now)).toBe('לפני פחות מדקה')
+    expect(formatLastSeen(ago(60_000), now)).toBe('לפני דקה')
+    expect(formatLastSeen(ago(5 * 60_000), now)).toBe('לפני 5 דקות')
+    expect(formatLastSeen(ago(60 * 60_000), now)).toBe('לפני שעה')
+    expect(formatLastSeen(ago(2 * 60 * 60_000), now)).toBe('לפני שעתיים')
+    expect(formatLastSeen(ago(7 * 60 * 60_000), now)).toBe('לפני 7 שעות')
+    expect(formatLastSeen(ago(30 * 60 * 60_000), now)).toBe('אתמול')
+    expect(formatLastSeen(ago(5 * 24 * 60 * 60_000), now)).not.toMatch(/^לפני/)
+  })
+})
+
+describe('isWorkerUnavailable', () => {
+  const active = { method: 'local', status: 'queued' }
+  it('offline / never / לא מוגדר — רק לעבודת local פעילה', () => {
+    expect(isWorkerUnavailable(active, { configured: true, availability: 'offline' })).toBe(true)
+    expect(isWorkerUnavailable(active, { configured: true, availability: 'never' })).toBe(true)
+    expect(isWorkerUnavailable(active, { configured: false, availability: 'never' })).toBe(true)
+    expect(isWorkerUnavailable(active, { configured: true, availability: 'online' })).toBe(false)
+    expect(isWorkerUnavailable({ method: 'local', status: 'completed' }, { availability: 'offline' })).toBe(false)
+    expect(isWorkerUnavailable({ method: 'ocrwin', status: 'running' }, { availability: 'offline' })).toBe(false)
+    expect(isWorkerUnavailable(active, null)).toBe(false)
+  })
+})
+
+describe('נוסחי סיכום', () => {
+  it('סיבת ביטול', () => {
+    expect(cancelReasonLabel({ cancelReason: 'admin', cancelledByName: 'רבי משה' })).toBe('בוטלה בידי רבי משה')
+    expect(cancelReasonLabel({ cancelReason: 'admin' })).toBe('בוטלה בידי מנהל')
+    expect(cancelReasonLabel({ cancelReason: 'book_deleted' })).toBe('בוטלה עקב מחיקת הספר')
+    expect(cancelReasonLabel({ cancelReason: 'book_merged' })).toBe('בוטלה עקב מיזוג ספרים')
+    expect(cancelReasonLabel({})).toBe('בוטלה')
+  })
+
+  it('שגיאה: השמורה קודמת, אחר כך לפי קוד', () => {
+    expect(jobErrorText({ error: 'X: y', errorCode: 'no_pages_succeeded' })).toBe('X: y')
+    expect(jobErrorText({ errorCode: 'no_pages_succeeded' })).toMatch(/אף עמוד לא נקלט/)
+    expect(jobErrorText({})).toBe('שגיאה לא ידועה')
+  })
+
+  it('summaryParts', () => {
+    const parts = summaryParts({ summary: { applied: 7, failed: 1, conflicts: 2, missing: 0 } })
+    expect(parts.map((p) => [p.label, p.value])).toEqual([
+      ['הוחלו', 7], ['נכשלו', 1], ['התנגשויות', 2], ['עמודים שנמחקו', 0],
+    ])
+  })
+
+  it('סיבת דחייה וגודל', () => {
+    expect(rejectionReasonLabel('validation_failed')).toBe('התוצאה לא עברה בדיקת תקינות')
+    expect(rejectionReasonLabel('x')).toBe('התוצאה נדחתה')
+    expect(formatBytes(512)).toBe('512 B')
+    expect(formatBytes(2048)).toBe('2.0 KB')
+    expect(formatBytes(3 * 1024 * 1024)).toBe('3.0 MB')
+    expect(formatBytes(null)).toBe('')
+    expect(formatBytes('x')).toBe('')
+  })
+})
+
+describe('אפשרויות העיבוד המקומי', () => {
+  it('זהות ל-whitelist ולברירות המחדל של השרת', () => {
+    expect(LOCAL_DEFAULT_OPTIONS).toEqual(DEFAULT_LOCAL_OPTIONS)
+    expect(LOCAL_LM_OPTIONS.map((o) => o.value)).toEqual([...LOCAL_OPTION_VALUES.lm])
+    expect(LOCAL_SCRIPT_OPTIONS.map((o) => o.value)).toEqual([...LOCAL_OPTION_VALUES.defaultScript])
+  })
+})

@@ -97,16 +97,16 @@ export function activeFilter() {
   return { $or: [{ active: true }, { active: { $exists: false }, status: 'running' }] };
 }
 
-// תוויות לתצוגה בממשק הניהול
+// תוויות לתצוגה בממשק הניהול (BookOcrDialog, src/components/admin/ocr/ocrJobView.js)
 export const STATUS_LABELS_HE = Object.freeze({
-  preparing: 'בהכנה',
+  preparing: 'מכין קובץ לעיבוד',
   queued: 'ממתין למחשב המקומי',
   running: 'בעיבוד',
   pausing: 'בהשהיה',
-  paused_runner: 'מושהה במחשב המקומי',
-  delivery_pending: 'ממתין למסירת התוצאה',
-  needs_attention: 'דורש טיפול במחשב המקומי',
-  applying: 'קולט תוצאות',
+  paused_runner: 'מושהה — GitHub Runner פעיל',
+  delivery_pending: 'העיבוד הסתיים — ממתין למסירה',
+  needs_attention: 'דורש טיפול במחשב המעבד',
+  applying: 'קולט תוצאות לעמודים',
   completed: 'הסתיים',
   failed: 'נכשל',
   cancelled: 'בוטל',
