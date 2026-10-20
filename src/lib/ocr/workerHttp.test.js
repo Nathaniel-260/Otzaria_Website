@@ -101,6 +101,26 @@ describe('workerHttp', () => {
     expect(isJobIdParam('64b7f0c2a1b2c3d4e5f60001')).toBe(true);
     for (const v of ['64B7F0C2A1B2C3D4E5F60001', 'abc', '', undefined, '64b7f0c2a1b2c3d4e5f6000g']) expect(isJobIdParam(v)).toBe(false);
   });
+  it('readJsonBody: גוף זורם גדול בלי Content-Length — 413 והזרם מבוטל לפני סופו (סקירה W06)', async () => {
+    let pulled = 0;
+    let cancelled = false;
+    const stream = new ReadableStream({
+      pull(controller) {
+        pulled += 1;
+        if (pulled > 1000) return controller.close();
+        controller.enqueue(new Uint8Array(1024));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const req = new Request('http://x/', { method: 'POST', body: stream, duplex: 'half' });
+    expect(req.headers.get('content-length')).toBeNull();
+    expect(await readJsonBody(req, 16 * 1024)).toEqual({ ok: false, status: 413, error: 'payload_too_large' });
+    expect(cancelled).toBe(true);
+    expect(pulled).toBeLessThan(100);
+  });
+
   it('readJsonBody: JSON תקין (גם עם BOM), 400 ללא-JSON/UTF-8 שבור, 413 לפי Content-Length או אחרי קריאה', async () => {
     const mkBody = (body, headers = {}) => new Request('http://x/s', { method: 'POST', body, headers });
     expect(await readJsonBody(mkBody('{"a":1}'), 100)).toEqual({ ok: true, body: { a: 1 } });

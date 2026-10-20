@@ -24,15 +24,30 @@ export function workerError(status, code, extra = {}, extraHeaders = {}) {
 export const isJobIdParam = (id) => typeof id === 'string' && /^[a-f0-9]{24}$/.test(id);
 
 // גוף JSON קטן (בקרה, למשל דיווח מצב) עם תקרת גודל: Content-Length גדול מהתקרה נדחה בלי
-// לקרוא את הגוף; גם גוף בלי Content-Length נבדק אחרי הקריאה. מחזיר { ok:true, body } או
+// לקרוא את הגוף; גוף בלי Content-Length נקרא בחתיכות ונעצר בחציית התקרה. מחזיר { ok:true, body } או
 // { ok:false, status, error } — 413 payload_too_large, 400 bad_request (לא UTF-8/JSON).
 export async function readJsonBody(request, maxBytes) {
   const declared = Number(request.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > maxBytes) {
     return { ok: false, status: 413, error: 'payload_too_large' };
   }
-  const buf = Buffer.from(await request.arrayBuffer());
-  if (buf.length > maxBytes) return { ok: false, status: 413, error: 'payload_too_large' };
+  // קריאה בחתיכות: בחציית התקרה מבטלים את הזרם בלי לטעון את שאר הגוף לזיכרון.
+  const chunks = [];
+  let total = 0;
+  if (request.body) {
+    const reader = request.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => {});
+        return { ok: false, status: 413, error: 'payload_too_large' };
+      }
+      chunks.push(value);
+    }
+  }
+  const buf = Buffer.concat(chunks);
   try {
     const text = new TextDecoder('utf-8', { fatal: true }).decode(buf);
     return { ok: true, body: JSON.parse(text) };
