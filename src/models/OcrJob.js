@@ -139,8 +139,13 @@ const OcrJobSchema = new mongoose.Schema({
   resultConflicts: { type: [ResultConflictSchema], default: undefined },
   resultRejections: { type: [ResultRejectionSchema], default: undefined },
 
+  // ניקוי קבצים (cron /api/cron/ocr-local-cleanup, src/lib/ocr/localCleanup.js) — רק קבצים נמחקים,
+  // הרשומה וה-ack נשמרים בלי TTL. filesCheckedAt — הבדיקה האחרונה של התיקייה; filesPurgedAt —
+  // התיקייה התרוקנה ונמחקה (null אם נשארו בה קבצים, למשל תוצאה מתנגשת שטרם נבדקה).
   inputPurgedAt: { type: Date },
   resultPurgedAt: { type: Date },
+  filesCheckedAt: { type: Date },
+  filesPurgedAt: { type: Date },
 }, { timestamps: true });
 
 // שליפה מהירה של העבודה האחרונה / הפעילה לכל ספר
