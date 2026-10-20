@@ -112,6 +112,10 @@ export const STATUS_LABELS_HE = Object.freeze({
   cancelled: 'בוטל',
 });
 
+// חלון ה"זמין" לתצוגה: השירות פונה לרשימת העבודות כל 15 שניות, כך ששתי דקות בלי פנייה
+// אומרות שהמחשב כבוי/מנותק (או שבת — שער השבת חוסם את /api/worker).
+export const WORKER_ONLINE_WINDOW_MS = 2 * 60 * 1000;
+
 // זמינות העובד לפי lastSeenAt — לתצוגה בלבד (לעולם לא סיבה לכשל או מחיקה).
 // 'never' — העובד מעולם לא פנה; 'online' — פנה בתוך הסף; 'offline' — אחרת.
 export function workerAvailability(lastSeenAt, now, thresholdMs) {
