@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { formatDateTime } from './ocrJobView'
+import Ltr from '@/components/ui/Ltr'
+import { formatDateTime, jobShortId } from './ocrJobView'
 
 const STATUS = {
   open: { label: 'ממתינה להחלטה', tone: 'warning' },
@@ -16,17 +17,18 @@ const STATUS = {
  * התנגשות אחת: העמוד נערך אחרי יצירת העבודה, ולכן טקסט ה-OCR לא נכתב עליו. מציג את הטקסט
  * הנוכחי (האנושי) מול טקסט ה-OCR — שניהם כטקסט רגיל — ומאפשר לאמץ את ה-OCR (באישור) או
  * לשמור את הקיים. האימוץ נשלח עם updatedAt של העמוד כפי שהוצג כאן; השרת דוחה אותו אם
- * העמוד נערך שוב בינתיים.
+ * העמוד נערך שוב בינתיים. showJob — מציג גם מאיזו עבודה ההתנגשות (ברשימה ברמת הספר).
  *
  * @param {{
  *   conflict: any,
  *   busy?: boolean,
  *   error?: string,
+ *   showJob?: boolean,
  *   onApply: (conflict:any) => void,
  *   onDismiss: (conflict:any) => void,
  * }} props
  */
-export default function OcrConflictItem({ conflict, busy = false, error = '', onApply, onDismiss }) {
+export default function OcrConflictItem({ conflict, busy = false, error = '', showJob = false, onApply, onDismiss }) {
   const [open, setOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const status = STATUS[conflict.status] || STATUS.open
@@ -39,6 +41,12 @@ export default function OcrConflictItem({ conflict, busy = false, error = '', on
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-bold text-on-surface">עמוד {conflict.pageNumber ?? '—'}</span>
           <Badge tone={status.tone}>{status.label}</Badge>
+          {showJob && conflict.jobId && (
+            <span className="text-xs text-on-surface-variant">
+              מעבודה <Ltr className="font-mono">{jobShortId(conflict.jobId)}</Ltr>
+              {conflict.jobCreatedAt ? ` מ-${formatDateTime(conflict.jobCreatedAt)}` : ''}
+            </span>
+          )}
         </div>
         <Button
           variant="text"

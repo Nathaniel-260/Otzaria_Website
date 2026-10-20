@@ -32,7 +32,7 @@ vi.mock("@/models/Page", () => ({
 }));
 
 vi.mock("@/models/OcrJob", () => ({
-  default: { findOne: vi.fn() },
+  default: { findOne: vi.fn(), find: vi.fn() },
 }));
 
 vi.mock("@/models/OcrWorkerState", () => ({
@@ -76,6 +76,7 @@ describe("GET /api/admin/books/ocr/status - auth", () => {
 function chain(result: unknown) {
   const q: Record<string, unknown> = {};
   q.sort = vi.fn(() => q);
+  q.limit = vi.fn(() => q);
   q.select = vi.fn(() => q);
   q.lean = vi.fn().mockResolvedValue(result);
   return q;
@@ -84,7 +85,7 @@ function chain(result: unknown) {
 describe("GET /api/admin/books/ocr/status - ספק local", () => {
   const BOOK_ID = "507f1f77bcf86cd799439011";
   const JOB_ID = "64b7f0c2a1b2c3d4e5f6000a";
-  type Mocked = { findOne: ReturnType<typeof vi.fn>; findById: ReturnType<typeof vi.fn>; countDocuments: ReturnType<typeof vi.fn> };
+  type Mocked = { findOne: ReturnType<typeof vi.fn>; find: ReturnType<typeof vi.fn>; findById: ReturnType<typeof vi.fn>; countDocuments: ReturnType<typeof vi.fn> };
   let Book: Mocked, Page: Mocked, OcrJob: Mocked, OcrWorkerState: Mocked, OcrConflict: Mocked;
 
   beforeEach(async () => {
@@ -102,6 +103,8 @@ describe("GET /api/admin/books/ocr/status - ספק local", () => {
     Page.countDocuments.mockResolvedValueOnce(10).mockResolvedValueOnce(4);
     OcrConflict.countDocuments.mockReset();
     OcrConflict.countDocuments.mockResolvedValue(3);
+    OcrJob.find.mockReset();
+    OcrJob.find.mockReturnValue(chain([]));
   });
 
   afterEach(() => {
@@ -183,8 +186,11 @@ describe("GET /api/admin/books/ocr/status - ספק local", () => {
 
     const body = await (await GET(makeRequest(BOOK_ID))).json();
     expect(body.worker).toEqual({ configured: true, lastSeenAt: null, availability: "never" });
+    // conflictsOpen — של העבודה המוחזרת בלבד (ocrwin → 0); הספירה ברמת הספר בשדה נפרד
     expect(body.conflictsOpen).toBe(0);
-    expect(OcrConflict.countDocuments).not.toHaveBeenCalled();
+    expect(OcrConflict.countDocuments).not.toHaveBeenCalledWith({ job: expect.anything(), status: expect.anything() });
+    expect(body.bookConflictsOpen).toBe(3);
+    expect(OcrConflict.countDocuments).toHaveBeenCalledWith({ book: BOOK_ID, status: { $in: ["open", "applying"] } });
     expect(body.job.progress).toEqual({ phase: null, pagesDone: 0, pagesTotal: 5 });
 
     vi.stubEnv("OCR_WORKER_SECRET", "");

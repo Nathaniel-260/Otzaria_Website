@@ -131,6 +131,32 @@ describe('OcrConflictsPanel', () => {
     expect(screen.queryByRole('button', { name: 'טען עוד' })).not.toBeInTheDocument()
   })
 
+  it('ברמת הספר: רק פתוחות, עם העבודה המקורית; "טען עוד" מדלג רק על הפתוחות שנטענו', async () => {
+    const fromJob = { jobId: '64b7f0c2a1b2c3d4e5f6000a', jobCreatedAt: '2026-10-01T08:00:00.000Z' }
+    fetchMock
+      .mockResolvedValueOnce(reply(200, listBody([conflict(fromJob), conflict({ ...fromJob, id: 'c2', pageNumber: 6 })], { total: 3, hasMore: true })))
+      .mockResolvedValueOnce(reply(200, { success: true, conflict: conflict({ ...fromJob, jobCreatedAt: null, status: 'dismissed' }) }))
+      .mockResolvedValueOnce(reply(200, listBody([conflict({ id: 'c3', pageNumber: 8 })], { total: 2, hasMore: false })))
+    const user = userEvent.setup()
+    render(<OcrConflictsPanel bookId="book1" />)
+
+    expect(await screen.findByText('עמוד 4')).toBeInTheDocument()
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/books/ocr/conflicts?bookId=book1&status=open&limit=50&offset=0')
+    expect(screen.getByText(/התנגשויות בקליטה בספר \(2 ממתינות\)/)).toBeInTheDocument()
+    expect(screen.getAllByText('#f6000a')).toHaveLength(2)
+
+    // טיפול באחת — היא יוצאת מהרשימה המסוננת בשרת, ולכן ההמשך מתחיל אחרי הפתוחה שנותרה
+    await user.click(screen.getAllByRole('button', { name: 'הצג טקסטים' })[0])
+    await user.click(screen.getByRole('button', { name: 'שמור את הטקסט הקיים' }))
+    expect(await screen.findByText('נשמר הטקסט הקיים')).toBeInTheDocument()
+    // תאריך העבודה נשמר גם אחרי שהפריט הוחלף בתשובת הפעולה
+    expect(screen.getAllByText(/מ-/)).toHaveLength(2)
+
+    await user.click(screen.getByRole('button', { name: 'טען עוד' }))
+    expect(await screen.findByText('עמוד 8')).toBeInTheDocument()
+    expect(fetchMock.mock.calls[2][0]).toContain('bookId=book1&status=open&limit=50&offset=1')
+  })
+
   it('שגיאת טעינה מוצגת', async () => {
     fetchMock.mockResolvedValueOnce(reply(403, { error: 'אין הרשאה לבצע פעולה זו' }))
     render(<OcrConflictsPanel jobId="job1" />)

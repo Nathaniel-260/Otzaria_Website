@@ -5,6 +5,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import connectDB from '@/lib/db';
 import Page from '@/models/Page';
 import OcrConflict from '@/models/OcrConflict';
+import OcrJob from '@/models/OcrJob';
 import { hasBookLibraryAccess } from '@/lib/roles';
 import { CONFLICT_STATUSES, PENDING_CONFLICT_STATUSES, parsePaging, serializeConflict } from '@/lib/ocr/ocrConflictView';
 import { settleStaleConflictApplies } from '@/lib/ocr/ocrConflictResolve';
@@ -12,7 +13,8 @@ import { badRequest, requireAccess, serverError } from '@/lib/apiResponse';
 
 // GET /api/admin/books/ocr/conflicts?jobId=...|bookId=...[&status=open][&limit=50][&offset=0]
 // התנגשויות בהחלת תוצאת OCR מקומי (עמוד שנערך אחרי יצירת העבודה ולכן לא נדרס), ממוינות לפי
-// מספר עמוד, כל אחת עם טקסט ה-OCR ועם הטקסט הנוכחי של העמוד ו-updatedAt שלו (לאימוץ מותנה).
+// מספר עמוד, כל אחת עם טקסט ה-OCR ועם הטקסט הנוכחי של העמוד ו-updatedAt שלו (לאימוץ מותנה),
+// ועם מזהה ותאריך העבודה שיצרה אותה (jobId, jobCreatedAt) — ברשימה ברמת הספר יש כמה עבודות.
 export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -43,12 +45,17 @@ export async function GET(request) {
     ]);
 
     const pageIds = conflicts.map((c) => c.page);
-    const pages = pageIds.length
-      ? await Page.find({ _id: { $in: pageIds } })
-        .select('_id content rightColumn leftColumn isTwoColumns updatedAt')
-        .lean()
-      : [];
+    const jobIds = [...new Set(conflicts.map((c) => String(c.job)))];
+    const [pages, jobs] = await Promise.all([
+      pageIds.length
+        ? Page.find({ _id: { $in: pageIds } })
+          .select('_id content rightColumn leftColumn isTwoColumns updatedAt')
+          .lean()
+        : [],
+      jobIds.length ? OcrJob.find({ _id: { $in: jobIds } }).select('_id createdAt').lean() : [],
+    ]);
     const byId = new Map(pages.map((p) => [String(p._id), p]));
+    const jobsById = new Map(jobs.map((j) => [String(j._id), j]));
 
     return NextResponse.json(
       {
@@ -56,7 +63,7 @@ export async function GET(request) {
         total,
         openCount,
         hasMore: offset + conflicts.length < total,
-        conflicts: conflicts.map((c) => serializeConflict(c, byId.get(String(c.page)) ?? null)),
+        conflicts: conflicts.map((c) => serializeConflict(c, byId.get(String(c.page)) ?? null, jobsById.get(String(c.job)) ?? null)),
       },
       { headers: { 'Cache-Control': 'private, no-store' } }
     );

@@ -237,6 +237,16 @@ export function formatDateTime(value) {
   return d.toLocaleString('he-IL', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
 }
 
+/** קיצור hash של תוצאה לתצוגה (12 תווים ראשונים) */
+export function shortSha(sha) {
+  return typeof sha === 'string' ? sha.slice(0, 12) : ''
+}
+
+/** קיצור מזהה עבודה לתצוגה — 6 התווים האחרונים (הראשונים ב-ObjectId הם חותמת זמן, דומים בין עבודות סמוכות) */
+export function jobShortId(jobId) {
+  return typeof jobId === 'string' && jobId ? `#${jobId.slice(-6)}` : ''
+}
+
 // תוויות אפשרויות העיבוד המקומי (whitelist זהה ל-LOCAL_OPTION_VALUES בשרת). ברירות המחדל זהות
 // ל-DEFAULT_LOCAL_OPTIONS ב-localJobCreate.pure.js (שאינו נטען בדפדפן — מייבא node:crypto).
 export const LOCAL_DEFAULT_OPTIONS = Object.freeze({ lm: 'rabbinic', defaultScript: 'square' })

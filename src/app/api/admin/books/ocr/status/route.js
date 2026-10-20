@@ -12,14 +12,17 @@ import { readWorkerConfig } from '@/lib/ocr/workerAuth';
 import { WORKER_ONLINE_WINDOW_MS, workerAvailability } from '@/lib/ocr/localJobState';
 import { prepLeaseExpired } from '@/lib/ocr/localJobCreate.pure';
 import { hasBookLibraryAccess } from '@/lib/roles';
-import { PENDING_CONFLICT_STATUSES } from '@/lib/ocr/ocrConflictView';
 import { reapStaleOcrJobs } from '@/lib/ocr/staleJobs';
 import { badRequest, notFound, requireAccess, serverError } from '@/lib/apiResponse';
+import { OLDER_RESULT_CONFLICTS_MAX, PENDING_CONFLICT_STATUSES, pendingResultConflicts } from '@/lib/ocr/ocrConflictView';
 
 // GET /api/admin/books/ocr/status?bookId=...
 // מחזיר את ספירות העמודים (לקדם-בחירה), את העבודה האחרונה/הפעילה של הספר, ולספק local
 // גם את זמינות המחשב המקומי (worker), מספר ההתנגשויות הפתוחות (conflictsOpen), ותוצאות
 // מתנגשות/נדחות של העבודה (resultConflicts / resultRejections).
+// ברמת הספר, בלי תלות בעבודה האחרונה או בספק שלה: bookConflictsOpen — כל ההתנגשויות הפתוחות
+// בספר (גם מעבודות local קודמות), ו-olderResultConflicts — תוצאות מתנגשות שלא סומנו "נבדק"
+// מעבודות local שאינן העבודה המוחזרת ב-job. conflictsOpen נשאר כמקודם: של העבודה המוחזרת בלבד.
 
 const MAX_PAGE_ERRORS = 50;
 
@@ -167,11 +170,29 @@ export async function GET(request) {
     ]);
 
     const now = new Date();
-    const [worker, conflictsOpen] = await Promise.all([
+    const olderJobsFilter = {
+      book: book._id,
+      method: 'local',
+      resultConflicts: { $elemMatch: { reviewedAt: null } },
+      ...(job ? { _id: { $ne: job._id } } : {}),
+    };
+    const [worker, conflictsOpen, bookConflictsOpen, olderJobs] = await Promise.all([
       readWorkerInfo(now),
       job?.method === 'local'
         ? OcrConflict.countDocuments({ job: job._id, status: { $in: PENDING_CONFLICT_STATUSES } })
         : 0,
+      OcrConflict.countDocuments({ book: book._id, status: { $in: PENDING_CONFLICT_STATUSES } }),
+      OcrJob.find(olderJobsFilter)
+        .sort({ createdAt: -1 })
+        .limit(OLDER_RESULT_CONFLICTS_MAX)
+        .select({
+          createdAt: 1,
+          'resultConflicts.sha256': 1,
+          'resultConflicts.receivedAt': 1,
+          'resultConflicts.bytes': 1,
+          'resultConflicts.reviewedAt': 1,
+        })
+        .lean(),
     ]);
 
     return NextResponse.json({
@@ -180,6 +201,8 @@ export async function GET(request) {
       job: job ? serializeJob(job, now) : null,
       worker,
       conflictsOpen,
+      bookConflictsOpen,
+      olderResultConflicts: pendingResultConflicts(olderJobs),
     });
   } catch (error) {
     console.error('OCR status error:', error);

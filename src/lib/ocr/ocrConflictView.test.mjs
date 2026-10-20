@@ -8,6 +8,7 @@ import {
   conflictApplyStale,
   parseClientDate,
   parsePaging,
+  pendingResultConflicts,
   serializeConflict,
 } from './ocrConflictView.js';
 
@@ -34,6 +35,32 @@ test('serializeConflict: עמוד שנמחק', () => {
   assert.equal(out.pageUpdatedAt, null);
   assert.equal(out.pageContent, '');
   assert.equal(out.status, 'open');
+});
+
+test('serializeConflict: תאריך העבודה המקורית רק כשהעבודה ידועה', () => {
+  const conflict = { _id: 'c', job: 'j', page: 'p' };
+  assert.equal(serializeConflict(conflict, null).jobCreatedAt, null);
+  const out = serializeConflict(conflict, null, { _id: 'j', createdAt: at });
+  assert.equal(out.jobId, 'j');
+  assert.equal(out.jobCreatedAt, at.toISOString());
+});
+
+test('pendingResultConflicts: רק מה שלא נבדק, עם מזהה ותאריך העבודה, עד התקרה', () => {
+  const sha = (ch) => ch.repeat(64);
+  const jobs = [
+    { _id: 'j2', createdAt: at, resultConflicts: [
+      { sha256: sha('a'), receivedAt: at, bytes: 10, reviewedAt: null },
+      { sha256: sha('b'), receivedAt: at, bytes: 20, reviewedAt: at },
+    ] },
+    { _id: 'j1', createdAt: null, resultConflicts: [{ sha256: sha('c') }, null, { reviewedAt: null }] },
+    { _id: 'j0' },
+  ];
+  assert.deepEqual(pendingResultConflicts(jobs), [
+    { jobId: 'j2', jobCreatedAt: at.toISOString(), sha256: sha('a'), receivedAt: at.toISOString(), bytes: 10, reviewedAt: null },
+    { jobId: 'j1', jobCreatedAt: null, sha256: sha('c'), receivedAt: null, bytes: null, reviewedAt: null },
+  ]);
+  assert.equal(pendingResultConflicts(jobs, 1).length, 1);
+  assert.deepEqual(pendingResultConflicts(null), []);
 });
 
 test('parsePaging: ברירות מחדל, תקרה וערכים שגויים', () => {

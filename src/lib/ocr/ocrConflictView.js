@@ -41,11 +41,13 @@ const iso = (d) => (d ? new Date(d).toISOString() : null);
 /**
  * @param {any} conflict רשומת OcrConflict (lean)
  * @param {any|null} page העמוד הנוכחי (lean: _id, content, rightColumn, leftColumn, isTwoColumns, updatedAt) או null אם נמחק
+ * @param {any|null} [job] העבודה שיצרה את ההתנגשות (lean: createdAt) — לזיהוי העבודה ברשימה ברמת הספר
  */
-export function serializeConflict(conflict, page) {
+export function serializeConflict(conflict, page, job = null) {
   return {
     id: String(conflict._id),
     jobId: String(conflict.job),
+    jobCreatedAt: job ? iso(job.createdAt) : null,
     pageId: String(conflict.page),
     pageNumber: conflict.pageNumber ?? null,
     reason: conflict.reason || 'page_changed',
@@ -62,6 +64,34 @@ export function serializeConflict(conflict, page) {
     pageRightColumn: page?.rightColumn || '',
     pageLeftColumn: page?.leftColumn || '',
   };
+}
+
+// תקרה לתוצאות מתנגשות שלא נבדקו מעבודות קודמות בתשובת מצב הספר
+export const OLDER_RESULT_CONFLICTS_MAX = 50;
+
+/**
+ * תוצאות מתנגשות (resultConflicts) שעדיין לא סומנו "נבדק", מעבודות local קודמות של הספר —
+ * שטוחות, כל אחת עם מזהה ותאריך העבודה שלה (הסימון "נבדק" נשלח לפי jobId + sha256).
+ * @param {any[]} jobs עבודות (lean: _id, createdAt, resultConflicts), מהחדשה לישנה
+ * @param {number} [max]
+ */
+export function pendingResultConflicts(jobs, max = OLDER_RESULT_CONFLICTS_MAX) {
+  const out = [];
+  for (const job of jobs || []) {
+    for (const c of job?.resultConflicts || []) {
+      if (!c || c.reviewedAt || typeof c.sha256 !== 'string') continue;
+      out.push({
+        jobId: String(job._id),
+        jobCreatedAt: iso(job.createdAt),
+        sha256: c.sha256,
+        receivedAt: iso(c.receivedAt),
+        bytes: c.bytes ?? null,
+        reviewedAt: null,
+      });
+      if (out.length >= max) return out;
+    }
+  }
+  return out;
 }
 
 /** limit/offset מתוך query string — מספרים שלמים בטווח, אחרת ברירת מחדל */

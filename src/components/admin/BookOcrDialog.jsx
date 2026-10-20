@@ -7,6 +7,7 @@ import LocalOcrJobProgress from '@/components/admin/ocr/LocalOcrJobProgress'
 import OcrJobSummary from '@/components/admin/ocr/OcrJobSummary'
 import OcrConflictsPanel from '@/components/admin/ocr/OcrConflictsPanel'
 import LocalResultIssues from '@/components/admin/ocr/LocalResultIssues'
+import OlderResultConflicts from '@/components/admin/ocr/OlderResultConflicts'
 import {
   LOCAL_DEFAULT_OPTIONS,
   canResumePreparation,
@@ -58,7 +59,10 @@ export default function BookOcrDialog({ book, onClose, localRetryDelayMs = START
   const [counts, setCounts] = useState({ pagesWithImage: 0, editedPagesCount: 0 })
   const [job, setJob] = useState(null)
   const [worker, setWorker] = useState(null)
-  const [conflictsOpen, setConflictsOpen] = useState(0)
+  // התנגשויות פתוחות ברמת הספר (מכל העבודות — לא רק האחרונה), ותוצאות מתנגשות שלא נבדקו
+  // מעבודות local קודמות (של העבודה האחרונה מוצגות ב-LocalResultIssues)
+  const [bookConflictsOpen, setBookConflictsOpen] = useState(0)
+  const [olderResultConflicts, setOlderResultConflicts] = useState([])
   const [error, setError] = useState('')
 
   // הגדרות הטופס
@@ -91,7 +95,9 @@ export default function BookOcrDialog({ book, onClose, localRetryDelayMs = START
         setCounts(data.counts)
         setJob(data.job)
         setWorker(data.worker ?? null)
-        setConflictsOpen(Number(data.conflictsOpen) || 0)
+        // שרת ישן בלי bookConflictsOpen — נופלים לספירה של העבודה האחרונה
+        setBookConflictsOpen(Number(data.bookConflictsOpen ?? data.conflictsOpen) || 0)
+        setOlderResultConflicts(Array.isArray(data.olderResultConflicts) ? data.olderResultConflicts : [])
       } else {
         setError(data.error || 'שגיאה בטעינת מצב')
       }
@@ -266,8 +272,9 @@ export default function BookOcrDialog({ book, onClose, localRetryDelayMs = START
     : counts.pagesWithImage
 
   const lastLocalJob = job && isLocalJob(job) ? job : null
-  const showConflicts = !!lastLocalJob && !isRunning
-    && (conflictsOpen > 0 || Number(lastLocalJob.summary?.conflicts) > 0)
+  // פאנל ברמת הספר: גם אחרי עבודה חדשה (OCRWin או local) ההתנגשויות הקודמות נשארות נגישות
+  const showConflicts = !isRunning
+    && (bookConflictsOpen > 0 || Number(lastLocalJob?.summary?.conflicts) > 0)
 
   const methodOptions = [
     { id: 'gemini', label: 'Gemini', desc: 'איכות גבוהה (AI)', disabled: GEMINI_DISABLED, disabledNote: 'מושבת זמנית' },
@@ -362,7 +369,6 @@ export default function BookOcrDialog({ book, onClose, localRetryDelayMs = START
                 <>
                   <OcrJobSummary job={lastLocalJob} />
                   <LocalResultIssues job={lastLocalJob} onChanged={fetchStatus} />
-                  {showConflicts && <OcrConflictsPanel jobId={lastLocalJob.id} onChanged={fetchStatus} />}
                 </>
               )}
 
@@ -382,6 +388,9 @@ export default function BookOcrDialog({ book, onClose, localRetryDelayMs = START
                   </span>
                 </div>
               )}
+
+              {showConflicts && <OcrConflictsPanel bookId={book.id} onChanged={fetchStatus} />}
+              <OlderResultConflicts items={olderResultConflicts} onChanged={fetchStatus} />
 
               <div>
                 <label className="block text-sm font-bold text-neutral-700 mb-2">שיטת OCR</label>

@@ -12,6 +12,7 @@ import {
   formatBytes,
   formatLastSeen,
   isWorkerUnavailable,
+  jobShortId,
   jobErrorText,
   methodLabel,
   pollIntervalMs,
@@ -19,6 +20,7 @@ import {
   progressPercent,
   rejectionReasonLabel,
   resumeIssue,
+  shortSha,
   statusIcon,
   statusLabel,
   statusTone,
@@ -209,5 +211,15 @@ describe('resumeIssue', () => {
     expect(r.retryAt).not.toBe('')
     expect(resumeIssue({ resumeErrorCode: 'EACCES' }).label).toBe('שגיאה (EACCES)')
     expect(resumeIssue({ resumeErrorCode: 'result_corrupt' }).retryAt).toBe('')
+  })
+})
+
+describe('shortSha / jobShortId', () => {
+  it('קיצורים לתצוגה, ומחרוזת ריקה לקלט לא תקין', () => {
+    expect(shortSha('a'.repeat(64))).toBe('a'.repeat(12))
+    expect(shortSha(undefined)).toBe('')
+    expect(jobShortId('64b7f0c2a1b2c3d4e5f6000a')).toBe('#f6000a')
+    expect(jobShortId('')).toBe('')
+    expect(jobShortId(null)).toBe('')
   })
 })

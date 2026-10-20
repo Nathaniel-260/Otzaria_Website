@@ -10,8 +10,11 @@ const reply = (status, body) => ({ ok: status >= 200 && status < 300, status, js
 
 const ONLINE = { configured: true, lastSeenAt: new Date().toISOString(), availability: 'online' }
 
-function statusBody({ job = null, worker = ONLINE, counts = { pagesWithImage: 10, editedPagesCount: 0 }, conflictsOpen = 0 } = {}) {
-  return { success: true, counts, job, worker, conflictsOpen }
+function statusBody({
+  job = null, worker = ONLINE, counts = { pagesWithImage: 10, editedPagesCount: 0 }, conflictsOpen = 0,
+  bookConflictsOpen = conflictsOpen, olderResultConflicts = [],
+} = {}) {
+  return { success: true, counts, job, worker, conflictsOpen, bookConflictsOpen, olderResultConflicts }
 }
 
 function localJob(overrides = {}) {
@@ -384,7 +387,8 @@ describe('BookOcrDialog — מצבי עבודה מקומית', () => {
     expect(await screen.findByText('הוחלו: 7')).toBeInTheDocument()
     expect(screen.getByText('עמודים שנמחקו: 2')).toBeInTheDocument()
     expect(await screen.findByText('עמוד 4')).toBeInTheDocument()
-    expect(calls.conflicts[0]).toContain('jobId=507f1f77bcf86cd799439022')
+    // הפאנל ברמת הספר — ההתנגשויות הפתוחות מכל העבודות, לא רק של האחרונה
+    expect(calls.conflicts[0]).toContain(`bookId=${book.id}&status=open`)
   })
 
   it('תוצאה מתנגשת — "סמן כנבדק" שולח את ה-sha', async () => {
@@ -411,6 +415,85 @@ describe('BookOcrDialog — מצבי עבודה מקומית', () => {
     renderDialog()
     expect(await screen.findByText('התוצאה לא עברה בדיקת תקינות')).toBeInTheDocument()
     expect(screen.getByText('pages[0]: missing text')).toBeInTheDocument()
+  })
+})
+
+// רגרסיה לסקירה W03: עבודה חדשה לא מסתירה התנגשויות ותוצאות מתנגשות של עבודות local קודמות
+describe('BookOcrDialog — התנגשויות ברמת הספר', () => {
+  const OLD_JOB = '64b7f0c2a1b2c3d4e5f6000a'
+  const oldConflictList = () => reply(200, {
+    success: true,
+    total: 1,
+    openCount: 1,
+    hasMore: false,
+    conflicts: [{
+      id: 'c-old', jobId: OLD_JOB, jobCreatedAt: '2026-10-01T08:00:00.000Z', pageNumber: 3, status: 'open',
+      ocrText: 'OCR', pageContent: 'אנושי', pageExists: true, pageUpdatedAt: '2026-10-20T10:00:00.000Z',
+    }],
+  })
+
+  it('עבודה מקומית עם התנגשות פתוחה ואחריה עבודת OCRWin — הפאנל עדיין מציג אותה, עם העבודה המקורית', async () => {
+    const calls = mockApi({
+      status: () => statusBody({
+        job: { id: 'j-ocrwin', method: 'ocrwin', status: 'completed', totalPages: 4, processedPages: 4, successPages: 4, failedPages: 0 },
+        conflictsOpen: 0,
+        bookConflictsOpen: 1,
+      }),
+      conflicts: oldConflictList,
+    })
+    renderDialog()
+    expect(await screen.findByText(/העבודה האחרונה הסתיימה/)).toBeInTheDocument()
+    expect(await screen.findByText('עמוד 3')).toBeInTheDocument()
+    expect(screen.getByText(/1 ממתינות/)).toBeInTheDocument()
+    expect(screen.getByText('#f6000a')).toBeInTheDocument()
+    expect(calls.conflicts[0]).toContain(`bookId=${book.id}&status=open`)
+  })
+
+  it('עבודה מקומית חדשה בלי התנגשויות משלה — ההתנגשויות הקודמות בספר עדיין מוצגות', async () => {
+    const calls = mockApi({
+      status: () => statusBody({
+        job: localJob({ status: 'completed', resultOutcome: 'success', summary: { applied: 10, failed: 0, conflicts: 0, missing: 0 } }),
+        conflictsOpen: 0,
+        bookConflictsOpen: 1,
+      }),
+      conflicts: oldConflictList,
+    })
+    renderDialog()
+    expect(await screen.findByText('עמוד 3')).toBeInTheDocument()
+    expect(calls.conflicts).toHaveLength(1)
+  })
+
+  it('בלי התנגשויות פתוחות בספר ובלי התנגשויות בעבודה האחרונה — אין פאנל', async () => {
+    const calls = mockApi({
+      status: () => statusBody({ job: { id: 'j-ocrwin', method: 'ocrwin', status: 'completed', totalPages: 4, processedPages: 4, successPages: 4, failedPages: 0 } }),
+    })
+    renderDialog()
+    expect(await screen.findByText(/העבודה האחרונה הסתיימה/)).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'התנגשויות בקליטה' })).not.toBeInTheDocument()
+    expect(calls.conflicts).toHaveLength(0)
+  })
+
+  it('תוצאה מתנגשת שלא נבדקה מעבודה קודמת — מוצגת עם העבודה, ו"סמן כנבדק" שולח את מזהה העבודה הקודמת', async () => {
+    const sha = 'd'.repeat(64)
+    let reviewed = false
+    const calls = mockApi({
+      status: () => statusBody({
+        job: { id: 'j-ocrwin', method: 'ocrwin', status: 'completed', totalPages: 4, processedPages: 4, successPages: 4, failedPages: 0 },
+        olderResultConflicts: reviewed ? [] : [{ jobId: OLD_JOB, jobCreatedAt: '2026-10-01T08:00:00.000Z', sha256: sha, receivedAt: '2026-10-01T09:00:00.000Z', bytes: 2048, reviewedAt: null }],
+      }),
+      review: () => {
+        reviewed = true
+        return reply(200, { success: true, sha256: sha, reviewedAt: '2026-10-20T11:00:00.000Z' })
+      },
+    })
+    const user = userEvent.setup()
+    renderDialog()
+    const section = await screen.findByRole('region', { name: 'תוצאות מתנגשות מעבודות קודמות' })
+    expect(within(section).getByText('#f6000a')).toBeInTheDocument()
+    await user.click(within(section).getByRole('button', { name: 'סמן כנבדק' }))
+    expect(calls.review).toEqual([{ jobId: OLD_JOB, sha256: sha }])
+    // אחרי הרענון התוצאה כבר לא ממתינה — הרשימה נעלמת
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'תוצאות מתנגשות מעבודות קודמות' })).not.toBeInTheDocument())
   })
 })
 

@@ -1,12 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import Badge from '@/components/ui/Badge'
-import Button from '@/components/ui/Button'
 import Ltr from '@/components/ui/Ltr'
-import { formatBytes, formatDateTime, rejectionReasonLabel } from './ocrJobView'
-
-const shortSha = (sha) => (typeof sha === 'string' ? sha.slice(0, 12) : '')
+import ResultConflictRow from './ResultConflictRow'
+import { formatBytes, formatDateTime, rejectionReasonLabel, shortSha } from './ocrJobView'
 
 /**
  * תוצאות של עבודת OCR מקומי שלא הוחלו:
@@ -63,56 +59,5 @@ export default function LocalResultIssues({ job, onChanged }) {
         </div>
       )}
     </section>
-  )
-}
-
-function ResultConflictRow({ jobId, conflict, onChanged }) {
-  const [reviewedAt, setReviewedAt] = useState(conflict.reviewedAt || null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-
-  const markReviewed = async () => {
-    setBusy(true)
-    setError('')
-    try {
-      const res = await fetch('/api/admin/books/ocr/result-conflicts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, sha256: conflict.sha256 }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.success) {
-        setReviewedAt(data.reviewedAt || new Date().toISOString())
-        onChanged?.()
-      } else {
-        setError(data.error || 'הסימון נכשל')
-      }
-    } catch {
-      setError('תקלה בתקשורת')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded-control bg-surface-container p-2 text-sm">
-      <div>
-        <p className="text-on-surface">
-          התקבלה {formatDateTime(conflict.receivedAt)}
-          {conflict.bytes != null && <> · <Ltr>{formatBytes(conflict.bytes)}</Ltr></>}
-        </p>
-        <p className="text-xs text-on-surface-variant">
-          <Ltr className="font-mono">{shortSha(conflict.sha256)}</Ltr>
-        </p>
-        {error && <p role="alert" className="text-xs text-error">{error}</p>}
-      </div>
-      {reviewedAt ? (
-        <Badge tone="success" icon="check">נבדק</Badge>
-      ) : (
-        <Button variant="tonal" size="sm" icon="fact_check" onClick={markReviewed} loading={busy}>
-          סמן כנבדק
-        </Button>
-      )}
-    </li>
   )
 }
