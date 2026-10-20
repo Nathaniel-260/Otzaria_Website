@@ -31,6 +31,16 @@ export async function GET(request) {
     if (bookId && !mongoose.isValidObjectId(bookId)) return badRequest('מזהה ספר לא תקין');
     if (status && !CONFLICT_STATUSES.includes(status)) return badRequest('סינון מצב לא תקין');
     const { limit, offset } = parsePaging(searchParams);
+    // A stable key survives resolutions by another administrator between pages. Keep offset for older clients.
+    let after = null;
+    if (searchParams.has('after')) {
+      const raw = searchParams.get('after');
+      try { after = raw.length <= 256 ? JSON.parse(raw) : null; } catch { /* invalid cursor */ }
+      if (!after || typeof after.id !== 'string' || !/^[a-f0-9]{24}$/i.test(after.id)
+        || !(after.pageNumber === null || (Number.isSafeInteger(after.pageNumber) && after.pageNumber > 0))) {
+        return badRequest('סמן דפדוף לא תקין');
+      }
+    }
 
     await connectDB();
 
@@ -42,11 +52,17 @@ export async function GET(request) {
       ? { ...scope, status: status === 'open' ? { $in: PENDING_CONFLICT_STATUSES } : status }
       : { ...scope };
 
-    const [total, openCount, conflicts] = await Promise.all([
+    const pageFilter = after ? { ...filter, $or: [
+      { pageNumber: after.pageNumber, _id: { $gt: new mongoose.Types.ObjectId(after.id) } },
+      { pageNumber: after.pageNumber === null ? { $ne: null } : { $gt: after.pageNumber } },
+    ] } : filter;
+    const [total, openCount, batch] = await Promise.all([
       OcrConflict.countDocuments(filter),
       OcrConflict.countDocuments({ ...filter, status: { $in: PENDING_CONFLICT_STATUSES } }),
-      OcrConflict.find(filter).sort({ pageNumber: 1, _id: 1 }).skip(offset).limit(limit).lean(),
+      OcrConflict.find(pageFilter).sort({ pageNumber: 1, _id: 1 }).skip(after ? 0 : offset).limit(limit + 1).lean(),
     ]);
+    const conflicts = batch.slice(0, limit);
+    const last = conflicts.at(-1);
 
     const pageIds = conflicts.map((c) => c.page);
     const jobIds = [...new Set(conflicts.map((c) => String(c.job)))];
@@ -66,7 +82,8 @@ export async function GET(request) {
         success: true,
         total,
         openCount,
-        hasMore: offset + conflicts.length < total,
+        hasMore: batch.length > limit,
+        nextCursor: last ? JSON.stringify({ pageNumber: last.pageNumber ?? null, id: String(last._id) }) : null,
         conflicts: conflicts.map((c) => serializeConflict(c, byId.get(String(c.page)) ?? null, jobsById.get(String(c.job)) ?? null)),
       },
       { headers: { 'Cache-Control': 'private, no-store' } }

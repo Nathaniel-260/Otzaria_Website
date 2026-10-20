@@ -33,15 +33,17 @@ function ConflictsPanelBody({ jobId, bookId, onChanged }) {
   const [total, setTotal] = useState(0)
   const [openCount, setOpenCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
+  const [nextCursor, setNextCursor] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [listError, setListError] = useState('')
   const [busyId, setBusyId] = useState(null)
   const [errors, setErrors] = useState({})
 
-  const load = useCallback(async (offset) => {
+  const load = useCallback(async (offset, cursor = null) => {
     const scope = bookId ? `bookId=${encodeURIComponent(bookId)}&status=open` : `jobId=${encodeURIComponent(jobId)}`
-    const res = await fetch(`${LIST_URL}?${scope}&limit=${PAGE_SIZE}&offset=${offset}`)
+    const paging = cursor ? `after=${encodeURIComponent(cursor)}` : `offset=${offset}`
+    const res = await fetch(`${LIST_URL}?${scope}&limit=${PAGE_SIZE}&${paging}`)
     const data = await res.json().catch(() => ({}))
     if (!res.ok || !data.success) throw new Error(data.error || 'טעינת ההתנגשויות נכשלה')
     return data
@@ -53,6 +55,7 @@ function ConflictsPanelBody({ jobId, bookId, onChanged }) {
     setTotal(data.total)
     setOpenCount(data.openCount)
     setHasMore(data.hasMore)
+    setNextCursor(data.nextCursor ?? null)
   }, [])
 
   const reload = useCallback(async () => {
@@ -78,12 +81,12 @@ function ConflictsPanelBody({ jobId, bookId, onChanged }) {
   const loadMore = async () => {
     setLoadingMore(true)
     try {
-      // ברמת הספר הרשימה מסוננת ל"ממתינות" (open+applying) בשרת — מה שטופל כאן כבר יצא ממנה,
-      // ולכן ההיסט הוא מספר הממתינות שנטענו (וסינון כפילויות למקרה שמישהו אחר טיפל במקביל)
+      // Prefer the server's stable page/id cursor: another admin can resolve earlier rows between requests.
+      // The offset is only a compatibility fallback for a server that has not yet deployed cursor support.
       const offset = bookMode
         ? items.filter((c) => PENDING_CONFLICT_STATUSES.includes(c.status)).length
         : items.length
-      const data = await load(offset)
+      const data = await load(offset, nextCursor)
       setItems((prev) => {
         const seen = new Set(prev.map((c) => c.id))
         return [...prev, ...data.conflicts.filter((c) => !seen.has(c.id))]
@@ -91,6 +94,7 @@ function ConflictsPanelBody({ jobId, bookId, onChanged }) {
       setTotal(data.total)
       setOpenCount(data.openCount)
       setHasMore(data.hasMore)
+      setNextCursor(data.nextCursor ?? null)
     } catch (e) {
       setListError(e.message || 'טעינת ההתנגשויות נכשלה')
     } finally {

@@ -34,6 +34,25 @@ beforeEach(() => {
 })
 
 describe('OcrConflictsPanel', () => {
+  it('uses the server cursor so a concurrent resolution cannot shift the next page away', async () => {
+    const cursor = JSON.stringify({ pageNumber: 50, id: '507f1f77bcf86cd799439050' })
+    const server = Array.from({ length: 51 }, (_, i) => conflict({ id: `c${i + 1}`, pageNumber: i + 1 }))
+    fetchMock.mockImplementation(async (url) => {
+      const qs = new URL(url, 'http://localhost').searchParams
+      const after = qs.get('after') ? JSON.parse(qs.get('after')).pageNumber : 0
+      const matches = server.filter((c) => c.status === 'open' && c.pageNumber > after)
+      return reply(200, listBody(structuredClone(matches.slice(0, 50)), {
+        hasMore: matches.length > 50, nextCursor: cursor,
+      }))
+    })
+    render(<OcrConflictsPanel bookId="book1" />)
+    const more = await screen.findByRole('button', { name: 'טען עוד' })
+    server[0].status = 'dismissed' // another administrator resolves an already-loaded row
+    await userEvent.setup().click(more)
+    expect(await screen.findByText('עמוד 51')).toBeInTheDocument()
+    expect(new URL(fetchMock.mock.calls[1][0], 'http://localhost').searchParams.get('after')).toBe(cursor)
+  })
+
   it('אימוץ בתהליך (applying) — תווית מצב ובלי כפתורי החלטה', async () => {
     fetchMock.mockResolvedValueOnce(reply(200, listBody([conflict({ status: 'applying' })], { openCount: 1 })))
     const user = userEvent.setup()

@@ -89,6 +89,32 @@ describe('הרשאות', () => {
 })
 
 describe('GET רשימה', () => {
+  it('cursor pagination does not skip the next conflict when another admin resolves an earlier row', async () => {
+    const first = await (await GET(listReq(`bookId=${book._id}&status=open&limit=2`))).json()
+    expect(first.conflicts.map((c) => c.pageNumber)).toEqual([2, 5])
+    expect(first.hasMore).toBe(true)
+    await OcrConflict.updateOne({ _id: first.conflicts[0].id }, { $set: { status: 'dismissed' } })
+    const next = await (await GET(listReq(`bookId=${book._id}&status=open&limit=2&after=${encodeURIComponent(first.nextCursor)}`))).json()
+    expect(next.conflicts.map((c) => c.pageNumber)).toEqual([9])
+    expect(next.hasMore).toBe(false)
+  })
+
+  it('cursor breaks ties by id even when the anchor itself was resolved', async () => {
+    await OcrConflict.updateMany({}, { $set: { pageNumber: 5 } })
+    const first = await (await GET(listReq(`bookId=${book._id}&status=open&limit=1`))).json()
+    await OcrConflict.updateOne({ _id: first.conflicts[0].id }, { $set: { status: 'dismissed' } })
+    const next = await (await GET(listReq(`bookId=${book._id}&status=open&limit=2&after=${encodeURIComponent(first.nextCursor)}`))).json()
+    expect(next.conflicts).toHaveLength(2)
+    expect(next.conflicts.every((c) => c.id > first.conflicts[0].id)).toBe(true)
+    expect(next.hasMore).toBe(false)
+  })
+
+  it('invalid cursors are rejected', async () => {
+    for (const cursor of ['no-json', '{}', '{"pageNumber":1,"id":"nope"}', '{"pageNumber":1,"id":["507f1f77bcf86cd799439050"]}']) {
+      expect((await GET(listReq(`bookId=${book._id}&after=${encodeURIComponent(cursor)}`))).status).toBe(400)
+    }
+  })
+
   it('ממוינת לפי מספר עמוד, עם הטקסט הנוכחי של העמוד ו-updatedAt שלו', async () => {
     const res = await GET(listReq(`jobId=${job._id}`))
     expect(res.status).toBe(200)

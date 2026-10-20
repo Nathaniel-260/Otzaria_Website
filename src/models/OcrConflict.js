@@ -33,5 +33,6 @@ const OcrConflictSchema = new mongoose.Schema({
 // התנגשות אחת לכל עמוד בעבודה (upsert בשליחה חוזרת לא יוצר כפילות)
 OcrConflictSchema.index({ job: 1, page: 1 }, { unique: true });
 OcrConflictSchema.index({ book: 1, status: 1 });
+OcrConflictSchema.index({ book: 1, status: 1, pageNumber: 1, _id: 1 });
 
 export default mongoose.models.OcrConflict || mongoose.model('OcrConflict', OcrConflictSchema);

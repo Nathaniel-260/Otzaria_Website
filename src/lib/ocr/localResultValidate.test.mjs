@@ -151,6 +151,14 @@ test('טקסט עמוד ארוך מהמותר נדחה', () => {
   assert.deepEqual(check(doc).errors, ['page 1 text too long']);
 });
 
+test('the page limit counts UTF-16 units, matching .NET even for surrogate pairs', () => {
+  const doc = success();
+  doc.pages[0].text = '😀'.repeat(MAX_PAGE_TEXT_CHARS / 2);
+  assert.equal(check(doc).ok, true);
+  doc.pages[0].text += 'א';
+  assert.deepEqual(check(doc).errors, ['page 1 text too long']);
+});
+
 test('null מפורש / טיפוס שגוי בשדות חובה — שגיאת צורה, בלי לגעת בשאר', () => {
   const doc = success();
   doc.jobId = null;
