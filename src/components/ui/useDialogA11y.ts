@@ -24,6 +24,8 @@ export function isFocusableVisible(el: HTMLElement): boolean {
 
 /** מחסנית החלונות המודאליים הפתוחים. רק החלון העליון מגיב ל-Tab ול-Esc. */
 const openPanels: HTMLElement[] = []
+// הנעילה שייכת למחסנית כולה: חלון תחתון יכול להיעלם לפני חלון שמעליו.
+let stackRestore: { overflow: string; paddingRight: string; paddingLeft: string; opener: HTMLElement | null } | null = null
 
 /** האם panel הוא החלון המודאלי העליון כרגע (לבדיקות ולרכיבים שמאזינים למקלדת בעצמם) */
 export function isTopDialog(panel: HTMLElement | null): boolean {
@@ -62,17 +64,17 @@ export function useDialogA11y(
     const panel = panelRef.current
     if (!panel) return
     const { body } = document
-    const prevOverflow = body.style.overflow
-    const prevPaddingRight = body.style.paddingRight
-    const prevPaddingLeft = body.style.paddingLeft
-    const root = document.documentElement
-    const scrollbarWidth = window.innerWidth - root.clientWidth
-    const hasGutter = window.getComputedStyle(root).getPropertyValue('scrollbar-gutter').includes('stable')
-    const rtl = window.getComputedStyle(body).direction === 'rtl'
-    body.style.overflow = 'hidden'
-    if (scrollbarWidth > 0 && !hasGutter) {
-      if (rtl) body.style.paddingLeft = `${scrollbarWidth}px`
-      else body.style.paddingRight = `${scrollbarWidth}px`
+    if (openPanels.length === 0) {
+      stackRestore = { overflow: body.style.overflow, paddingRight: body.style.paddingRight, paddingLeft: body.style.paddingLeft, opener }
+      const root = document.documentElement
+      const scrollbarWidth = window.innerWidth - root.clientWidth
+      const hasGutter = window.getComputedStyle(root).getPropertyValue('scrollbar-gutter').includes('stable')
+      const rtl = window.getComputedStyle(body).direction === 'rtl'
+      body.style.overflow = 'hidden'
+      if (scrollbarWidth > 0 && !hasGutter) {
+        if (rtl) body.style.paddingLeft = `${scrollbarWidth}px`
+        else body.style.paddingRight = `${scrollbarWidth}px`
+      }
     }
 
     openPanels.push(panel)
@@ -114,13 +116,26 @@ export function useDialogA11y(
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
+      const wasTop = isTopDialog(panel)
       const index = openPanels.lastIndexOf(panel)
       if (index !== -1) openPanels.splice(index, 1)
-      body.style.overflow = prevOverflow
-      body.style.paddingRight = prevPaddingRight
-      body.style.paddingLeft = prevPaddingLeft
+      const remaining = openPanels[openPanels.length - 1]
+      const restore = stackRestore
+      if (!remaining && restore) {
+        body.style.overflow = restore.overflow
+        body.style.paddingRight = restore.paddingRight
+        body.style.paddingLeft = restore.paddingLeft
+        stackRestore = null
+      }
+      // הסרת חלון ברקע אינה משנה את הפוקוס בחלון העליון.
+      if (!wasTop) return
       const target = typeof returnFocusRef.current === 'function' ? returnFocusRef.current() : returnFocusRef.current
-      ;(target ?? opener)?.focus({ preventScroll: true })
+      const preferred = target ?? opener
+      if (remaining) {
+        ;(preferred?.isConnected && remaining.contains(preferred) ? preferred : remaining).focus({ preventScroll: true })
+      } else {
+        ;(preferred?.isConnected ? preferred : restore?.opener)?.focus({ preventScroll: true })
+      }
     }
   }, [panelRef, opener])
 }
