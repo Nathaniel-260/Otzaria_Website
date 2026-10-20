@@ -630,6 +630,34 @@ test('resumeStalledApplies (סקירה W02): 20 עבודות עם קובץ תו�
   assert.ok(resumeRetryDelayMs(2) > resumeRetryDelayMs(1));
 });
 
+test('resumeStalledApplies (סקירה W02): חריגה (קריאת הקובץ נכשלה, לא ENOENT) → המתנה קצרה, ואחריה השלמה', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const t0 = new Date(Date.now() - APPLY_LEASE_MS - 60000);
+  const c = await makeJob({ n: 1 });
+  const buf = Buffer.from(JSON.stringify(resultDoc(c.job)));
+  const sha = sha256(buf);
+  const file = path.join(root, String(c.job._id), `result-${sha}.json`);
+  await fs.mkdir(file, { recursive: true }); // תיקייה במקום הקובץ → readFile זורק EISDIR (לא ENOENT)
+  await OcrJob.updateOne(
+    { _id: c.job._id },
+    { $set: { resultSha256: sha, resultOutcome: 'success', resultPath: `${c.job._id}/result-${sha}.json`, resultReceivedAt: t0, decision: 'apply', status: 'applying' } }
+  );
+  const now = new Date();
+  const [r] = await resumeStalledApplies({ now, env });
+  assert.equal(r.ok, false);
+  const j = await load(c.job._id);
+  assert.equal(j.resumeErrorCode, r.code);
+  assert.equal(j.resumeFailures, 1);
+  assert.equal(j.resumeRetryAt.getTime(), now.getTime() + resumeRetryDelayMs(1, { transient: true }));
+  assert.ok(resumeRetryDelayMs(1, { transient: true }) < resumeRetryDelayMs(1));
+
+  // התקלה חלפה — בריצה הבאה (שעה אחר כך) העבודה מושלמת, לא נדחית לשעתיים
+  await fs.rm(file, { recursive: true });
+  await fs.writeFile(file, buf);
+  const next = await resumeStalledApplies({ now: new Date(now.getTime() + 60 * 60 * 1000), env });
+  assert.deepEqual(next, [{ jobId: String(c.job._id), ok: true, code: 'applied' }]);
+});
+
 test('pipelineVersion ענק (מעל 16MB) → accepted ולא 500; נשמר מקוצר', async (t) => {
   if (db.skip) return t.skip(db.skip);
   const { job } = await makeJob({ n: 1 });

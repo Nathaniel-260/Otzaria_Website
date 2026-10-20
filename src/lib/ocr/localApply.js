@@ -35,6 +35,7 @@ import {
   pageApplySet,
   pageErrorMessage,
   resumeFailureBacksOff,
+  resumeFailureTransient,
   resumeRetryDelayMs,
   storedAckAnswer,
   storedPipelineVersion,
@@ -362,7 +363,7 @@ async function recordResumeFailure(job, code, now) {
       $set: {
         resumeErrorCode: code,
         resumeFailedAt: now,
-        resumeRetryAt: new Date(now.getTime() + resumeRetryDelayMs(failures)),
+        resumeRetryAt: new Date(now.getTime() + resumeRetryDelayMs(failures, { transient: resumeFailureTransient(code) })),
       },
       $inc: { resumeFailures: 1 },
     }

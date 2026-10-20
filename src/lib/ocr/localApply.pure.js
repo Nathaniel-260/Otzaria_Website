@@ -174,12 +174,27 @@ export function failedOutcomeClasses(doc, pageMap) {
 // (result_unavailable / result_corrupt / result_invalid): העבודה לא נסגרת ולא נמחקת, אלא נדחית
 // לניסיון הבא (resumeRetryAt) בהמתנה מוכפלת — שעה, שעתיים, 4, 8, 16, ואז פעם ביממה לעד (אולי הקובץ
 // ישוחזר מגיבוי). בלי זה אותן 20 עבודות פגומות נבחרות בכל ריצה וחוסמות את כל מה שאחריהן (סקירה W02).
+// כשל שאינו מצב קבוע של העבודה (חריגה: Mongo/אחסון לא זמינים רגעית, וכו') — המתנה קצרה: 5 דקות
+// ומוכפל (בפועל: הריצה השעתית הבאה), עד יממה רק אחרי כשלונות חוזרים רבים. גם כך העבודה ממוינת אחרי
+// עבודות שטרם נכשלו, ולכן אינה חוסמת אותן; ההמתנה הארוכה נשמרת לקובץ חסר/פגום, שלא יתוקן מעצמו.
 export const RESUME_RETRY_BASE_MS = 60 * 60 * 1000;
+export const RESUME_TRANSIENT_RETRY_BASE_MS = 5 * 60 * 1000;
 export const RESUME_RETRY_MAX_MS = 24 * 60 * 60 * 1000;
-/** @param {number} failures — מספר הכשלונות כולל הנוכחי (1 ומעלה) */
-export function resumeRetryDelayMs(failures) {
+/**
+ * @param {number} failures — מספר הכשלונות כולל הנוכחי (1 ומעלה)
+ * @param {{transient?: boolean}} [opts] — transient: כשל שאינו קבוע (resumeFailureTransient)
+ */
+export function resumeRetryDelayMs(failures, { transient = false } = {}) {
   const n = Math.max(1, Math.floor(Number(failures) || 1));
-  return Math.min(RESUME_RETRY_MAX_MS, RESUME_RETRY_BASE_MS * 2 ** Math.min(n - 1, 30));
+  const base = transient ? RESUME_TRANSIENT_RETRY_BASE_MS : RESUME_RETRY_BASE_MS;
+  return Math.min(RESUME_RETRY_MAX_MS, base * 2 ** Math.min(n - 1, 30));
+}
+
+// מצבים קבועים של העבודה/הקובץ (לא ישתנו בלי התערבות או שליחה חוזרת) — המתנה ארוכה; כל השאר
+// (חריגות, internal_error) — קצרה
+const RESUME_PERMANENT = new Set(['result_unavailable', 'result_corrupt', 'result_invalid', 'job_closed']);
+export function resumeFailureTransient(code) {
+  return !RESUME_PERMANENT.has(code);
 }
 
 // תוצאות שאינן כשל של העבודה עצמה — לא דוחים בגללן: החלה חיה מקבילה, עבודה שכבר נסגרה/אינה תקועה

@@ -13,6 +13,7 @@ import {
   pageErrorMessage,
   RESUME_RETRY_MAX_MS,
   resumeFailureBacksOff,
+  resumeFailureTransient,
   resumeRetryDelayMs,
   storedAckAnswer,
   storedPipelineVersion,
@@ -223,5 +224,17 @@ test('resumeFailureBacksOff: קובץ חסר/פגום/חריגה → דוחים;
   }
   for (const c of ['applied', 'cancelled', 'already_closed', 'not_stalled', 'not_found', 'apply_in_progress']) {
     assert.equal(resumeFailureBacksOff(c), false, c);
+  }
+});
+
+test('resumeRetryDelayMs transient: 5 דקות ומוכפל עד יממה; resumeFailureTransient — קובץ חסר/פגום קבוע, חריגות זמניות', () => {
+  const M = 60 * 1000;
+  assert.deepEqual([1, 2, 3, 4, 5].map((n) => resumeRetryDelayMs(n, { transient: true })), [5 * M, 10 * M, 20 * M, 40 * M, 80 * M]);
+  assert.equal(resumeRetryDelayMs(100, { transient: true }), RESUME_RETRY_MAX_MS);
+  for (const c of ['result_unavailable', 'result_corrupt', 'result_invalid', 'job_closed']) {
+    assert.equal(resumeFailureTransient(c), false, c);
+  }
+  for (const c of ['internal_error', 'EACCES', 'EISDIR', 'MongoNetworkError', 'error']) {
+    assert.equal(resumeFailureTransient(c), true, c);
   }
 });
