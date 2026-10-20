@@ -12,6 +12,9 @@ export function getSafeCallbackUrl(raw) {
   if (!raw || raw[0] !== '/') return DEFAULT_LOGIN_REDIRECT
   // "//" או "/\" מתפרשים בדפדפן כ-origin חיצוני
   if (raw[1] === '/' || raw[1] === '\\') return DEFAULT_LOGIN_REDIRECT
+  // דפדפנים מסירים TAB/LF/CR מכתובות ("/\t/evil.com" ← "//evil.com"), ו-backslash מתנהג כמו "/".
+  // לכן דוחים כל תו בקרה/רווח (U+0000–U+0020) וכל backslash בכל מקום במחרוזת.
+  if (/[\u0000- \\]/.test(raw)) return DEFAULT_LOGIN_REDIRECT
   const pathOnly = raw.split(/[?#]/)[0]
   if (pathOnly === '/auth/login' || pathOnly.startsWith('/auth/login/')) {
     return DEFAULT_LOGIN_REDIRECT

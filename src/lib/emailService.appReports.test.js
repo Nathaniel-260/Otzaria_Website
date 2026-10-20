@@ -14,7 +14,7 @@ vi.mock('@/lib/db', () => ({ default: vi.fn() }))
 
 const { sendAppReportClosedNotification, sendAppReportContactEmail } = await import('./emailService.js')
 
-// טביעת המייל כולו (שולח, נושא, מענה, HTML). הערכים חושבו מהקוד שלפני הוספת המוצרים — מייל של אוצריא לא השתנה.
+// טביעת המייל כולו (שולח, נושא, מענה, HTML). אומתה מול master ב־0de2c4f5 — מייל של אוצריא נשמר גם אחרי הוספת המוצרים.
 const fingerprint = (m) => createHash('sha256').update(JSON.stringify([m.from, m.to, m.subject, m.replyTo, m.html, m.list ?? null])).digest('hex')
 
 const closed = (over = {}) => ({
@@ -26,7 +26,7 @@ const contact = (over = {}) => ({
 })
 
 const GOLDEN_CLOSED = '04edf7a88cca2dc8b440ff820a77cae88e74d20e0330ce20f5f12b0f290613ae'
-const GOLDEN_CONTACT = '29e72e5401571fa874b3f86111cd85ef0610599422f014335668daffdf975d93'
+const GOLDEN_CONTACT = 'e077de94c05bb72fb34b8db747aedb41bb4bfa077c6710e74c9206bf25e7b74a'
 
 describe('מיילי דיווחי התוכנה לפי מוצר', () => {
   beforeEach(() => {
@@ -56,5 +56,20 @@ describe('מיילי דיווחי התוכנה לפי מוצר', () => {
     expect(k.from.name).toBe('צוות עדכוני אוצריא')
     expect(k.html).toContain('>עדכוני אוצריא</h2>')
     expect(k.replyTo).toBe('reply+abc@reply.otzaria.org')
+  })
+
+  it('פנייה כוללת קישור לדיון בריפו של המוצר ושומרת על המיתוג שלו', async () => {
+    for (const [product, repo, team] of [
+      ['otzaria', 'Otzaria/otzaria', 'צוות אוצריא'],
+      ['offline-update', 'Otzaria/Otzaria_Offline_update', 'צוות עדכוני אוצריא'],
+    ]) {
+      const issueUrl = `https://github.com/${repo}/issues/100`
+      expect(await sendAppReportContactEmail(contact({ product, issueUrl }))).toEqual({ sent: true })
+      const mail = sent.at(-1)
+      expect(mail.html).toContain(`href="${issueUrl}"`)
+      expect(mail.html).toContain('לצפייה בדיון על הדיווח')
+      expect(mail.from.name).toBe(team)
+      expect(mail.replyTo).toBe('reply+abc@reply.otzaria.org')
+    }
   })
 })

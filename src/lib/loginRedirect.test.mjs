@@ -49,3 +49,18 @@ test('firstSearchParam: כמו URLSearchParams.get', () => {
   assert.equal(firstSearchParam(undefined), null);
   assert.equal(firstSearchParam(''), '');
 });
+
+test('getSafeCallbackUrl: תווי בקרה, רווחים ו-backslash בכל מקום נדחים', () => {
+  assert.equal(getSafeCallbackUrl('/\t/evil.com'), DEFAULT_LOGIN_REDIRECT);
+  assert.equal(getSafeCallbackUrl('/\n/evil.com'), DEFAULT_LOGIN_REDIRECT);
+  assert.equal(getSafeCallbackUrl('/\r/evil.com'), DEFAULT_LOGIN_REDIRECT);
+  assert.equal(getSafeCallbackUrl('/\u0000/evil.com'), DEFAULT_LOGIN_REDIRECT);
+  assert.equal(getSafeCallbackUrl('/ /evil.com'), DEFAULT_LOGIN_REDIRECT);
+  assert.equal(getSafeCallbackUrl('/a\\evil.com'), DEFAULT_LOGIN_REDIRECT);
+  assert.equal(getSafeCallbackUrl('/a?x=1\\y'), DEFAULT_LOGIN_REDIRECT);
+  assert.equal(getSafeCallbackUrl(' /library'), DEFAULT_LOGIN_REDIRECT);
+});
+
+test('getSafeCallbackUrl: נתיב תקין עם query מקודד ו-hash נשמר', () => {
+  assert.equal(getSafeCallbackUrl('/library/books?q=%D7%90&x=1#sec-2'), '/library/books?q=%D7%90&x=1#sec-2');
+});
