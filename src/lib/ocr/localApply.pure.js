@@ -36,7 +36,14 @@ export function storedAckAnswer(stored) {
   return ackBody('already_received', stored.jobId, stored.resultSha256, stored.outcome);
 }
 
-const SKIP_EMPTY = { $not: /\S/ }; // ריק, רווחים בלבד, null או חסר
+// "ריק" כמו pageHasText (String.prototype.trim): ריק, רק תווי רווח/שורה — כולל NBSP, BOM ורווחי
+// Unicode (Zs) — null או חסר. לא /\S/: ב-MongoDB (PCRE) \s הוא ASCII בלבד, ולכן עמוד שתוכנו NBSP
+// בלבד נכנס ל-PDF במצב skip (ריק לפי pageHasText) אבל לא היה מתעדכן בהחלה ונרשם כהתנגשות שווא.
+// תבנית PCRE כמחרוזת ($regex) בתחביר \x{…}: אובייקט RegExp של JS לא מתאים כאן — ה-source שלו
+// ממיר את U+2028/U+2029 לרצף בסגנון backslash-u, ו-PCRE של MongoDB דוחה את התחביר הזה.
+export const NON_TRIM_CHAR_PCRE =
+  '[^\\t\\n\\x{0b}\\f\\r \\x{a0}\\x{1680}\\x{2000}-\\x{200a}\\x{2028}\\x{2029}\\x{202f}\\x{205f}\\x{3000}\\x{feff}]';
+const SKIP_EMPTY = { $not: { $regex: NON_TRIM_CHAR_PCRE } };
 
 // פילטר העדכון המותנה של עמוד אחד (מפרט סעיף 4ב): העמוד שייך לספר, לא השתנה מאז יצירת
 // העבודה (updatedAt = expectedUpdatedAt מה-pageMap), ולא נכתב כבר ע"י העבודה הזו. במצב skip —

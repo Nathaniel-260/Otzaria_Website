@@ -6,13 +6,14 @@ import {
   isValidAck,
   jobErrorText,
   MISSING_PAGE_MESSAGE,
+  NON_TRIM_CHAR_PCRE,
   pageApplyFilter,
   pageApplySet,
   pageErrorMessage,
   storedAckAnswer,
   summarizeApply,
 } from './localApply.pure.js';
-import { buildPageUpdate } from './runOcrJob.pure.js';
+import { buildPageUpdate, pageHasText } from './runOcrJob.pure.js';
 
 const C = 'c'.repeat(64);
 
@@ -76,15 +77,29 @@ test('pageApplyFilter: updatedAt + ספר + לא נכתב ע"י העבודה; sk
   assert.equal(skip.book, 'B');
   assert.equal(skip.updatedAt, at);
   assert.deepEqual(skip.lastOcrJobId, { $ne: 'J' });
-  const re = skip.content.$not;
-  assert.equal(re.test('  \n'), false);
-  assert.equal(re.test('טקסט'), true);
+  assert.deepEqual(skip.content, { $not: { $regex: NON_TRIM_CHAR_PCRE } });
+  assert.deepEqual(skip.rightColumn, skip.content);
+  assert.deepEqual(skip.leftColumn, skip.content);
   const over = pageApplyFilter({ ...job, existingTextMode: 'overwrite' }, entry);
   assert.deepEqual(Object.keys(over), ['_id', 'book', 'updatedAt', 'lastOcrJobId']);
   assert.equal(pageApplyFilter(job, { page: 'P' }).updatedAt, null);
 });
 
-test('pageApplySet: אותם שדות טקסט כמו gemini/ocrwin + שדות המעקב', () => {
+test('"ריק" במצב skip זהה בדיוק ל-pageHasText (trim) — כולל NBSP/BOM/רווחי Unicode', () => {
+  assert.equal(NON_TRIM_CHAR_PCRE.includes('\\u'), false); // PCRE של MongoDB לא מכיר את התחביר \u
+  // אותה תבנית ב-JS (\x{HH} → \uHHHH) — להשוואה מול trim על כל ה-BMP
+  const re = new RegExp(NON_TRIM_CHAR_PCRE.replace(/\\x\{([0-9a-f]+)\}/g, (_, h) => `\\u${h.padStart(4, '0')}`));
+  for (let c = 0; c <= 0xffff; c++) {
+    if (c >= 0xd800 && c <= 0xdfff) continue;
+    const s = String.fromCharCode(c);
+    assert.equal(!re.test(s), !pageHasText({ content: s }), `U+${c.toString(16)}`);
+  }
+  assert.equal(re.test('\u00a0\ufeff\u3000 \n'), false);
+  assert.equal(re.test('\u00a0א'), true);
+  assert.deepEqual(pageApplyFilter({ _id: 'J', book: 'B' }, { page: 'P' }).content, { $not: { $regex: NON_TRIM_CHAR_PCRE } });
+});
+
+test('pageApplySet:אותם שדות טקסט כמו gemini/ocrwin + שדות המעקב', () => {
   const now = new Date();
   assert.deepEqual(pageApplySet('שלום', 'J', C, now), {
     ...buildPageUpdate('שלום'),

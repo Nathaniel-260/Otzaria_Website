@@ -288,6 +288,20 @@ test('skip מול overwrite: skip לא דורס טקסט קיים (גם בלי �
   assert.equal((await load(o.job._id)).successPages, 2);
 });
 
+test('skip: עמוד שתוכנו רק NBSP/BOM/רווח Unicode (ריק לפי pageHasText, נכנס ל-PDF) מוחל — לא התנגשות שווא', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const blanks = ['\u00a0', '\ufeff\n', '\u3000 \u2003'];
+  const { job, pages } = await makeJob({ n: 4, mode: 'skip', texts: [...blanks, '\u00a0א'] });
+  // העמוד הרביעי מכיל טקסט אמיתי — הוא נכנס כאן למיפוי רק כדי לוודא שהוא עדיין לא נדרס
+  const doc = resultDoc(job);
+  expectAck(await send(job._id, doc), 'accepted', job, sha256(Buffer.from(JSON.stringify(doc))), 'success');
+  const ps = await pageSnap(pages);
+  assert.deepEqual(ps.map((p) => p.content), ['טקסט 1', 'טקסט 2', 'טקסט 3', '\u00a0א']);
+  const j = await load(job._id);
+  assert.equal(j.successPages, 3);
+  assert.equal(j.conflictPages, 1);
+});
+
 test('עמוד שנמחק → missing (מתועד ב-pageErrors, לא הצלחה)', async (t) => {
   if (db.skip) return t.skip(db.skip);
   const { job, pages } = await makeJob({ n: 3 });
