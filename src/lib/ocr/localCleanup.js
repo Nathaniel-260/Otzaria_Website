@@ -7,7 +7,8 @@
 //   filesCheckedAt / filesPurgedAt (התיקייה ריקה ונמחקה) / inputPurgedAt / resultPurgedAt —
 //   בלי לשנות updatedAt (timestamps:false), כדי שלא לסרוק שוב בכל הרצה.
 // - מחיקה רק בתוך שורש האחסון: תיקיית העבודה נגזרת מ-jobDir (24 hex, נבדק מול השורש), שמות
-//   הקבצים חייבים להתאים לתבנית <kind>-<sha256>.<ext>, ורק קבצים רגילים (לא קישורים/תיקיות).
+//   הקבצים חייבים להתאים לתבנית <kind>-<sha256>.<ext>, ורק קבצים רגילים (לא קישורים/תיקיות);
+//   תיקיית עבודה שהיא עצמה קישור (symlink/junction) — לא נוגעים בה כלל.
 // - אידמפוטנטי וחסום: עד limit עבודות ועד maxMs להרצה; קובץ/תיקייה חסרים אינם שגיאה; כשל בעבודה
 //   אחת לא עוצר את האחרות (נרשם ב-errors ונבדק שוב אחרי RECHECK_MS).
 // - שורש האחסון חסר (דיסק לא מחובר / תצורה שגויה) — לא נוגעים בכלום ולא מסמנים "נוקה".
@@ -48,8 +49,20 @@ async function storageAvailable(env) {
   }
 }
 
+// תיקיית העבודה חייבת להיות תיקייה אמיתית: קישור (symlink/junction) בשם <jobId> היה גורם ל-readdir
+// ול-unlink לפעול על תיקייה מחוץ לשורש האחסון — לא נוגעים בה כלל (נרשם כשגיאה, לא מסומן "נוקה")
+export class JobDirNotDirectoryError extends Error {
+  constructor() {
+    super('job directory is not a plain directory');
+    this.name = 'JobDirNotDirectoryError';
+    this.code = 'job_dir_not_directory';
+  }
+}
+
 async function listDir(dir) {
   try {
+    const st = await fs.lstat(/*turbopackIgnore: true*/ dir);
+    if (!st.isDirectory() || st.isSymbolicLink()) throw new JobDirNotDirectoryError();
     return await fs.readdir(/*turbopackIgnore: true*/ dir, { withFileTypes: true });
   } catch (e) {
     if (e?.code === 'ENOENT' || e?.code === 'ENOTDIR') return null;

@@ -321,6 +321,32 @@ test('קבצים לא מוכרים, תיקייה פנימית וקישור — �
   assert.equal((await load(job._id)).filesPurgedAt, null);
 });
 
+test('תיקיית העבודה עצמה היא קישור (symlink/junction) לתיקייה מחוץ לשורש — לא מוחקים בה כלום', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const now = new Date();
+  const job = await makeAcked(now, 25 * HOUR);
+  const outsideDir = await fs.mkdtemp(path.join(tmp, 'outside-dir-'));
+  const victims = [`input-${A}.pdf`, `result-${B}.json`];
+  for (const name of victims) await fs.writeFile(path.join(outsideDir, name), 'keep');
+  await fs.rm(dirOf(job), { recursive: true, force: true });
+  try {
+    await fs.symlink(outsideDir, dirOf(job), process.platform === 'win32' ? 'junction' : 'dir');
+  } catch {
+    return t.skip('אין אפשרות ליצור קישור לתיקייה בסביבה הזו');
+  }
+
+  const s = await run(now);
+  assert.equal(s.inputsDeleted, 0);
+  assert.equal(s.resultsDeleted, 0);
+  assert.equal(s.errors, 1);
+  assert.deepEqual((await fs.readdir(outsideDir)).sort(), victims.slice().sort());
+  assert.ok((await fs.lstat(dirOf(job))).isSymbolicLink(), 'הקישור עצמו לא נמחק');
+  const j = await load(job._id);
+  assert.equal(j.filesPurgedAt ?? null, null);
+  assert.equal(j.inputPurgedAt ?? null, null);
+  assert.equal(j.resultPurgedAt ?? null, null);
+});
+
 test('תיקייה שנוצרה מחדש אחרי ניקוי: תוצאה מאוחרת לעבודה שבוטלה → ack=cancelled → נמחקת 24 שעות אחרי ה-ack', async (t) => {
   if (db.skip) return t.skip(db.skip);
   const t0 = new Date(Date.now() - 3 * DAY);
