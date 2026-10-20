@@ -20,8 +20,9 @@ export function isStrongSecret(v) {
 }
 
 export function readWorkerConfig(env = process.env) {
-  const secret = env.OCR_WORKER_SECRET;
-  const workerId = env.OCR_WORKER_ID;
+  // trim (כולל BOM) — כמו SecretProvider בשירות, שמקצץ את קובץ הסוד לפני השימוש.
+  const secret = typeof env.OCR_WORKER_SECRET === 'string' ? env.OCR_WORKER_SECRET.trim() : undefined;
+  const workerId = typeof env.OCR_WORKER_ID === 'string' ? env.OCR_WORKER_ID.trim() : undefined;
   if (!secret || !workerId) return { ok: false, reason: 'missing' };
   if (!isStrongSecret(secret)) return { ok: false, reason: 'weak_secret' };
   if (!WORKER_ID_RE.test(workerId)) return { ok: false, reason: 'bad_worker_id' };

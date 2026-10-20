@@ -34,11 +34,16 @@ export function withWorker(handler) {
         return workerError(auth.status, auth.code);
       }
       await connectDB();
-      await OcrWorkerState.updateOne(
-        { workerId: auth.workerId },
-        { $max: { lastSeenAt: new Date() }, $set: { lastRoute: `${request.method} ${new URL(request.url).pathname}` } },
-        { upsert: true }
-      );
+      // lastSeenAt הוא לתצוגה בלבד (ראו OcrWorkerState) — כשל בעדכונו לא מפיל את הבקשה.
+      try {
+        await OcrWorkerState.updateOne(
+          { workerId: auth.workerId },
+          { $max: { lastSeenAt: new Date() }, $set: { lastRoute: `${request.method} ${new URL(request.url).pathname}` } },
+          { upsert: true }
+        );
+      } catch {
+        console.warn('[ocr-worker] lastSeenAt update failed');
+      }
       const params = routeCtx?.params ? await routeCtx.params : {};
       return await handler(request, { workerId: auth.workerId, params });
     } catch {

@@ -58,3 +58,10 @@ test('authenticateWorker: תצורה חסרה 503, Bearer חסר/שגוי 401, �
   assert.deepEqual(authenticateWorker(req(`bearer ${HEX}`), env(HEX)), bad);
   assert.deepEqual(authenticateWorker(req(`Bearer ${HEX}`), env(HEX, 'w.1')), { ok: true, workerId: 'w.1' });
 });
+
+test('רווחים/BOM סביב הסוד וה-workerId ב-env מקוצצים — כמו SecretProvider בשירות', () => {
+  const cfg = readWorkerConfig({ OCR_WORKER_SECRET: `﻿ ${HEX}\r\n`, OCR_WORKER_ID: ' w1\n' });
+  assert.deepEqual(cfg, { ok: true, secret: HEX, workerId: 'w1' });
+  assert.deepEqual(authenticateWorker(req(`Bearer ${HEX}`), { OCR_WORKER_SECRET: ` ${HEX} `, OCR_WORKER_ID: 'w1' }), { ok: true, workerId: 'w1' });
+  assert.equal(readWorkerConfig({ OCR_WORKER_SECRET: '   ', OCR_WORKER_ID: 'w1' }).reason, 'missing');
+});

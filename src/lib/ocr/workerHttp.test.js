@@ -54,6 +54,14 @@ describe('workerHttp', () => {
     expect(opts).toEqual({ upsert: true });
   });
 
+  it('withWorker: כשל בעדכון lastSeenAt לא מפיל את הבקשה', async () => {
+    updateOne.mockRejectedValue(new Error('db down'));
+    const h = vi.fn(async () => workerJson(200, { ok: true }));
+    const r = await withWorker(h)(mk(`Bearer ${SECRET}`));
+    expect(r.status).toBe(200);
+    expect(h).toHaveBeenCalledOnce();
+  });
+
   it('withWorker: חריגה — 500 internal_error בלי טקסט החריגה', async () => {
     const r = await withWorker(async () => { throw new Error('פרט-פנימי'); })(mk(`Bearer ${SECRET}`));
     expect(r.status).toBe(500);
