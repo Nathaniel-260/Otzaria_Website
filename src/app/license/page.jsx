@@ -4,8 +4,7 @@ import { pageMetadata } from '@/lib/seo'
 
 export const metadata = pageMetadata({
   title: 'רישיון שימוש',
-  description:
-    'רישיון השימוש של תוכנת אוצריא (Personal Use License 1.0) והפניה לרישיון הספרייה, כפי שמתפרסם ב-GitHub.',
+  description: 'תנאי הרישיון של תוכנת אוצריא ושל ספריית הספרים שלה.',
   path: '/license',
 })
 
@@ -18,11 +17,6 @@ async function loadLicenseText() {
     console.error('License fetch error:', error)
     return null
   }
-}
-
-export const metadata = {
-  title: 'רישיון שימוש | אוצריא',
-  description: 'תנאי הרישיון של תוכנת אוצריא ושל ספריית הספרים שלה.',
 }
 
 export default async function LicensePage() {

@@ -5,11 +5,13 @@ import DonateWidget from '@/components/donate/DonateWidget'
 import IconTile from '@/components/ui/IconTile'
 import PageHeader from '@/components/ui/PageHeader'
 import Section from '@/components/ui/Section'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata = {
-  title: 'תרומה לאוצריא | אוצריא',
+export const metadata = pageMetadata({
+  title: 'תרומה לאוצריא',
   description: 'אוצריא מתוחזקת בהתנדבות. תרומתכם עוזרת לממן את השרתים ולהמשיך לפתח את התוכנה.',
-}
+  path: '/donate',
+})
 
 // עיצוב כיוון א' (כמו /offline ואזור התרומה בדף הבית): אריח אייקון התרומה, כותרת + קישוט ושורת
 // המשנה, הערת המטבע — לפני הטופס, כדי שתיקרא לפני התשלום — ומתחתיה טופס נדרים פלוס בכרטיס.

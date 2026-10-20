@@ -11,6 +11,7 @@ import DocsPrevNext from '@/components/docs/DocsPrevNext';
 import DocsWikiSourceNote from '@/components/docs/DocsWikiSourceNote';
 import { getAdjacentGuides, wikiTocItems } from '@/components/docs/docsNav';
 import { getUserGuideNav, getWikiPage, iconForSlug } from '@/lib/wiki';
+import { pageMetadata } from '@/lib/seo';
 
 export const revalidate = 1800;
 // דפים חדשים בוויקי נטענים on-demand גם אם לא היו קיימים בזמן ה-build
@@ -31,15 +32,16 @@ export async function generateMetadata({ params }) {
     const nav = await getUserGuideNav();
     const item = nav.find((n) => n.slug === slug);
     if (item) {
-      return {
-        title: `${item.title} | מדריך למשתמש - אוצריא`,
-        description: `מדריך למשתמש של תוכנת אוצריא: ${item.title}`,
-      };
+      return pageMetadata({
+        title: `${item.title} – מדריך למשתמש`,
+        description: `מדריך למשתמש של תוכנת אוצריא: ${item.title}. הסבר מפורט צעד אחר צעד.`,
+        path: `/docs/${slug}`,
+      });
     }
   } catch {
     /* metadata היא תוספת בלבד — הדף עצמו יטופל ב-render */
   }
-  return { title: 'מדריך למשתמש - אוצריא' };
+  return { title: 'מדריך למשתמש' };
 }
 
 export default async function WikiGuidePage({ params }) {

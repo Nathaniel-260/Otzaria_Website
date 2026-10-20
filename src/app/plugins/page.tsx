@@ -32,6 +32,13 @@ import { CACHE_TAGS, REVALIDATE_SECONDS } from '@/lib/cacheTags'
 import PluginsStoreHomeClient from './PluginsStoreHomeClient'
 import type { PluginCardData } from '@/components/plugins/types'
 import type { StoreHomeData } from './storeHomeTypes'
+import { pageMetadata } from '@/lib/seo'
+
+export const metadata = pageMetadata({
+  title: 'חנות התוספים',
+  description: 'תוספים שמשפרים את נוחות הלימוד באוצריא – מצאו, הורידו והתקינו בלחיצה אחת.',
+  path: '/plugins',
+})
 
 // ISR: הדף עצמו (לא רק שאילתת ה-DB) נשמר במטמון עד revalidateTag או חלון זה.
 // ערך זה חייב להישאר ליטרל מספרי (לא REVALIDATE_SECONDS.PLUGINS_PUBLIC) —
@@ -90,11 +97,6 @@ const loadStoreHomeData = nextCache(loadStoreHomeDataUncached, ['plugins-store-h
   tags: [CACHE_TAGS.PLUGINS_PUBLIC, CACHE_TAGS.STORE_SETTINGS, CACHE_TAGS.PLUGIN_CATEGORIES],
   revalidate: REVALIDATE_SECONDS.PLUGINS_PUBLIC
 })
-
-export const metadata = {
-  title: 'חנות התוספים | אוצריא',
-  description: 'תוספים שמשפרים את נוחות הלימוד באוצריא – מצאו, הורידו והתקינו בלחיצה אחת.',
-}
 
 export default async function PluginsPage() {
   let data: StoreHomeData | null = null

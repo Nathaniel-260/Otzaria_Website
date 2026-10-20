@@ -12,6 +12,14 @@ import DocsLayout from '@/components/docs/DocsLayout'
 import DocsSection from '@/components/docs/DocsSection'
 import { PROSE } from '@/components/docs/proseClasses'
 import Button from '@/components/ui/Button'
+import { pageMetadata } from '@/lib/seo'
+
+export const metadata = pageMetadata({
+  title: 'מדריך לטיפול בספרי דיקטה',
+  description:
+    'איך יוצרים כותרות וניווט בספרי דיקטה באוצריא: מבנה הכותרות, סימני התוכנה, עריכה ידנית, חיפוש והחלפה וכלים אוטומטיים.',
+  path: '/docs/dicta',
+})
 
 const tocItems = [
   { href: '#intro', label: 'הקדמה' },

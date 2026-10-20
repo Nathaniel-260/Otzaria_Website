@@ -8,13 +8,15 @@ import Card from '@/components/ui/Card';
 import Section from '@/components/ui/Section';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { getUserGuideNav, iconForSlug } from '@/lib/wiki';
+import { pageMetadata } from '@/lib/seo';
 
 export const revalidate = 1800;
 
-export const metadata = {
-  title: 'מדריך למשתמש - אוצריא',
+export const metadata = pageMetadata({
+  title: 'מדריך למשתמש',
   description: 'המדריך המלא לשימוש בתוכנת אוצריא: התקנה, ספרייה, קריאה, חיפוש, הגדרות ועוד',
-};
+  path: '/docs',
+});
 
 const WIKI_URL = 'https://github.com/Otzaria/otzaria/wiki';
 

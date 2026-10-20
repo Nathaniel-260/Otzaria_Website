@@ -8,12 +8,15 @@ import WhatUpdatesSection from '@/components/offline/WhatUpdatesSection'
 import IconTile from '@/components/ui/IconTile'
 import PageHeader from '@/components/ui/PageHeader'
 import Section from '@/components/ui/Section'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata = {
-  title: 'עדכוני אוצריא – עדכון במחשב לא-מקוון | אוצריא',
+// הסיומת " | אוצריא" מתווספת אוטומטית מה-template שב-layout.tsx.
+export const metadata = pageMetadata({
+  title: 'עדכוני אוצריא – עדכון במחשב לא-מקוון',
   description:
-    'כלי קטן לעדכון אוצריא, ספריית הספרים והתוספים במחשב בלי אינטרנט. הורד במחשב מחובר אל כונן USB, ועדכן מהכונן. ל-Windows ול-macOS.'
-}
+    'כלי קטן לעדכון אוצריא, ספריית הספרים והתוספים במחשב בלי אינטרנט. הורד במחשב מחובר אל כונן USB, ועדכן מהכונן. ל-Windows ול-macOS.',
+  path: '/offline',
+})
 
 const REPO_URL = 'https://github.com/Otzaria/Otzaria_Offline_update'
 

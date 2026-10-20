@@ -11,6 +11,14 @@ import DocsSection from '@/components/docs/DocsSection'
 import { DocsStep, DocsSteps } from '@/components/docs/DocsSteps'
 import { PROSE } from '@/components/docs/proseClasses'
 import Button from '@/components/ui/Button'
+import { pageMetadata } from '@/lib/seo'
+
+export const metadata = pageMetadata({
+  title: 'מדריך פיתוח – עריכת אוצריא',
+  description:
+    'מדריך צעד אחר צעד לעריכה ושיפור של תוכנת אוצריא בעצמכם: התקנת Git ו-Flutter, יצירת Fork, הורדת המאגר, עריכת הקוד ובנייה.',
+  path: '/docs/development',
+})
 
 const tocItems = [
   { href: '#intro', label: 'הקדמה' },

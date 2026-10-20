@@ -1,9 +1,11 @@
 import LegalPage, { ForumContact, LegalHeading } from '@/components/legal/LegalPage'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata = {
-  title: 'מדיניות פרטיות | אוצריא',
+export const metadata = pageMetadata({
+  title: 'מדיניות פרטיות',
   description: 'מדיניות הפרטיות של אתר ותוכנת אוצריא: אילו נתונים נאספים, לשם מה, ואיך אפשר למחוק אותם.',
-}
+  path: '/privacy',
+})
 
 export default function PrivacyPolicyPage() {
   return (

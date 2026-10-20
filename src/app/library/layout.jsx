@@ -1,5 +1,6 @@
 import Footer from '@/components/layout/Footer'
 
+// בלי noindex כאן: תחת /library יש גם דפים ציבוריים (ראו STATIC_PATHS ב-sitemapEntries.js).
 export const metadata = {
   title: 'ספריית אוצריא',
   description: 'עריכה משותפת של ספרי קודש לספריית אוצריא.',

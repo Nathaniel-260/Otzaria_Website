@@ -6,11 +6,13 @@ import LibraryCollectionSection from '@/components/about/LibraryCollectionSectio
 import LicenseTermsSection from '@/components/about/LicenseTermsSection'
 import SourceQuote from '@/components/about/SourceQuote'
 import SourcesSection from '@/components/about/SourcesSection'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata = {
-  title: 'אודות ספריית אוצריא | אוצריא',
+export const metadata = pageMetadata({
+  title: 'אודות ספריית אוצריא',
   description: 'מה יש בספריית אוצריא: אלפי ספרי קודש – תנ"ך, משנה, תלמוד, הלכה, מחשבה וקבלה – ומאילו מקורות הם מגיעים.',
-}
+  path: '/about',
+})
 
 // עיצוב כיוון א' (כמו דף הבית, /offline ו-404): המעטפת הציבורית, כותרת העמוד עם הקישוט, ואזורים
 // בקצב אנכי אחיד (Section spacing="top" — כל אזור מביא רק את הרווח שמעליו). Server Component.
