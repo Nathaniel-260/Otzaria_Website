@@ -474,6 +474,33 @@ test('גוף מעל התקרה → 413 בלי קובץ ובלי נעילה; גו
   expectAck(await send(job._id, doc, { chunks }), 'accepted', job, sha256(doc), 'success');
 });
 
+test('בלי now: resultReceivedAt וה-lease נמדדים מסיום קבלת הגוף, לא מתחילת הבקשה (העלאה איטית)', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const { job } = await makeJob({ n: 2 });
+  const buf = Buffer.from(JSON.stringify(resultDoc(job)));
+  let bodyEnded = 0;
+  let leaseSeen = null;
+  async function* slowBody() {
+    yield buf.subarray(0, 10);
+    await sleep(80);
+    yield buf.subarray(10);
+    bodyEnded = Date.now();
+  }
+  const started = Date.now();
+  const r = await intakeResult({
+    job: await load(job._id),
+    claimedSha: sha256(buf),
+    body: slowBody(),
+    env,
+    hooks: { afterPageWrite: async () => { leaseSeen ??= (await load(job._id)).applyLeaseUntil; } },
+  });
+  expectAck(r, 'accepted', job, sha256(buf), 'success');
+  const j = await load(job._id);
+  assert.ok(bodyEnded - started >= 70);
+  assert.ok(j.resultReceivedAt.getTime() >= bodyEnded, `${j.resultReceivedAt.getTime()} < ${bodyEnded}`);
+  assert.ok(leaseSeen.getTime() >= bodyEnded + APPLY_LEASE_MS);
+});
+
 test('resumeStalledApply: עבודה שנתקעה ב-applying (המחשב כבוי) מושלמת מהקובץ השמור; העובד מקבל אחר כך already_received', async (t) => {
   if (db.skip) return t.skip(db.skip);
   const { job, pages } = await makeJob({ n: 4 });

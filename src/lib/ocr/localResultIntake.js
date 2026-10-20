@@ -119,9 +119,12 @@ async function recordRejection(job, sha, file, now, reason, details, env) {
  * @param {{job:any, claimedSha:string, body:any, now?:Date, env?:any, maxBytes?:number,
  *          hooks?:{afterPageWrite?:(entry:any)=>any}}} args
  *   job — רשומת OcrJob (lean) של העובד; claimedSha — X-Result-SHA256 מנורמל לאותיות קטנות.
+ *   now — ברירת מחדל: רגע סיום קבלת הגוף (לא תחילת הבקשה). העלאה של עד 100MiB יכולה להימשך דקות;
+ *   ממנו נגזרים resultReceivedAt וה-lease של ההחלה, ושעון מתחילת הבקשה היה מקצר (או מפקיע מראש)
+ *   את ה-lease ומסמן את העבודה כ"תקועה" ל-resumeStalledApplies בזמן שהבקשה עוד פעילה.
  * @returns {Promise<{status:number, body:any, headers?:Record<string,string>}>}
  */
-export async function intakeResult({ job, claimedSha, body, now = new Date(), env = process.env, maxBytes = MAX_RESULT_BYTES, hooks }) {
+export async function intakeResult({ job, claimedSha, body, now, env = process.env, maxBytes = MAX_RESULT_BYTES, hooks }) {
   // אותו hash שכבר אושר: לא שומרים שוב (הקבצים אולי כבר נוקו — "גם ימים אחר כך"), רק מוודאים
   // שהגוף אכן תואם לכותרת ומחזירים את ה-ack השמור
   if (storedAnswerFor(job, claimedSha)) {
@@ -155,20 +158,21 @@ export async function intakeResult({ job, claimedSha, body, now = new Date(), en
     return answer(400, { error: 'hash_mismatch' });
   }
   const sha = file.sha256;
+  const at = now ?? new Date();
 
   const parsed = parseResultBytes(await fs.readFile(/*turbopackIgnore: true*/ file.absPath));
   if (!parsed.ok) {
-    await recordRejection(job, sha, file, now, 'invalid_result', '', env);
+    await recordRejection(job, sha, file, at, 'invalid_result', '', env);
     return answer(400, { error: 'invalid_result' });
   }
   const v = validateResult(parsed.doc, job, file.bytes, maxBytes);
   if (!v.ok) {
     const details = validationDetails(v.errors);
-    await recordRejection(job, sha, file, now, 'validation_failed', details, env);
+    await recordRejection(job, sha, file, at, 'validation_failed', details, env);
     return answer(422, { error: 'validation_failed', details });
   }
 
-  const r = await receiveResult({ jobId: job._id, sha, doc: parsed.doc, file, now, env, hooks });
-  if (r.status === 410) await recordRejection(job, sha, file, now, 'job_closed', '', env);
+  const r = await receiveResult({ jobId: job._id, sha, doc: parsed.doc, file, now: at, env, hooks });
+  if (r.status === 410) await recordRejection(job, sha, file, at, 'job_closed', '', env);
   return r;
 }
