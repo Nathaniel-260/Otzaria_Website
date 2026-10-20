@@ -16,7 +16,8 @@ import { badRequest, notFound, requireAccess, serverError } from '@/lib/apiRespo
 
 // GET /api/admin/books/ocr/status?bookId=...
 // מחזיר את ספירות העמודים (לקדם-בחירה), את העבודה האחרונה/הפעילה של הספר, ולספק local
-// גם את זמינות המחשב המקומי (worker) ומספר ההתנגשויות הפתוחות (conflictsOpen).
+// גם את זמינות המחשב המקומי (worker), מספר ההתנגשויות הפתוחות (conflictsOpen), ותוצאות
+// מתנגשות/נדחות של העבודה (resultConflicts / resultRejections).
 
 const MAX_PAGE_ERRORS = 50;
 
@@ -78,6 +79,22 @@ function serializeJob(job) {
       pageNumber: e.pageNumber,
       message: e.message,
     })),
+    // תוצאות שלא הוחלו (בלי נתיבי קבצים): מתנגשות — hash שונה אחרי נעילה, ממתינות לסימון "נבדק";
+    // נדחות — קובץ פגום/לא תקין/אחרי סגירה (לבירור בלבד)
+    resultConflicts: (job.resultConflicts || []).map((c) => ({
+      sha256: c.sha256,
+      receivedAt: c.receivedAt ?? null,
+      bytes: c.bytes ?? null,
+      reviewedAt: c.reviewedAt ?? null,
+      reviewedByName: c.reviewedByName || '',
+    })),
+    resultRejections: (job.resultRejections || []).map((r) => ({
+      sha256: r.sha256,
+      receivedAt: r.receivedAt ?? null,
+      bytes: r.bytes ?? null,
+      reason: r.reason || '',
+      details: r.details || '',
+    })),
   };
 }
 
@@ -116,7 +133,14 @@ export async function GET(request) {
       // בלי pageMap (עד 2,000 רשומות), בלי נתיבי קבצים פנימיים, ועד 50 שגיאות עמוד
       OcrJob.findOne({ book: book._id })
         .sort({ createdAt: -1 })
-        .select({ pageMap: 0, resultConflicts: 0, inputPath: 0, resultPath: 0, pageErrors: { $slice: MAX_PAGE_ERRORS } })
+        .select({
+          pageMap: 0,
+          inputPath: 0,
+          resultPath: 0,
+          'resultConflicts.path': 0,
+          'resultRejections.path': 0,
+          pageErrors: { $slice: MAX_PAGE_ERRORS },
+        })
         .lean(),
     ]);
 

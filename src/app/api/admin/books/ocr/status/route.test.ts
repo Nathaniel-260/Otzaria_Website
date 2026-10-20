@@ -189,6 +189,32 @@ describe("GET /api/admin/books/ocr/status - ספק local", () => {
     expect(noCfg.worker).toEqual({ configured: false, lastSeenAt: null, availability: "never" });
   });
 
+  it("תוצאות מתנגשות ונדחות מוחזרות בלי נתיבי קבצים", async () => {
+    const at = new Date("2026-10-20T09:00:00Z");
+    const jobQuery = chain({
+      _id: { toString: () => JOB_ID },
+      status: "completed",
+      method: "local",
+      totalPages: 3,
+      resultConflicts: [{ sha256: "a".repeat(64), receivedAt: at, bytes: 120, path: "x/rejected-a.json", reviewedAt: null }],
+      resultRejections: [{ sha256: "b".repeat(64), receivedAt: at, bytes: 9, path: "x/rejected-b.json", reason: "validation_failed", details: "pages[0]: missing" }],
+    });
+    OcrJob.findOne.mockReturnValue(jobQuery);
+    OcrWorkerState.findOne.mockReturnValue(chain(null));
+
+    const body = await (await GET(makeRequest(BOOK_ID))).json();
+    expect((jobQuery.select as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({
+      "resultConflicts.path": 0,
+      "resultRejections.path": 0,
+    });
+    expect(body.job.resultConflicts).toEqual([
+      { sha256: "a".repeat(64), receivedAt: at.toISOString(), bytes: 120, reviewedAt: null, reviewedByName: "" },
+    ]);
+    expect(body.job.resultRejections).toEqual([
+      { sha256: "b".repeat(64), receivedAt: at.toISOString(), bytes: 9, reason: "validation_failed", details: "pages[0]: missing" },
+    ]);
+  });
+
   it("עובד שלא פנה יותר משתי דקות → offline", async () => {
     OcrJob.findOne.mockReturnValue(chain(null));
     OcrWorkerState.findOne.mockReturnValue(chain({ lastSeenAt: new Date(Date.now() - 10 * 60_000) }));
