@@ -8,6 +8,10 @@
 // - הכנה שנקטעה (קריסה, timeout, I/O זמני) ממשיכה בניסיון חוזר עם אותו requestId: הרשומה
 //   נשארת preparing, ומי שמחזיק lease בתוקף בונה את ה-PDF. בלי טרנזקציות (Mongo standalone) —
 //   כל ההגנות הן עדכון מותנה של מסמך יחיד.
+// - בעלות על ההכנה = ערך prepLeaseUntil שהניסיון כתב. כל הכרעה (מעבר ל-queued, כישלון קבוע,
+//   שחרור בתקלה זמנית) מותנית בערך הזה — ניסיון ישן שעדיין רץ אחרי שה-lease שלו פג ונלקח ע"י
+//   ניסיון חדש לא כותב כלום (סקירה W04). הערך ייחודי לניסיון: לקיחה מותנית ב-lease ישן ≤ now
+//   וכותבת now+PREP_LEASE_MS, ולכן תמיד גדול מכל lease קודם.
 // - עבודה פעילה אחרת לאותו ספר חוסמת (אינדקס book_active_unique).
 // - לא קוראים ל-runOcrJob — העיבוד נעשה במחשב המקומי, שמושך את העבודה דרך /api/worker/v1.
 //
@@ -171,10 +175,11 @@ export async function closeAbandonedPreparation(job, now = new Date()) {
   return res.matchedCount > 0;
 }
 
-// סוגר עבודה בהכנה ככישלון קבוע (active:false משחרר את הספר). מחזיר true אם נסגרה.
-async function failPreparation(jobId, code, message, extra = {}) {
+// סוגר עבודה בהכנה ככישלון קבוע (active:false משחרר את הספר) — רק אם ה-lease עדיין של
+// הניסיון הזה. מחזיר true אם נסגרה.
+async function failPreparation(jobId, lease, code, message, extra = {}) {
   const res = await OcrJob.updateOne(
-    { _id: jobId, status: 'preparing' },
+    { _id: jobId, status: 'preparing', prepLeaseUntil: lease },
     {
       $set: {
         ...extra,
@@ -223,7 +228,9 @@ async function prepare(job, lease, req) {
   } catch (err) {
     if (isPermanentInputError(err)) {
       // קלט פגום קבוע — ניסיון חוזר לא יעזור. סוגרים את העבודה ומשחררים את הספר.
-      const closed = await failPreparation(job._id, err.code, err.messageHe, { editedPagesCount });
+      const closed = await failPreparation(job._id, lease, err.code, err.messageHe, { editedPagesCount });
+      // לא נסגרה: בוטלה בינתיים, או שה-lease פג וניסיון חדש לקח אותו (ייתכן שהקלט שלו תקין) —
+      // לא מכריעים בשמו, מחזירים את המצב הנוכחי (preparing → 409 שהממשק מנסה שוב).
       if (!closed) return replayCurrent(job._id);
       return {
         status: httpStatusForPrepError(err.code),
@@ -249,9 +256,10 @@ async function prepare(job, lease, req) {
     };
   }
 
-  // הקובץ כבר עמיד בדיסק — רק עכשיו הרשומה מפנה אליו (מותנה: עדיין preparing ופעילה)
+  // הקובץ כבר עמיד בדיסק — רק עכשיו הרשומה מפנה אליו (מותנה: עדיין preparing, פעילה,
+  // וה-lease עדיין של הניסיון הזה)
   const committed = await OcrJob.findOneAndUpdate(
-    { _id: job._id, status: 'preparing', active: true },
+    { _id: job._id, status: 'preparing', active: true, prepLeaseUntil: lease },
     {
       $set: {
         status: 'queued',
@@ -274,9 +282,13 @@ async function prepare(job, lease, req) {
     };
   }
 
-  // בקשה מקבילה ניצחה (או שהעבודה בוטלה בינתיים) — הקובץ שלנו מיותר אם אינו הקובץ הזוכה
-  const winner = await OcrJob.findById(job._id).select('inputPath').lean();
-  if (winner?.inputPath !== input.inputPath) {
+  // הפסדנו: בקשה מקבילה ניצחה, העבודה בוטלה/נסגרה, או שה-lease שלנו נלקח ע"י ניסיון חדש.
+  // שם הקובץ נגזר מה-hash (input-<sha>.pdf), כך שניסיון אחר שבנה אותו תוכן כותב לאותו נתיב.
+  // לכן מוחקים רק כשההכנה הוכרעה (לא preparing — אף אחד כבר לא יפנה לקובץ חדש) והקובץ שלנו
+  // אינו הקובץ שנבחר. כשהעבודה עדיין preparing בידי ניסיון אחר — לא נוגעים: ייתכן שזה בדיוק
+  // הקובץ שהוא עומד לפרסם. קובץ יתום כזה נמחק ע"י ה-cron אחרי סגירת העבודה (localCleanup).
+  const winner = await OcrJob.findById(job._id).select('status inputPath').lean();
+  if (!winner || (winner.status !== 'preparing' && winner.inputPath !== input.inputPath)) {
     try {
       await removeQuiet(relToAbs(input.inputPath));
     } catch {
