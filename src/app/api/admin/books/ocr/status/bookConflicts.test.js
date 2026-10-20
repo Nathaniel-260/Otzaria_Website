@@ -108,6 +108,20 @@ describe('W03 — התנגשויות ברמת הספר אחרי עבודה חד�
     expect(list.conflicts.map((c) => c.jobId).sort()).toEqual([String(oldJob._id), String(newJob._id)].sort())
   })
 
+  it('התנגשות באמצע אימוץ (applying) נספרת ומוצגת ברשימה ברמת הספר', async () => {
+    const now = new Date()
+    await OcrConflict.updateMany({ job: oldJob._id }, {
+      $set: { status: 'applying', applyStartedAt: now, applyLeaseUntil: new Date(now.getTime() + 60_000) },
+    })
+    await OcrJob.create({ book: book._id, method: 'ocrwin', status: 'completed', active: false })
+
+    const view = await status()
+    expect(view.bookConflictsOpen).toBe(1)
+    const list = await openConflicts()
+    expect(list.openCount).toBe(1)
+    expect(list.conflicts.map((c) => c.status)).toEqual(['applying'])
+  })
+
   it('תוצאה מתנגשת שסומנה "נבדק" והתנגשות שטופלה כבר לא מוצגות', async () => {
     await OcrJob.updateOne({ _id: oldJob._id }, { $set: { 'resultConflicts.0.reviewedAt': new Date() } })
     await OcrConflict.updateMany({ job: oldJob._id }, { $set: { status: 'dismissed' } })

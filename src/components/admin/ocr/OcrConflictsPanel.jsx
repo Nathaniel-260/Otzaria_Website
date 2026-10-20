@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Button from '@/components/ui/Button'
 import Loader from '@/components/ui/Loader'
+import { PENDING_CONFLICT_STATUSES } from '@/lib/ocr/ocrConflictView'
 import OcrConflictItem from './OcrConflictItem'
 
 const PAGE_SIZE = 50
@@ -60,9 +61,11 @@ export default function OcrConflictsPanel({ jobId, bookId, onChanged }) {
   const loadMore = async () => {
     setLoadingMore(true)
     try {
-      // ברמת הספר הרשימה מסוננת ל"פתוחות" בשרת — מה שטופל כאן כבר יצא ממנה, ולכן ההיסט הוא
-      // מספר הפתוחות שנטענו (וסינון כפילויות למקרה שמישהו אחר טיפל במקביל)
-      const offset = bookMode ? items.filter((c) => c.status === 'open').length : items.length
+      // ברמת הספר הרשימה מסוננת ל"ממתינות" (open+applying) בשרת — מה שטופל כאן כבר יצא ממנה,
+      // ולכן ההיסט הוא מספר הממתינות שנטענו (וסינון כפילויות למקרה שמישהו אחר טיפל במקביל)
+      const offset = bookMode
+        ? items.filter((c) => PENDING_CONFLICT_STATUSES.includes(c.status)).length
+        : items.length
       const data = await load(offset)
       setItems((prev) => {
         const seen = new Set(prev.map((c) => c.id))

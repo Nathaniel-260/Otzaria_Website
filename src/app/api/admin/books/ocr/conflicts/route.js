@@ -12,6 +12,7 @@ import { settleStaleConflictApplies } from '@/lib/ocr/ocrConflictResolve';
 import { badRequest, requireAccess, serverError } from '@/lib/apiResponse';
 
 // GET /api/admin/books/ocr/conflicts?jobId=...|bookId=...[&status=open][&limit=50][&offset=0]
+// (status=open כולל גם applying — ממתינות להחלטה)
 // התנגשויות בהחלת תוצאת OCR מקומי (עמוד שנערך אחרי יצירת העבודה ולכן לא נדרס), ממוינות לפי
 // מספר עמוד, כל אחת עם טקסט ה-OCR ועם הטקסט הנוכחי של העמוד ו-updatedAt שלו (לאימוץ מותנה),
 // ועם מזהה ותאריך העבודה שיצרה אותה (jobId, jobCreatedAt) — ברשימה ברמת הספר יש כמה עבודות.
@@ -36,7 +37,10 @@ export async function GET(request) {
     const scope = jobId ? { job: jobId } : { book: bookId };
     // אימוץ שנקטע בקריסה (applying שה-lease שלו פג) — מוכרע לפי העמוד לפני ההצגה והספירה
     await settleStaleConflictApplies(scope);
-    const filter = status ? { ...scope, status } : { ...scope };
+    // status=open = "ממתינות להחלטה" (open+applying, כמו openCount): אימוץ בתהליך לא נעלם מהרשימה
+    const filter = status
+      ? { ...scope, status: status === 'open' ? { $in: PENDING_CONFLICT_STATUSES } : status }
+      : { ...scope };
 
     const [total, openCount, conflicts] = await Promise.all([
       OcrConflict.countDocuments(filter),
