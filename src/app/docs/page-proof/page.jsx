@@ -4,6 +4,7 @@ import OtzariaSoftwareFooter from '@/components/layout/OtzariaSoftwareFooter'
 import GuideBody from '@/components/pageProof/guide/GuideBody'
 import { DEFAULT_GUIDE_HTML, renderGuide } from '@/lib/pageProof/guideContent'
 import { loadGuide } from '@/lib/pageProof/guideStore'
+import { pageMetadata } from '@/lib/seo'
 
 // הנחיות להגהת עמודים — דף אחד קצר למתנדבים, עם תמונות (שרטוטים סינתטיים — GuideFigures). ציבורי (בלי התחברות),
 // כדי שאפשר יהיה לקשר אליו מהפורום; העורך מקשר אליו מהסרגל ("הנחיות") ומחלון העזרה (helpTexts.GUIDE_PATH).
@@ -12,10 +13,11 @@ import { loadGuide } from '@/lib/pageProof/guideStore'
 // מתבטל בכל שמירה), ובלעדיו — הנוסח המקורי (guideContent.DEFAULT_GUIDE_HTML). שמות הכפתורים של שני השלבים מגיעים מהקודים
 // [[כפתור:…]] — אותו נוסח כמו בעורך (lib/pageProof/stages.js, STAGE_TEXT).
 
-export const metadata = {
-  title: 'הנחיות להגהת עמודים - אוצריא',
+export const metadata = pageMetadata({
+  title: 'הנחיות להגהת עמודים',
   description: 'דף אחד קצר למתנדבי הגהת העמודים: מסגרות, ריהוט, חיתוך שורות, טקסט, פגם בדפוס, סגנונות, פסקאות, קישורים וזמנים.',
-}
+  path: '/docs/page-proof',
+})
 
 // הנוסח השמור מתעדכן במטמון עם תגית; כאן — רשת-ביטחון של 5 דקות לדף עצמו
 export const revalidate = 300
@@ -27,7 +29,7 @@ export default async function PageProofGuidePage() {
     <div className="min-h-screen bg-background">
       <OtzariaSoftwareHeader />
 
-      <main className="px-4 py-12">
+      <main id="main-content" className="px-4 py-12">
         <div className="container mx-auto max-w-4xl space-y-8">
           <div className="flex items-center gap-2 text-sm text-on-surface/60">
             <Link href="/" prefetch={false} className="hover:text-primary">
@@ -61,7 +63,7 @@ export default async function PageProofGuidePage() {
         </div>
       </main>
 
-      <OtzariaSoftwareFooter />
+      <OtzariaSoftwareFooter className="mt-20" />
     </div>
   )
 }

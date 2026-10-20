@@ -1,0 +1,103 @@
+'use client'
+
+import {
+  cloneElement,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode
+} from 'react'
+import { clampShift } from '@/lib/donationTip'
+import { cx } from './cx'
+
+/**
+ * כרטיס-רמז מתחת לרכיב (ריחוף בעכבר / פוקוס מקלדת). המראה ב-styles/tooltip.css.
+ *
+ * children — רכיב יחיד ואינטראקטיבי (קישור/כפתור). מקבל aria-describedby שמצביע על הרמז,
+ *            כך שקורא מסך שומע אותו תמיד — גם בלי ריחוף.
+ * content  — תוכן הרמז: משפט קצר, או מבנה עשיר (אייקון + שתי שורות, כמו ברמז התרומה).
+ *
+ * התנהגות (WCAG 1.4.13): נשאר כשהעכבר עובר אליו (גשר שקוף); Esc מסתיר אותו עד שהעכבר או
+ * הפוקוס עוזבים; לא חוסם לחיצות כשהוא מוסתר. ממורכז מתחת לרכיב, וכשהוא חורג מקצה המסך הוא
+ * מוזז פנימה (--tooltip-shift; החוד נשאר מול הרכיב).
+ * במגע אין ריחוף — מידע חיוני לא יכול לחיות רק ברמז (ראו DonationNote בתפריט הנייד).
+ */
+export default function Tooltip({ content, children, className, bubbleClassName }: {
+  content: ReactNode
+  children: ReactElement<{ 'aria-describedby'?: string }>
+  className?: string
+  bubbleClassName?: string
+}) {
+  const tipId = useId()
+  const hostRef = useRef<HTMLSpanElement>(null)
+  const bubbleRef = useRef<HTMLSpanElement>(null)
+  const hoveredRef = useRef(false)
+  const [dismissed, setDismissed] = useState(false)
+  const reset = () => setDismissed(false)
+  const dismissOnEscape = useCallback((event: { key: string; defaultPrevented: boolean; preventDefault(): void }) => {
+    if (dismissed || event.key !== 'Escape' || event.defaultPrevented) return
+    event.preventDefault()
+    setDismissed(true)
+  }, [dismissed])
+
+  const place = useCallback(() => {
+    const host = hostRef.current
+    const bubble = bubbleRef.current
+    if (!host || !bubble) return
+    const rect = host.getBoundingClientRect()
+    const shift = clampShift({
+      centerX: rect.left + rect.width / 2,
+      width: bubble.offsetWidth,
+      viewportWidth: document.documentElement.clientWidth
+    })
+    host.style.setProperty('--tooltip-shift', `${shift}px`)
+  }, [])
+
+  // המיקום מחושב רק בריחוף/פוקוס (onPointerEnter / onFocus), לא בכל resize — הרמז נראה רק אז,
+  // וחישוב layout לכל רמז בעמוד בכל שינוי גודל היה מיותר.
+
+  // בריחוף הפוקוס עשוי להיות במקום אחר, ולכן Esc חייב להיקלט גם מחוץ לרכיב.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (hoveredRef.current) dismissOnEscape(event)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [dismissOnEscape])
+
+  const trigger = isValidElement(children)
+    ? cloneElement(children, {
+      'aria-describedby': cx(children.props['aria-describedby'], tipId) || undefined
+    })
+    : children
+
+  return (
+    <span
+      ref={hostRef}
+      className={cx('tooltip-host', className)}
+      data-tip-dismissed={dismissed ? 'true' : undefined}
+      onPointerEnter={(event) => {
+        hoveredRef.current = event.pointerType === 'mouse'
+        place()
+      }}
+      onFocus={place}
+      onPointerLeave={(event) => {
+        hoveredRef.current = false
+        // Esc ואחריו יציאת עכבר, כשהפוקוס עדיין על הכפתור — הרמז נשאר מוסתר עד שהפוקוס עוזב
+        if (event.currentTarget.contains(document.activeElement)) return
+        reset()
+      }}
+      onBlur={reset}
+      onKeyDown={dismissOnEscape}
+    >
+      {trigger}
+      <span className="tooltip" role="tooltip" id={tipId}>
+        <span ref={bubbleRef} className={cx('tooltip-bubble', bubbleClassName)}>{content}</span>
+      </span>
+    </span>
+  )
+}

@@ -75,6 +75,53 @@ export function headingId(text) {
     .replace(/\s+/g, '-');
 }
 
+/** הטקסט של כותרת בלי תחביר Markdown של שורה (קישור, תמונה, קוד, הדגשה, תגית HTML) — כפי שהוא מוצג. */
+export function stripInlineMarkdown(text) {
+  return String(text)
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/<[^>\n]+>/g, '')
+    .replace(/`+([^`]*)`+/g, '$1')
+    .replace(/(\*\*|__|\*|~~)/g, '')
+    .trim();
+}
+
+/**
+ * כותרות h2/h3 של מסמך Markdown, עם מזהה ייחודי לכל אחת (כפילות מקבלת -2, -3...) — מקור אחד
+ * ל-TOC ולמזהי הכותרות ברינדור (WikiMarkdown, לפי מספר השורה). שורות בתוך בלוק קוד גדור
+ * (``` / ~~~) אינן כותרות.
+ * מחזיר [{ level, text, id, line }] — line מבוסס 1, כמו node.position ב-react-markdown.
+ */
+export function extractHeadings(markdown) {
+  const headings = [];
+  const used = new Set();
+  let fence = null;
+  String(markdown)
+    .split(/\r\n|\r|\n/)
+    .forEach((raw, index) => {
+      const fenceMatch = /^ {0,3}(`{3,}|~{3,})/.exec(raw);
+      if (fenceMatch) {
+        const mark = fenceMatch[1];
+        if (!fence) fence = mark;
+        else if (mark[0] === fence[0] && mark.length >= fence.length) fence = null;
+        return;
+      }
+      if (fence) return;
+      const m = /^ {0,3}(#{2,3})[ \t]+(.+)$/.exec(raw);
+      if (!m) return;
+      // "## כותרת ##" — רצף # סוגר (אחרי רווח) אינו חלק מהטקסט
+      let body = m[2].trimEnd();
+      const unhashed = body.replace(/#+$/, '');
+      if (unhashed !== body && /\s$/.test(unhashed)) body = unhashed.trimEnd();
+      const text = stripInlineMarkdown(body);
+      const base = headingId(text) || 'section';
+      let id = base;
+      for (let n = 2; used.has(id); n++) id = `${base}-${n}`;
+      used.add(id);
+      headings.push({ level: m[1].length, text, id, line: index + 1 });
+    });
+  return headings;
+}
+
 /**
  * ממיר תחביר וויקי של GitHub לקישורי Markdown רגילים:
  * - [[טקסט|User-Page]] ← קישור פנימי /docs/slug (ניווט SPA)
@@ -86,7 +133,10 @@ function transformWikiMarkdown(md) {
   let out = md;
 
   // הסרת עטיפת ה-RTL (האתר כולו RTL ממילא)
-  out = out.replace(/<div dir="rtl">\s*/g, '').replace(/\s*<\/div>\s*$/g, '');
+  out = out.replace(/<div dir="rtl">\s*/g, '');
+  // סגירת העטיפה בסוף — בלי regex מסוג \s*…$ (ריבועי על רצפי רווחים)
+  out = out.trimEnd();
+  if (out.endsWith('</div>')) out = out.slice(0, -'</div>'.length).trimEnd();
 
   // קישורי [[...|...]] ו-[[...]]
   out = out.replace(/\[\[([^\]]+)\]\]/g, (_, inner) => {
@@ -139,11 +189,9 @@ export async function getWikiPage(slug, nav) {
     return '';
   });
 
-  const toc = [];
-  for (const match of md.matchAll(/^##\s+(.+)$/gm)) {
-    const text = match[1].trim();
-    toc.push({ text, id: headingId(text) });
-  }
+  const toc = extractHeadings(md)
+    .filter((h) => h.level === 2)
+    .map(({ text, id }) => ({ text, id }));
 
   return { pageName, title, markdown: md, toc };
 }

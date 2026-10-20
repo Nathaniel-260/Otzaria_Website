@@ -1,25 +1,32 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import DownloadAssistantOptions, { AndroidAssistantNotice, hasDownloadAssistant } from './DownloadAssistantOptions'
+import AppIcon from '@/components/ui/AppIcon'
+import Card from '@/components/ui/Card'
+import Dialog from '@/components/ui/Dialog'
+import IconTile from '@/components/ui/IconTile'
+import Section from '@/components/ui/Section'
+import SectionHeading from '@/components/ui/SectionHeading'
+import { detectPlatform } from '@/lib/detectOs'
+import DownloadOptionCard from './DownloadOptionCard'
+// ייבוא טיפוס בלבד (נמחק בקומפילציה) — הקוד של stableDownloads.ts נשאר בשרת
+import type { Downloads } from './stableDownloads'
 
-// מבנה נתוני ההורדות המוחזר מ-/api/github-releases
 type PlatformLinks = Record<string, string | undefined>
-type Downloads = {
-  version?: string
-  versions?: Record<string, string>
-  windows?: PlatformLinks
-  linux?: PlatformLinks
-  android?: PlatformLinks
-  ios?: PlatformLinks
-  macos?: PlatformLinks
-}
 
 type PlatformButtonConfig = {
   icon: string
   title: string
   subtitle: string
-  onClick: () => void
+}
+
+const PLATFORM_CONFIG: Record<string, PlatformButtonConfig> = {
+  windows: { icon: 'desktop_windows', title: 'Windows', subtitle: '10 / 11' },
+  linux: { icon: 'computer', title: 'Linux', subtitle: 'כל ההפצות' },
+  android: { icon: 'phone_android', title: 'Android', subtitle: 'Google Play / APK' },
+  ios: { icon: 'phone_iphone', title: 'iOS', subtitle: 'App Store' },
+  macos: { icon: 'laptop_mac', title: 'macOS', subtitle: 'Intel / Apple Silicon' }
 }
 
 type DownloadOption = {
@@ -30,41 +37,36 @@ type DownloadOption = {
   isLink?: boolean
 }
 
+// כפתור המעבר בין "המערכת שזוהתה" ל"כל המערכות" (שני הכיוונים)
+const TOGGLE_BUTTON = 'flex min-h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-primary hover:bg-card-selected'
+
 // stableDownloads מגיע כבר טעון מהשרת (ראו DownloadSection.tsx, ה-Server Component
 // שעוטף את הרכיב הזה) — כאן נשארת רק האינטראקטיביות (זיהוי פלטפורמה, מודלים).
 export default function DownloadSectionClient({ stableDownloads }: { stableDownloads: Downloads | null }) {
-  const [windowsModalOpen, setWindowsModalOpen] = useState(false)
-  const [linuxModalOpen, setLinuxModalOpen] = useState(false)
-  const [androidModalOpen, setAndroidModalOpen] = useState(false)
-  const [macModalOpen, setMacModalOpen] = useState(false)
-  const [iosModalOpen, setIosModalOpen] = useState(false)
+  // חלון ההורדה הפתוח (מפתח פלטפורמה: windows / linux / ...), או null
+  const [openPlatform, setOpenPlatform] = useState<string | null>(null)
 
-  const [detectedPlatform, setDetectedPlatform] = useState<string | null>(null)
+  // undefined — עוד לא נבדק (ה-HTML מהשרת ועד ה-effect); null — נבדק ולא זוהה; אחרת — המפתח
+  const [detectedPlatform, setDetectedPlatform] = useState<string | null | undefined>(undefined)
   const [showAllPlatforms, setShowAllPlatforms] = useState(false)
+  // החלפת התצוגה מסירה מה-DOM את הכפתור שנלחץ — הפוקוס עובר לאלמנט הראשון של התוצאה החדשה
+  const contentRef = useRef<HTMLDivElement>(null)
+  const focusAfterToggleRef = useRef(false)
+  const toggleAllPlatforms = (value: boolean) => {
+    focusAfterToggleRef.current = true
+    setShowAllPlatforms(value)
+  }
+  useEffect(() => {
+    if (!focusAfterToggleRef.current) return
+    focusAfterToggleRef.current = false
+    contentRef.current?.querySelector<HTMLElement>('button')?.focus()
+  }, [showAllPlatforms])
 
   // זיהוי פלטפורמה אוטומטי
   useEffect(() => {
-    const detectPlatform = () => {
-      const userAgent = navigator.userAgent.toLowerCase()
-      const platform = navigator.platform?.toLowerCase() || ''
-
-      if (/android/.test(userAgent)) {
-        return 'android'
-      } else if (/iphone|ipad|ipod/.test(userAgent)) {
-        return 'ios'
-      } else if (/mac/.test(platform) || /macintosh/.test(userAgent)) {
-        return 'macos'
-      } else if (/win/.test(platform) || /windows/.test(userAgent)) {
-        return 'windows'
-      } else if (/linux/.test(platform) || /linux/.test(userAgent)) {
-        return 'linux'
-      }
-      return null
-    }
-
     // זיהוי פלטפורמה רץ רק בצד הלקוח (navigator לא קיים בשרת)
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDetectedPlatform(detectPlatform())
+    setDetectedPlatform(detectPlatform({ userAgent: navigator.userAgent, platform: navigator.platform || '' }))
   }, [])
 
   // פונקציה להחזרת שם הפלטפורמה בעברית
@@ -81,220 +83,166 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
 
   // פונקציה להצגת כפתור פלטפורמה
   const renderPlatformButton = (platform: string, large: boolean = false) => {
-    const platformConfig: Record<string, PlatformButtonConfig> = {
-      windows: {
-        icon: 'desktop_windows',
-        title: 'Windows',
-        subtitle: '10 / 11',
-        onClick: () => setWindowsModalOpen(true)
-      },
-      linux: {
-        icon: 'computer',
-        title: 'Linux',
-        subtitle: 'כל ההפצות',
-        onClick: () => setLinuxModalOpen(true)
-      },
-      android: {
-        icon: 'phone_android',
-        title: 'Android',
-        subtitle: 'Google Play / APK',
-        onClick: () => setAndroidModalOpen(true)
-      },
-      ios: {
-        icon: 'phone_iphone',
-        title: 'iOS',
-        subtitle: 'App Store',
-        onClick: () => setIosModalOpen(true)
-      },
-      macos: {
-        icon: 'laptop_mac',
-        title: 'macOS',
-        subtitle: 'Intel / Apple Silicon',
-        onClick: () => setMacModalOpen(true)
-      }
-    }
-
-    const config = platformConfig[platform]
+    const config = PLATFORM_CONFIG[platform]
     if (!config) return null
     const assistantLinks = stableDownloads?.[platform as keyof Downloads]
     const subtitle = hasDownloadAssistant(config.title, (assistantLinks as PlatformLinks | undefined) || {})
       ? `${config.subtitle} · באמצעות מסייע ההורדה`
       : config.subtitle
 
+    // שורת כרטיס בסגנון המתקין: אריח אייקון, כותרת ושורת משנה, ו"כפתור" ראשי מלא
     if (large) {
       return (
-        <button
-          onClick={config.onClick}
-          className="flex items-center gap-6 p-8 bg-white border-2 border-primary rounded-2xl hover:shadow-2xl transition-all group w-full max-w-md"
-        >
-          <div className="w-20 h-20 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-            <span className="material-symbols-outlined text-5xl text-primary group-hover:scale-110 transition-transform">
-              {config.icon}
-            </span>
-          </div>
-          <div className="flex-1 text-right">
-            <h3 className="text-2xl font-bold mb-1">{config.title}</h3>
-            <p className="text-neutral-500">{subtitle}</p>
-          </div>
-          <span className="material-symbols-outlined text-3xl text-primary">download</span>
-        </button>
+        <Card onClick={() => setOpenPlatform(platform)} className="flex w-full items-center gap-4 p-4 sm:gap-5 sm:p-6">
+          <IconTile icon={config.icon} size="lg" />
+          {/* span עם display:block ולא div/p/כותרת: Card הוא <button>, ותוכנו חייב להיות phrasing content */}
+          <span className="block min-w-0 flex-1">
+            <span className="block text-xl font-bold text-on-surface sm:text-2xl">{config.title}</span>
+            <span className="mt-0.5 block text-sm text-on-surface-variant sm:text-base">{subtitle}</span>
+          </span>
+          <span className="inline-flex h-12 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 font-semibold text-on-primary transition-colors group-hover:bg-primary-hover sm:px-5">
+            <AppIcon name="download" />
+            <span className="hidden sm:inline">הורדה</span>
+          </span>
+        </Card>
       )
     }
 
     return (
-      <button
-        onClick={config.onClick}
-        className="flex flex-col items-center p-6 bg-white border border-neutral-200 rounded-xl hover:border-primary hover:shadow-lg transition-all group h-full"
-      >
-        <span className="material-symbols-outlined text-6xl text-primary mb-4 group-hover:scale-110 transition-transform">
-          {config.icon}
+      // שם המערכת בשורת האריח (כמו בכרטיסי היכולות), ושורת המשנה מתחתיהם לכל רוחב הכרטיס
+      <Card onClick={() => setOpenPlatform(platform)} className="flex h-full w-full flex-col gap-2 p-4 lg:p-5">
+        <span className="flex w-full items-center gap-3">
+          <IconTile icon={config.icon} size="md" />
+          <span className="min-w-0 flex-1 text-lg font-bold text-on-surface">{config.title}</span>
+          <AppIcon name="chevron_left" className="text-primary lg:hidden" />
         </span>
-        <h3 className="text-xl font-bold mb-1">{config.title}</h3>
-        <p className="text-sm text-neutral-500">{subtitle}</p>
-      </button>
+        <span className="block text-sm text-on-surface-variant">{subtitle}</span>
+      </Card>
     )
   }
 
   return (
     <>
       {/* Download Section (Software) */}
-      <section id="download" className="py-20 px-4">
-          <div className="container mx-auto max-w-6xl">
-              <h2 className="text-4xl font-bold text-center mb-4 font-frank">הורדת התוכנה</h2>
+      <Section id="download" labelledBy="download-heading" anchor>
+        <SectionHeading id="download-heading" title="הורדת התוכנה" spacing="none" className="mb-5 md:mb-6" />
 
-              {/* הצגת כפתור הורדה לפלטפורמה שזוהתה */}
-              {detectedPlatform && !showAllPlatforms ? (
-                <div className="max-w-2xl mx-auto">
-                  <p className="text-center text-xl text-neutral-600 mb-8">זיהינו שאתה משתמש ב-{getPlatformName(detectedPlatform)}</p>
+        {/* הצגת כפתור הורדה לפלטפורמה שזוהתה. עד שהזיהוי רץ (undefined — ה-HTML מהשרת) מוצג
+            אותו מבנה בדיוק, עם טקסט ניטרלי וכרטיס שקוף במקום כרטיס המערכת: כמעט כל מבקר מזוהה,
+            ולכן הגובה לא משתנה כשהזיהוי מסתיים (בלי CLS ובלי "לא הצלחנו לזהות" שגוי) */}
+        {detectedPlatform !== null && !showAllPlatforms ? (
+          <div ref={contentRef} className="mx-auto max-w-2xl">
+            <p className="mb-6 text-center text-lg text-on-surface-variant">
+              {detectedPlatform ? `זיהינו שאתה משתמש ב-${getPlatformName(detectedPlatform)}` : 'הורדה למחשב ולנייד'}
+            </p>
 
-                  <div className="flex flex-col items-center gap-4 mb-8">
-                    {renderPlatformButton(detectedPlatform, true)}
-
-                    <button
-                      onClick={() => setShowAllPlatforms(true)}
-                      className="text-primary hover:underline text-sm font-medium flex items-center gap-1"
-                    >
-                      <span>הורד למערכת אחרת</span>
-                      <span className="material-symbols-outlined text-sm">expand_more</span>
-                    </button>
-                  </div>
+            <div className="flex flex-col items-center gap-3">
+              {detectedPlatform ? renderPlatformButton(detectedPlatform, true) : (
+                // שומר מקום בגובה כרטיס המערכת — invisible: לא נראה, לא נגיש ולא בר-מיקוד
+                <div aria-hidden="true" className="invisible w-full" data-testid="detected-platform-placeholder">
+                  {renderPlatformButton('windows', true)}
                 </div>
-              ) : (
-                <>
-                  <p className="text-center text-xl text-neutral-600 mb-12">
-                    {detectedPlatform ? 'בחר פלטפורמה' : 'לא הצלחנו לזהות את המערכת שלך - בחר פלטפורמה'}
-                  </p>
-
-                  <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6">
-                      {renderPlatformButton('windows')}
-                      {renderPlatformButton('linux')}
-                      {renderPlatformButton('android')}
-                      {renderPlatformButton('ios')}
-                      {renderPlatformButton('macos')}
-                  </div>
-
-                  {detectedPlatform && (
-                    <div className="text-center mt-6">
-                      <button
-                        onClick={() => setShowAllPlatforms(false)}
-                        className="text-primary hover:underline text-sm font-medium flex items-center gap-1 mx-auto"
-                      >
-                        <span className="material-symbols-outlined text-sm">expand_less</span>
-                        <span>חזור להורדה ל-{getPlatformName(detectedPlatform)}</span>
-                      </button>
-                    </div>
-                  )}
-                </>
               )}
-          </div>
-      </section>
 
-      {/* Modals */}
-      <DownloadModal
-        isOpen={windowsModalOpen}
-        onClose={() => setWindowsModalOpen(false)}
-        platform="Windows"
-        links={stableDownloads?.windows || {}}
-        version={stableDownloads?.versions?.windows ?? stableDownloads?.version}
-      />
-      <DownloadModal
-        isOpen={linuxModalOpen}
-        onClose={() => setLinuxModalOpen(false)}
-        platform="Linux"
-        links={stableDownloads?.linux || {}}
-        version={stableDownloads?.versions?.linux ?? stableDownloads?.version}
-      />
-      <DownloadModal
-        isOpen={androidModalOpen}
-        onClose={() => setAndroidModalOpen(false)}
-        platform="Android"
-        links={{
-          playStore: 'https://play.google.com/store/apps/details?id=org.otzaria.otzaria',
-          apk: stableDownloads?.android?.apk,
-          zipFull: stableDownloads?.android?.zipFull,
-          windowsAssistant: stableDownloads?.windows?.assistant
-        }}
-        version={stableDownloads?.versions?.android ?? stableDownloads?.version}
-      />
-      <DownloadModal
-        isOpen={iosModalOpen}
-        onClose={() => setIosModalOpen(false)}
-        platform="iOS"
-        links={{
-          appStore: 'https://apps.apple.com/us/app/otzaria/id6738098031'
-        }}
-        version={stableDownloads?.version}
-      />
-      <DownloadModal
-        isOpen={macModalOpen}
-        onClose={() => setMacModalOpen(false)}
-        platform="macOS"
-        links={stableDownloads?.macos || {}}
-        version={stableDownloads?.versions?.macos ?? stableDownloads?.version}
-      />
+              <button
+                type="button"
+                onClick={() => toggleAllPlatforms(true)}
+                className={TOGGLE_BUTTON}
+              >
+                <span>{detectedPlatform ? 'הורדה למערכת אחרת' : 'כל המערכות'}</span>
+                <AppIcon name="expand_more" className="text-lg" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="mb-8 text-center text-lg text-on-surface-variant">
+              {detectedPlatform === null ? 'לא הצלחנו לזהות את המערכת שלך — בחר מערכת' : 'בחר מערכת'}
+            </p>
+
+            {/* נייד: רשימה; טבלט: שתי עמודות; דסקטופ: חמישה כרטיסים אנכיים בשורה */}
+            <div ref={contentRef} className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
+                {renderPlatformButton('windows')}
+                {renderPlatformButton('linux')}
+                {renderPlatformButton('android')}
+                {renderPlatformButton('ios')}
+                {renderPlatformButton('macos')}
+            </div>
+
+            {detectedPlatform && (
+              <div className="mt-6 text-center">
+                <button
+                  type="button"
+                  onClick={() => toggleAllPlatforms(false)}
+                  className={`mx-auto ${TOGGLE_BUTTON}`}
+                >
+                  <AppIcon name="expand_less" className="text-lg" />
+                  <span>חזור להורדה ל-{getPlatformName(detectedPlatform)}</span>
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </Section>
+
+      {openPlatform && (
+        <Dialog
+          title={`הורדת אוצריא ל-${getPlatformName(openPlatform)}`}
+          onClose={() => setOpenPlatform(null)}
+        >
+          <div className="grid gap-3">
+            {renderDownloadOptions(getPlatformName(openPlatform), getDialogLinks(openPlatform, stableDownloads))}
+          </div>
+        </Dialog>
+      )}
     </>
   )
 }
 
-// Download Modal Component
-function DownloadModal({ isOpen, onClose, platform, links, version }: {
-  isOpen: boolean
-  onClose: () => void
-  platform: string
-  links: PlatformLinks
-  version?: string
-}) {
-  if (!isOpen) return null
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=org.otzaria.otzaria'
+const APP_STORE_URL = 'https://apps.apple.com/us/app/otzaria/id6738098031'
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
-      {/* כניסה ב-CSS (אותה דעיכה והגדלה מ-0.95 שהייתה ב-framer-motion). ה-exit
-          של framer לא פעל ממילא — המודל אינו עטוף ב-AnimatePresence. */}
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ animationDuration: '0.3s' }}
-        className="flex flex-col bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] animate-enter-scale"
-      >
-        {/* Fixed Header */}
-        <div className="flex items-center justify-between p-6 border-b border-neutral-200 flex-shrink-0">
-          <h2 className="text-2xl font-bold text-neutral-800">
-            הורדת אוצריא ל-{platform}
-            {version && <span className="text-sm font-normal text-neutral-500 mr-2"> ({version})</span>}
-          </h2>
-          <button onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-500">
-            <span className="material-symbols-outlined text-2xl block">close</span>
-          </button>
-        </div>
+// הקישורים שמוצגים בחלון של כל מערכת. Android ו-iOS מקבלים גם קישורי חנות קבועים,
+// ו-Android גם את מסייע ה-Windows (להכנת התקנה למכשיר בלי אינטרנט).
+function getDialogLinks(platform: string, downloads: Downloads | null): PlatformLinks {
+  if (platform === 'android') {
+    return {
+      playStore: PLAY_STORE_URL,
+      apk: downloads?.android?.apk,
+      zipFull: downloads?.android?.zipFull,
+      windowsAssistant: downloads?.windows?.assistant
+    }
+  }
+  if (platform === 'ios') return { appStore: APP_STORE_URL }
+  return (downloads?.[platform as 'windows' | 'linux' | 'macos'] as PlatformLinks | undefined) || {}
+}
 
-        {/* Scrollable Content */}
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-          <div className="grid gap-3">
-            {renderDownloadOptions(platform, links)}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+const DOWNLOAD_OPTIONS: Record<string, DownloadOption[]> = {
+  Windows: [
+    { key: 'exe', icon: 'install_desktop', title: 'EXE Installer', desc: 'קובץ התקנה רגיל — הורדת הספרייה תתבצע דרך התוכנה' },
+    { key: 'exeArm64', icon: 'memory', title: 'EXE Installer (ARM64)', desc: 'למחשבי ARM עם מעבד Snapdragon — רק בגרסה זו התוספים עובדים' },
+    { key: 'exeFull', icon: 'install_desktop', title: 'EXE Installer (Full)', desc: 'מתקין מלא להתקנה במחשב ללא אינטרנט' },
+    { key: 'msix', icon: 'package_2', title: 'MSIX Package', desc: 'התקנה דרך החנות' }
+  ],
+  Linux: [
+    { key: 'deb', icon: 'package_2', title: 'DEB Package', desc: 'עבור Ubuntu/Debian' },
+    { key: 'rpm', icon: 'package_2', title: 'RPM Package', desc: 'עבור Fedora/RedHat' },
+    { key: 'appimage', icon: 'apps', title: 'AppImage', desc: 'קובץ הרצה אוניברסלי' },
+    { key: 'tarFull', icon: 'folder_zip', title: 'Full Package', desc: 'מתקין מלא להתקנה במחשב ללא אינטרנט' }
+  ],
+  Android: [
+    { key: 'playStore', icon: 'shop', title: 'Google Play', desc: 'התקנה מהחנות', isLink: true },
+    { key: 'apk', icon: 'android', title: 'APK File', desc: 'התקנה ידנית — הורדת הספרייה תתבצע דרך התוכנה' },
+    { key: 'zipFull', icon: 'folder_zip', title: 'Full Package', desc: 'מתקין מלא להתקנה ללא אינטרנט' }
+  ],
+  iOS: [
+    { key: 'appStore', icon: 'shop', title: 'App Store', desc: 'הורדה מחנות האפליקציות', isLink: true }
+  ],
+  macOS: [
+    { key: 'dmg', icon: 'album', title: 'DMG Image', desc: 'קובץ התקנה רגיל — הורדת הספרייה תתבצע דרך התוכנה' },
+    { key: 'zip', icon: 'folder_zip', title: 'macOS Package', desc: 'גרסה דחוסה' },
+    { key: 'zipFull', icon: 'folder_zip', title: 'Full Package', desc: 'מתקין מלא להתקנה במחשב ללא אינטרנט' }
+  ]
 }
 
 function renderDownloadOptions(platform: string, links: PlatformLinks) {
@@ -303,60 +251,24 @@ function renderDownloadOptions(platform: string, links: PlatformLinks) {
     return <DownloadAssistantOptions platform={platform} links={links} />
   }
 
-  const options: Record<string, DownloadOption[]> = {
-    Windows: [
-      { key: 'exe', icon: 'install_desktop', title: 'EXE Installer', desc: 'קובץ התקנה רגיל — הורדת הספרייה תתבצע דרך התוכנה' },
-      { key: 'exeArm64', icon: 'memory', title: 'EXE Installer (ARM64)', desc: 'למחשבי ARM עם מעבד Snapdragon — רק בגרסה זו התוספים עובדים' },
-      { key: 'exeFull', icon: 'install_desktop', title: 'EXE Installer (Full)', desc: 'מתקין מלא להתקנה במחשב ללא אינטרנט' },
-      { key: 'msix', icon: 'package_2', title: 'MSIX Package', desc: 'התקנה דרך החנות' }
-    ],
-    Linux: [
-      { key: 'deb', icon: 'package_2', title: 'DEB Package', desc: 'עבור Ubuntu/Debian' },
-      { key: 'rpm', icon: 'package_2', title: 'RPM Package', desc: 'עבור Fedora/RedHat' },
-      { key: 'appimage', icon: 'apps', title: 'AppImage', desc: 'קובץ הרצה אוניברסלי' },
-      { key: 'tarFull', icon: 'folder_zip', title: 'Full Package', desc: 'מתקין מלא להתקנה במחשב ללא אינטרנט' }
-    ],
-    Android: [
-      { key: 'playStore', icon: 'shop', title: 'Google Play', desc: 'התקנה מהחנות', isLink: true },
-      { key: 'apk', icon: 'android', title: 'APK File', desc: 'התקנה ידנית — הורדת הספרייה תתבצע דרך התוכנה' },
-      { key: 'zipFull', icon: 'folder_zip', title: 'Full Package', desc: 'מתקין מלא להתקנה ללא אינטרנט' }
-    ],
-    iOS: [
-      { key: 'appStore', icon: 'shop', title: 'App Store', desc: 'הורדה מחנות האפליקציות', isLink: true }
-    ],
-    macOS: [
-      { key: 'dmg', icon: 'album', title: 'DMG Image', desc: 'קובץ התקנה רגיל — הורדת הספרייה תתבצע דרך התוכנה' },
-      { key: 'zip', icon: 'folder_zip', title: 'macOS Package', desc: 'גרסה דחוסה' },
-      { key: 'zipFull', icon: 'folder_zip', title: 'Full Package', desc: 'מתקין מלא להתקנה במחשב ללא אינטרנט' }
-    ]
-  }
-
-  const platformOptions = options[platform] || []
+  const platformOptions = DOWNLOAD_OPTIONS[platform] || []
   const validOptions = platformOptions.filter((opt) => links && links[opt.key])
 
   if (validOptions.length === 0) {
-    return <p className="text-neutral-500 italic p-4 bg-neutral-50 rounded-lg text-center border border-dashed border-neutral-300">אין הורדות זמינות כרגע לגרסה זו.</p>
+    return <p className="rounded-lg bg-card p-4 text-center text-on-surface-variant">אין הורדות זמינות כרגע לגרסה זו.</p>
   }
 
-  const optionLinks = validOptions.map((option) => (
-    <a
+  // האפשרות הראשונה היא הפעולה הראשית בחלון; השאר חלופות משניות
+  const optionLinks = validOptions.map((option, index) => (
+    <DownloadOptionCard
       key={option.key}
-      href={links[option.key]}
-      target={option.isLink ? "_blank" : undefined}
-      rel={option.isLink ? "noopener noreferrer" : undefined}
-      className="flex items-center gap-4 p-4 rounded-xl border border-neutral-200 hover:border-primary hover:shadow-md transition-all group bg-neutral-50 hover:bg-white"
-    >
-      <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm text-primary group-hover:scale-110 transition-transform">
-        <span className="material-symbols-outlined text-2xl">{option.icon}</span>
-      </div>
-      <div className="flex-1">
-        <h4 className="font-bold text-neutral-800">{option.title}</h4>
-        <p className="text-sm text-neutral-500">{option.desc}</p>
-      </div>
-      <span className="material-symbols-outlined text-neutral-400 group-hover:text-primary">
-        {option.isLink ? 'open_in_new' : 'download'}
-      </span>
-    </a>
+      href={links[option.key] as string}
+      icon={option.icon}
+      title={option.title}
+      desc={option.desc}
+      emphasis={index === 0 ? 'primary' : 'tonal'}
+      external={option.isLink}
+    />
   ))
 
   if (platform === 'Android' && links.windowsAssistant) {

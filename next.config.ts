@@ -181,10 +181,21 @@ const nextConfig = {
       // נכסי תמונה קבועים ב-public (נוצרים ב-scripts/optimize-assets.mjs). שמם אינו
       // ממוספר ב-hash — הם מוטמעים גם במיילים וב-HTML של דף השבת — ולכן חודש
       // במקום שנה, עם stale-while-revalidate כדי שהחלפה תתפוס בלי המתנה.
-      ...['/bg.avif', '/bg.webp', '/logo.webp', '/logo.png', '/background.png', '/shabbat/sabbath.png', '/spellcheck/:path*', '/תמונה-נטפרי.svg'].map((source) => ({
+      // (בלי זה Next מגיש אותם עם max-age=0 ומאמת בכל טעינה.)
+      ...['/logo.webp', '/logo.png', '/background.png', '/shabbat/sabbath.png', '/spellcheck/:path*', '/תמונה-נטפרי.svg'].map((source) => ({
         source,
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=604800' },
+        ],
+      })),
+      // /home (תמונות הספר בדף הבית, כולל תמונת ה-LCP והרצועה) ו-/icons (מסכות אייקונים):
+      // כל הקבצים כאן נושאים גרסה בשם (golden-book.v2-560.webp, donate-mask.v2.png), ולכן
+      // אפשר immutable לשנה. שינוי תוכן = שם חדש (scripts/optimize-assets.mjs, HOME_ASSET_VERSION);
+      // check-perf-budget.mjs נכשל אם קובץ בתיקיות האלה נטול גרסה בשם.
+      ...['/home/:path*', '/icons/:path*'].map((source) => ({
+        source,
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       })),
       // עמודי שיווק סטטיים-בפועל, ללא תלות ב-session/DB. TTL קצר-בינוני עם
