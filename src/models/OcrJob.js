@@ -39,7 +39,9 @@ const ResultConflictSchema = new mongoose.Schema({
   receivedAt: { type: Date },
   bytes: { type: Number },
   path: { type: String },
+  // סומנה "נבדק" בממשק הניהול — רק אז הניקוי (localCleanup) מוחק את קובץ ה-rejected-<sha>.json
   reviewedAt: { type: Date },
+  reviewedByName: { type: String },
 }, { _id: false });
 
 // קובץ תוצאה שנדחה בקליטה (400 invalid_result / 422 validation_failed / 410 job_closed) — נשמר
