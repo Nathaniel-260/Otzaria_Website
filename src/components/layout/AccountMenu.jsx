@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import AppIcon from '@/components/ui/AppIcon'
@@ -129,6 +130,9 @@ export function AccountMenuItems({ user, unreadMessages = 0, signOutCallbackUrl,
 export default function AccountMenu({ user, unreadMessages = 0, signOutCallbackUrl }) {
   const pathname = usePathname()
   const menu = useDisclosureMenu(pathname)
+  const rafRef = useRef(0)
+  // ביטול מיקוד ממתין אם הרכיב הוסר לפני הפריים הבא
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
 
   const onKeyDown = (event) => {
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
@@ -143,7 +147,7 @@ export default function AccountMenu({ user, unreadMessages = 0, signOutCallbackU
     } else {
       // הפאנל מוסתר (hidden) עד הרינדור הבא — הפוקוס אחרי שהוא נפתח
       menu.toggle()
-      requestAnimationFrame(() => items[next]?.focus())
+      rafRef.current = requestAnimationFrame(() => items[next]?.focus())
     }
   }
 

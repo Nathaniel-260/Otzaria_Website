@@ -18,7 +18,8 @@ const WORDMARK = 'אוצריא'
  * כשהמילה נגללת אל מתחת לכותרת, שם האתר נכנס כאן בדהייה ועלייה קצרה, וכשהיא חוזרת — יוצא
  * (useWordmarkHandoff, "מעבר שם האתר" ב-animations.css). השם תמיד תופס את מקומו ב-layout
  * (רק opacity/transform משתנים), כך שאין קפיצה. השם הנגיש של הקישור קבוע (aria-label), בלי
- * קשר למה שמוצג כרגע.
+ * קשר למה שמוצג כרגע. הלוגו דקורטיבי (alt ריק) כי שם האתר גלוי לצידו — אחרת הקורא היה אומר
+ * "לוגו אוצריא אוצריא".
  */
 export default function HeaderLogo({ handoff = false }) {
   const targetRef = useRef(null)
@@ -32,7 +33,7 @@ export default function HeaderLogo({ handoff = false }) {
       aria-label={handoff ? `${WORDMARK} — דף הבית` : undefined}
       className={`flex min-h-12 shrink-0 items-center gap-2 rounded-lg transition-opacity hover:opacity-80 ${FOCUS_RING}`}
     >
-      <Image src="/logo.webp" alt={handoff ? '' : 'לוגו אוצריא'} width={32} height={32} className="size-[32px] shrink-0" />
+      <Image src="/logo.webp" alt="" width={32} height={32} className="size-[32px] shrink-0" />
       <span ref={targetRef} className={`font-display text-2xl font-normal leading-none text-on-surface ${handoff ? 'wordmark-handoff-target' : ''}`}>
         {WORDMARK}
       </span>

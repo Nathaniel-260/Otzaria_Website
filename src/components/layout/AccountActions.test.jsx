@@ -1,7 +1,7 @@
 // בדיקות לאזור החשבון המשותף (כותרת הספרייה + כותרת האתר בחנות התוספים): אורח, טעינה,
 // מחובר (כפתור חשבון בלי שם ותפריט נפתח נגיש), "ניהול" לפי תפקיד, ו-OtzariaSoftwareHeader showAuth.
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 const signOut = vi.fn()
@@ -98,6 +98,16 @@ describe('AccountActions — שורת הכותרת', () => {
   })
 })
 
+test('הסרה לפני הפריים של מיקוד הפריט מבטלת את ה-requestAnimationFrame הממתין', () => {
+  const cancel = vi.spyOn(window, 'cancelAnimationFrame')
+  vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(42)
+  const { unmount } = render(<AccountActions session={demoUser('admin')} status="authenticated" />)
+  fireEvent.keyDown(accountButton(), { key: 'ArrowDown' })
+  unmount()
+  expect(cancel).toHaveBeenCalledWith(42)
+  vi.restoreAllMocks()
+})
+
 test('Tab שיוצא מהתפריט אל רכיב אחר סוגר אותו', async () => {
   render(<><AccountActions session={demoUser()} status="authenticated" /><button type="button">אחר</button></>)
   await userEvent.click(accountButton())
@@ -125,9 +135,10 @@ describe('AccountActions — תפריט נייד (compact)', () => {
     expect(screen.getByRole('button', { name: 'התנתק' })).toBeInTheDocument()
   })
 
-  test('טוען: כלום', () => {
+  test('טוען: שלד שומר מקום (מוסתר מקורא מסך), בלי קישורים', () => {
     const { container } = render(<AccountActions session={null} status="loading" compact />)
-    expect(container).toBeEmptyDOMElement()
+    expect(container.querySelector('[data-account-skeleton]')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.queryByRole('link')).toBeNull()
   })
 })
 

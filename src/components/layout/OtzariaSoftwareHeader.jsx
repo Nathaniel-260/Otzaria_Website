@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useId } from 'react'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { MAIN_NAV_LINKS } from '@/lib/navigation-constants'
@@ -93,6 +94,7 @@ function AuthActions({ pathname, compact = false, onNavigate }) {
 export default function OtzariaSoftwareHeader({ showAuth = false, wordmarkHandoff = false }) {
   const pathname = usePathname()
   const menu = useDisclosureMenu(pathname)
+  const navId = useId()
   const donationLink = MAIN_NAV_LINKS.find(link => link.emphasis === 'donation')
   const navLinks = MAIN_NAV_LINKS.filter(link => link.emphasis !== 'donation')
 
@@ -159,10 +161,11 @@ export default function OtzariaSoftwareHeader({ showAuth = false, wordmarkHandof
         className="lg:hidden absolute top-full inset-x-0 max-h-[calc(100svh-var(--site-header-height))] overflow-y-auto overscroll-contain bg-top-bar p-3 shadow-overlay"
       >
         <div className="flex flex-col gap-0.5">
-          {navLinks.map(link => link.children ? (
+          {navLinks.map((link, index) => link.children ? (
             // פריט נפתח (NavDropdown בדסקטופ) — כאן קבוצה פתוחה: כותרת, ומתחתיה הקישורים
-            <div key={link.label} role="group" aria-labelledby={`mobile-nav-${link.href}`}>
-              <div id={`mobile-nav-${link.href}`} className="mobile-nav-group-label">{link.label}</div>
+            <div key={link.label} role="group" aria-labelledby={`${navId}-group-${index}`}>
+              {/* id מבוסס useId ואינדקס — לא href (שמכיל '/'), כדי שיהיה מזהה חוקי ויציב */}
+              <div id={`${navId}-group-${index}`} className="mobile-nav-group-label">{link.label}</div>
               <div className="mobile-nav-group-list flex flex-col gap-0.5">
                 {link.children.map(child => (
                   <MobileNavLink key={child.href + child.label} link={child} pathname={pathname} onNavigate={menu.close} />

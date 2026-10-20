@@ -60,6 +60,8 @@ test('detectPlatform — כרטיס ההורדה בדף הבית: Android, iOS, 
     [{ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', platform: 'iPhone' }, 'ios'],
     [{ userAgent: 'Mozilla/5.0 (X11; Linux x86_64)', platform: 'Linux x86_64' }, 'linux'],
     [{ userAgent: 'Mozilla/5.0 (X11; CrOS x86_64 14541.0.0)', platform: '' }, null],
+    // ChromeOS אמיתי מדווח platform = 'Linux x86_64' — עדיין לא ידוע, לא linux
+    [{ userAgent: 'Mozilla/5.0 (X11; CrOS x86_64 14541.0.0)', platform: 'Linux x86_64' }, null],
     [{}, null]
   ]
   for (const [input, expected] of cases) assert.equal(detectPlatform(input), expected, JSON.stringify(input))

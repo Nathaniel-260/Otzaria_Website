@@ -70,8 +70,27 @@ async function collectFiles(dir) {
   return out
 }
 
+const READ_CONCURRENCY = 16
+const FETCH_TIMEOUT_MS = 30_000
+
+/** קריאת קבצים עם הגבלת מקביליות (עץ גדול לא פותח אלפי קבצים בבת אחת); סדר התוצאות כסדר הקלט. */
 async function readAll(files) {
-  return Promise.all(files.map((f) => readFile(f, 'utf8').then((text) => ({ file: path.relative(ROOT, f), text }))))
+  const results = new Array(files.length)
+  let next = 0
+  async function worker() {
+    while (next < files.length) {
+      const index = next++
+      const f = files[index]
+      results[index] = { file: path.relative(ROOT, f), text: await readFile(f, 'utf8') }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(READ_CONCURRENCY, files.length) }, worker))
+  return results
+}
+
+/** fetch עם timeout — בקשה תקועה לא תשאיר את הבנייה תלויה לנצח */
+function fetchWithTimeout(url, options = {}) {
+  return fetch(url, { ...options, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
 }
 
 /**
@@ -80,7 +99,7 @@ async function readAll(files) {
  * ה-API ממפה אותם — ולכן אין לסנן לפי unsupported_families.
  */
 async function fetchIconUniverse() {
-  const res = await fetch(METADATA_URL, { headers: { 'user-agent': MODERN_UA } })
+  const res = await fetchWithTimeout(METADATA_URL, { headers: { 'user-agent': MODERN_UA } })
   if (!res.ok) throw new Error(`metadata: HTTP ${res.status}`)
   // התגובה מוגנת בקידומת anti-JSON-hijacking
   const json = JSON.parse((await res.text()).replace(/^\)\]\}'\s*/, ''))
@@ -98,24 +117,34 @@ function subsetUrl(names) {
   return url
 }
 
-/** מסיר שמות שה-API דוחה (400), אחד-אחד. רץ רק אם הבקשה המרוכזת נכשלה. */
-async function dropRejectedNames(names) {
-  const kept = []
-  for (const name of names) {
-    const res = await fetch(subsetUrl([name]), { headers: { 'user-agent': MODERN_UA } })
-    if (res.ok) kept.push(name)
-    else console.warn(`⚠️  ${FAMILY} אינו מכיר את האייקון "${name}" — הושמט`)
+/**
+ * מסיר שמות שה-API דוחה (400) בחלוקה לחצאים: קבוצה שכולה תקינה נבדקת בבקשה אחת, וקבוצה פגומה
+ * מתפצלת — כך מעט שמות פסולים עולים כ-O(k·log n) בקשות ולא בקשה לכל שם. רץ רק אם הבקשה
+ * המרוכזת נכשלה (knownBad — הקבוצה כולה כבר ידועה כפגומה, אין צורך לבדוק אותה שוב).
+ */
+async function dropRejectedNames(names, knownBad = true) {
+  if (names.length === 0) return []
+  if (!knownBad) {
+    const res = await fetchWithTimeout(subsetUrl(names), { headers: { 'user-agent': MODERN_UA } })
+    if (res.ok) return names
   }
-  return kept
+  if (names.length === 1) {
+    console.warn(`⚠️  ${FAMILY} אינו מכיר את האייקון "${names[0]}" — הושמט`)
+    return []
+  }
+  const mid = names.length >> 1
+  const left = await dropRejectedNames(names.slice(0, mid), false)
+  const right = await dropRejectedNames(names.slice(mid), false)
+  return [...left, ...right]
 }
 
 async function fetchSubset(names) {
-  let cssRes = await fetch(subsetUrl(names), { headers: { 'user-agent': MODERN_UA } })
+  let cssRes = await fetchWithTimeout(subsetUrl(names), { headers: { 'user-agent': MODERN_UA } })
   if (cssRes.status === 400) {
     // שם אחד או יותר אינו תקף — מאתרים ומשמיטים אותם ומנסים שוב.
     const valid = await dropRejectedNames(names)
     names.splice(0, names.length, ...valid)
-    cssRes = await fetch(subsetUrl(names), { headers: { 'user-agent': MODERN_UA } })
+    cssRes = await fetchWithTimeout(subsetUrl(names), { headers: { 'user-agent': MODERN_UA } })
   }
   if (!cssRes.ok) throw new Error(`css2: HTTP ${cssRes.status}`)
   const css = await cssRes.text()
@@ -123,7 +152,7 @@ async function fetchSubset(names) {
   const fontUrl = css.match(/url\((https:\/\/fonts\.gstatic\.com[^)]+)\)/)?.[1]
   if (!fontUrl) throw new Error('css2: לא נמצא URL של WOFF2 בתשובה')
 
-  const fontRes = await fetch(fontUrl)
+  const fontRes = await fetchWithTimeout(fontUrl)
   if (!fontRes.ok) throw new Error(`woff2: HTTP ${fontRes.status}`)
   return Buffer.from(await fontRes.arrayBuffer())
 }

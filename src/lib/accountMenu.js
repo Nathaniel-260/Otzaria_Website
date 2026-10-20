@@ -21,7 +21,8 @@ export function adminHref(role) {
  *  זה כל מה שהכפתור בכותרת מציג — השם עצמו רק בתפריט, ב-title וב-aria-label (רוחב קבוע). */
 export function userInitial(name) {
   const trimmed = typeof name === 'string' ? name.trim() : ''
-  return trimmed ? trimmed.charAt(0).toUpperCase() : null
+  // Array.from — לפי נקודות קוד: charAt(0) היה חותך זוג surrogate (אימוג'י) לחצי תו שבור
+  return trimmed ? Array.from(trimmed)[0].toUpperCase() : null
 }
 
 /** השם הנגיש של כפתור החשבון: הכפתור מציג רק את האות הראשונה, ולכן השם המלא כאן */

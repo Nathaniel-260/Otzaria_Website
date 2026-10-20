@@ -32,6 +32,17 @@ describe('OtzariaSoftwareHeader — ניווט', () => {
 })
 
 describe('OtzariaSoftwareHeader — התפריט הנייד', () => {
+  test('קבוצות הקישורים מתויגות במזהה בלי "/" והוא מצביע על הכותרת הנכונה', () => {
+    render(<OtzariaSoftwareHeader />)
+    const groups = mobilePanel().querySelectorAll('[role="group"]')
+    expect(groups.length).toBeGreaterThan(0)
+    for (const group of groups) {
+      const id = group.getAttribute('aria-labelledby')
+      expect(id).not.toContain('/')
+      expect(document.getElementById(id)).toBeInTheDocument()
+    }
+  })
+
   test('סגור: הפאנל קיים ב-DOM (יעד aria-controls) ומוסתר', () => {
     render(<OtzariaSoftwareHeader />)
     expect(menuButton()).toHaveAttribute('aria-expanded', 'false')

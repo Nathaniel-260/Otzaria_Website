@@ -7,27 +7,27 @@ import DownloadSectionClient from './DownloadSectionClient'
 const WITH_ASSISTANT = {
   version: '0.9.98+801',
   windows: {
-    assistant: 'url:Otzaria-Download-Assistant-windows.exe',
-    exe: 'url:otzaria-0.9.98-windows.exe',
-    zip: 'url:otzaria-windows.zip'
+    assistant: 'https://example.com/Otzaria-Download-Assistant-windows.exe',
+    exe: 'https://example.com/otzaria-0.9.98-windows.exe',
+    zip: 'https://example.com/otzaria-windows.zip'
   },
   linux: {
-    assistantX64: 'url:Otzaria-Download-Assistant-linux-x64.tar.gz',
-    assistantArm64: 'url:Otzaria-Download-Assistant-linux-arm64.tar.gz',
-    deb: 'url:otzaria-linux.deb'
+    assistantX64: 'https://example.com/Otzaria-Download-Assistant-linux-x64.tar.gz',
+    assistantArm64: 'https://example.com/Otzaria-Download-Assistant-linux-arm64.tar.gz',
+    deb: 'https://example.com/otzaria-linux.deb'
   },
   macos: {
-    assistant: 'url:Otzaria-Download-Assistant-macos.zip',
-    dmg: 'url:otzaria-macos.dmg',
-    zip: 'url:otzaria-macos.zip'
+    assistant: 'https://example.com/Otzaria-Download-Assistant-macos.zip',
+    dmg: 'https://example.com/otzaria-macos.dmg',
+    zip: 'https://example.com/otzaria-macos.zip'
   },
-  android: { apk: 'url:app-release.apk' }
+  android: { apk: 'https://example.com/app-release.apk' }
 }
 
 const WITHOUT_ASSISTANT = {
   version: '0.9.97+789',
-  windows: { exe: 'url:otzaria-0.9.97-windows.exe', exeFull: 'url:otzaria-0.9.97-windows-full.exe' },
-  macos: { dmg: 'url:otzaria-macos.dmg', zip: 'url:otzaria-macos.zip' }
+  windows: { exe: 'https://example.com/otzaria-0.9.97-windows.exe', exeFull: 'https://example.com/otzaria-0.9.97-windows-full.exe' },
+  macos: { dmg: 'https://example.com/otzaria-macos.dmg', zip: 'https://example.com/otzaria-macos.zip' }
 }
 
 function openPlatform(name: string) {
@@ -50,7 +50,7 @@ describe('DownloadSectionClient — מסייע ההורדה', () => {
   it('Windows: מציג רק את המסייע, עם שורת הסבר שאינו תוכנת ההתקנה', () => {
     render(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
     const modal = openPlatform('Windows')
-    expect(hrefs(modal)).toEqual(['url:Otzaria-Download-Assistant-windows.exe'])
+    expect(hrefs(modal)).toEqual(['https://example.com/Otzaria-Download-Assistant-windows.exe'])
     expect(within(modal).getByRole('note')).toHaveTextContent('זה מסייע ההורדה, לא תוכנת ההתקנה')
     expect(within(modal).getByText('מסייע ההורדה של אוצריא')).toBeInTheDocument()
     expect(within(modal).queryByText('EXE Installer')).not.toBeInTheDocument()
@@ -60,8 +60,8 @@ describe('DownloadSectionClient — מסייע ההורדה', () => {
     render(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
     const modal = openPlatform('Linux')
     expect(hrefs(modal)).toEqual([
-      'url:Otzaria-Download-Assistant-linux-x64.tar.gz',
-      'url:Otzaria-Download-Assistant-linux-arm64.tar.gz'
+      'https://example.com/Otzaria-Download-Assistant-linux-x64.tar.gz',
+      'https://example.com/Otzaria-Download-Assistant-linux-arm64.tar.gz'
     ])
     expect(within(modal).getByText(/uname -m/)).toBeInTheDocument()
   })
@@ -69,7 +69,7 @@ describe('DownloadSectionClient — מסייע ההורדה', () => {
   it('macOS: מציג רק את המסייע, עם הערת Gatekeeper', () => {
     render(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
     const modal = openPlatform('macOS')
-    expect(hrefs(modal)).toEqual(['url:Otzaria-Download-Assistant-macos.zip'])
+    expect(hrefs(modal)).toEqual(['https://example.com/Otzaria-Download-Assistant-macos.zip'])
     expect(within(modal).getByText(/פתח בכל זאת/)).toBeInTheDocument()
   })
 
@@ -82,7 +82,7 @@ describe('DownloadSectionClient — מסייע ההורדה', () => {
   it('release בלי מסייע: האפשרויות הקיימות ובלי ההודעה', () => {
     render(<DownloadSectionClient stableDownloads={WITHOUT_ASSISTANT} />)
     const modal = openPlatform('Windows')
-    expect(hrefs(modal)).toEqual(['url:otzaria-0.9.97-windows.exe', 'url:otzaria-0.9.97-windows-full.exe'])
+    expect(hrefs(modal)).toEqual(['https://example.com/otzaria-0.9.97-windows.exe', 'https://example.com/otzaria-0.9.97-windows-full.exe'])
     expect(within(modal).queryByRole('note')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Windows/ })).not.toHaveTextContent('מסייע')
   })
@@ -92,21 +92,21 @@ describe('DownloadSectionClient — מסייע ההורדה', () => {
     const modal = openPlatform('Android')
     expect(hrefs(modal)).toEqual([
       'https://play.google.com/store/apps/details?id=org.otzaria.otzaria',
-      'url:app-release.apk',
-      'url:Otzaria-Download-Assistant-windows.exe'
+      'https://example.com/app-release.apk',
+      'https://example.com/Otzaria-Download-Assistant-windows.exe'
     ])
     const note = within(modal).getByRole('note')
     expect(note).toHaveTextContent('אין אינטרנט במכשיר?')
     expect(within(note).getByRole('link', { name: /הורדת המסייע ל-Windows/ }))
-      .toHaveAttribute('href', 'url:Otzaria-Download-Assistant-windows.exe')
+      .toHaveAttribute('href', 'https://example.com/Otzaria-Download-Assistant-windows.exe')
   })
 
   it('Android בלי מסייע Windows ב-release: בלי ההודעה', () => {
-    render(<DownloadSectionClient stableDownloads={{ ...WITHOUT_ASSISTANT, android: { apk: 'url:app-release.apk' } }} />)
+    render(<DownloadSectionClient stableDownloads={{ ...WITHOUT_ASSISTANT, android: { apk: 'https://example.com/app-release.apk' } }} />)
     const modal = openPlatform('Android')
     expect(hrefs(modal)).toEqual([
       'https://play.google.com/store/apps/details?id=org.otzaria.otzaria',
-      'url:app-release.apk'
+      'https://example.com/app-release.apk'
     ])
     expect(within(modal).queryByRole('note')).not.toBeInTheDocument()
   })
@@ -227,5 +227,20 @@ describe('DownloadSectionClient — זיהוי המערכת (QA-04) ותקינו
       expect(icon).toHaveAttribute('aria-hidden', 'true')
     }
     expect(screen.getByRole('button', { name: /^Windows/ })).toBeInTheDocument()
+  })
+
+  it('בתוך כפתורי המערכות אין div ו-p (HTML תקין)', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('test-agent')
+    const { container } = render(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
+    expect(container.querySelector('button div, button p')).toBeNull()
+  })
+
+  it('הפוקוס עובר לתוצאה החדשה אחרי "הורדה למערכת אחרת" ואחרי "חזור"', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
+    render(<DownloadSectionClient stableDownloads={WITH_ASSISTANT} />)
+    fireEvent.click(screen.getByRole('button', { name: 'הורדה למערכת אחרת' }))
+    expect(screen.getByRole('button', { name: /^Windows/ })).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: /חזור להורדה ל-Windows/ }))
+    expect(screen.getByRole('button', { name: /^Windows/ })).toHaveFocus()
   })
 })

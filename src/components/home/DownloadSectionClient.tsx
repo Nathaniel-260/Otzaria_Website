@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import DownloadAssistantOptions, { AndroidAssistantNotice, hasDownloadAssistant } from './DownloadAssistantOptions'
 import AppIcon from '@/components/ui/AppIcon'
 import Card from '@/components/ui/Card'
@@ -19,7 +19,14 @@ type PlatformButtonConfig = {
   icon: string
   title: string
   subtitle: string
-  onClick: () => void
+}
+
+const PLATFORM_CONFIG: Record<string, PlatformButtonConfig> = {
+  windows: { icon: 'desktop_windows', title: 'Windows', subtitle: '10 / 11' },
+  linux: { icon: 'computer', title: 'Linux', subtitle: 'כל ההפצות' },
+  android: { icon: 'phone_android', title: 'Android', subtitle: 'Google Play / APK' },
+  ios: { icon: 'phone_iphone', title: 'iOS', subtitle: 'App Store' },
+  macos: { icon: 'laptop_mac', title: 'macOS', subtitle: 'Intel / Apple Silicon' }
 }
 
 type DownloadOption = {
@@ -42,6 +49,18 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
   // undefined — עוד לא נבדק (ה-HTML מהשרת ועד ה-effect); null — נבדק ולא זוהה; אחרת — המפתח
   const [detectedPlatform, setDetectedPlatform] = useState<string | null | undefined>(undefined)
   const [showAllPlatforms, setShowAllPlatforms] = useState(false)
+  // החלפת התצוגה מסירה מה-DOM את הכפתור שנלחץ — הפוקוס עובר לאלמנט הראשון של התוצאה החדשה
+  const contentRef = useRef<HTMLDivElement>(null)
+  const focusAfterToggleRef = useRef(false)
+  const toggleAllPlatforms = (value: boolean) => {
+    focusAfterToggleRef.current = true
+    setShowAllPlatforms(value)
+  }
+  useEffect(() => {
+    if (!focusAfterToggleRef.current) return
+    focusAfterToggleRef.current = false
+    contentRef.current?.querySelector<HTMLElement>('button')?.focus()
+  }, [showAllPlatforms])
 
   // זיהוי פלטפורמה אוטומטי
   useEffect(() => {
@@ -64,40 +83,7 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
 
   // פונקציה להצגת כפתור פלטפורמה
   const renderPlatformButton = (platform: string, large: boolean = false) => {
-    const platformConfig: Record<string, PlatformButtonConfig> = {
-      windows: {
-        icon: 'desktop_windows',
-        title: 'Windows',
-        subtitle: '10 / 11',
-        onClick: () => setOpenPlatform('windows')
-      },
-      linux: {
-        icon: 'computer',
-        title: 'Linux',
-        subtitle: 'כל ההפצות',
-        onClick: () => setOpenPlatform('linux')
-      },
-      android: {
-        icon: 'phone_android',
-        title: 'Android',
-        subtitle: 'Google Play / APK',
-        onClick: () => setOpenPlatform('android')
-      },
-      ios: {
-        icon: 'phone_iphone',
-        title: 'iOS',
-        subtitle: 'App Store',
-        onClick: () => setOpenPlatform('ios')
-      },
-      macos: {
-        icon: 'laptop_mac',
-        title: 'macOS',
-        subtitle: 'Intel / Apple Silicon',
-        onClick: () => setOpenPlatform('macos')
-      }
-    }
-
-    const config = platformConfig[platform]
+    const config = PLATFORM_CONFIG[platform]
     if (!config) return null
     const assistantLinks = stableDownloads?.[platform as keyof Downloads]
     const subtitle = hasDownloadAssistant(config.title, (assistantLinks as PlatformLinks | undefined) || {})
@@ -107,13 +93,13 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
     // שורת כרטיס בסגנון המתקין: אריח אייקון, כותרת ושורת משנה, ו"כפתור" ראשי מלא
     if (large) {
       return (
-        <Card onClick={config.onClick} className="flex w-full items-center gap-4 p-4 sm:gap-5 sm:p-6">
+        <Card onClick={() => setOpenPlatform(platform)} className="flex w-full items-center gap-4 p-4 sm:gap-5 sm:p-6">
           <IconTile icon={config.icon} size="lg" />
-          <div className="min-w-0 flex-1">
-            {/* span ולא כותרת: צאצאי <button> הם presentational, וכותרת בתוכו אינה תקינה */}
+          {/* span עם display:block ולא div/p/כותרת: Card הוא <button>, ותוכנו חייב להיות phrasing content */}
+          <span className="block min-w-0 flex-1">
             <span className="block text-xl font-bold text-on-surface sm:text-2xl">{config.title}</span>
-            <p className="mt-0.5 text-sm text-on-surface-variant sm:text-base">{subtitle}</p>
-          </div>
+            <span className="mt-0.5 block text-sm text-on-surface-variant sm:text-base">{subtitle}</span>
+          </span>
           <span className="inline-flex h-12 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 font-semibold text-on-primary transition-colors group-hover:bg-primary-hover sm:px-5">
             <AppIcon name="download" />
             <span className="hidden sm:inline">הורדה</span>
@@ -124,13 +110,13 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
 
     return (
       // שם המערכת בשורת האריח (כמו בכרטיסי היכולות), ושורת המשנה מתחתיהם לכל רוחב הכרטיס
-      <Card onClick={config.onClick} className="flex h-full w-full flex-col gap-2 p-4 lg:p-5">
-        <div className="flex w-full items-center gap-3">
+      <Card onClick={() => setOpenPlatform(platform)} className="flex h-full w-full flex-col gap-2 p-4 lg:p-5">
+        <span className="flex w-full items-center gap-3">
           <IconTile icon={config.icon} size="md" />
           <span className="min-w-0 flex-1 text-lg font-bold text-on-surface">{config.title}</span>
           <AppIcon name="chevron_left" className="text-primary lg:hidden" />
-        </div>
-        <p className="text-sm text-on-surface-variant">{subtitle}</p>
+        </span>
+        <span className="block text-sm text-on-surface-variant">{subtitle}</span>
       </Card>
     )
   }
@@ -145,7 +131,7 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
             אותו מבנה בדיוק, עם טקסט ניטרלי וכרטיס שקוף במקום כרטיס המערכת: כמעט כל מבקר מזוהה,
             ולכן הגובה לא משתנה כשהזיהוי מסתיים (בלי CLS ובלי "לא הצלחנו לזהות" שגוי) */}
         {detectedPlatform !== null && !showAllPlatforms ? (
-          <div className="mx-auto max-w-2xl">
+          <div ref={contentRef} className="mx-auto max-w-2xl">
             <p className="mb-6 text-center text-lg text-on-surface-variant">
               {detectedPlatform ? `זיהינו שאתה משתמש ב-${getPlatformName(detectedPlatform)}` : 'הורדה למחשב ולנייד'}
             </p>
@@ -160,7 +146,7 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
 
               <button
                 type="button"
-                onClick={() => setShowAllPlatforms(true)}
+                onClick={() => toggleAllPlatforms(true)}
                 className={TOGGLE_BUTTON}
               >
                 <span>{detectedPlatform ? 'הורדה למערכת אחרת' : 'כל המערכות'}</span>
@@ -175,7 +161,7 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
             </p>
 
             {/* נייד: רשימה; טבלט: שתי עמודות; דסקטופ: חמישה כרטיסים אנכיים בשורה */}
-            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
+            <div ref={contentRef} className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
                 {renderPlatformButton('windows')}
                 {renderPlatformButton('linux')}
                 {renderPlatformButton('android')}
@@ -187,7 +173,7 @@ export default function DownloadSectionClient({ stableDownloads }: { stableDownl
               <div className="mt-6 text-center">
                 <button
                   type="button"
-                  onClick={() => setShowAllPlatforms(false)}
+                  onClick={() => toggleAllPlatforms(false)}
                   className={`mx-auto ${TOGGLE_BUTTON}`}
                 >
                   <AppIcon name="expand_less" className="text-lg" />
@@ -231,41 +217,41 @@ function getDialogLinks(platform: string, downloads: Downloads | null): Platform
   return (downloads?.[platform as 'windows' | 'linux' | 'macos'] as PlatformLinks | undefined) || {}
 }
 
+const DOWNLOAD_OPTIONS: Record<string, DownloadOption[]> = {
+  Windows: [
+    { key: 'exe', icon: 'install_desktop', title: 'EXE Installer', desc: 'קובץ התקנה רגיל — הורדת הספרייה תתבצע דרך התוכנה' },
+    { key: 'exeArm64', icon: 'memory', title: 'EXE Installer (ARM64)', desc: 'למחשבי ARM עם מעבד Snapdragon — רק בגרסה זו התוספים עובדים' },
+    { key: 'exeFull', icon: 'install_desktop', title: 'EXE Installer (Full)', desc: 'מתקין מלא להתקנה במחשב ללא אינטרנט' },
+    { key: 'msix', icon: 'package_2', title: 'MSIX Package', desc: 'התקנה דרך החנות' }
+  ],
+  Linux: [
+    { key: 'deb', icon: 'package_2', title: 'DEB Package', desc: 'עבור Ubuntu/Debian' },
+    { key: 'rpm', icon: 'package_2', title: 'RPM Package', desc: 'עבור Fedora/RedHat' },
+    { key: 'appimage', icon: 'apps', title: 'AppImage', desc: 'קובץ הרצה אוניברסלי' },
+    { key: 'tarFull', icon: 'folder_zip', title: 'Full Package', desc: 'מתקין מלא להתקנה במחשב ללא אינטרנט' }
+  ],
+  Android: [
+    { key: 'playStore', icon: 'shop', title: 'Google Play', desc: 'התקנה מהחנות', isLink: true },
+    { key: 'apk', icon: 'android', title: 'APK File', desc: 'התקנה ידנית — הורדת הספרייה תתבצע דרך התוכנה' },
+    { key: 'zipFull', icon: 'folder_zip', title: 'Full Package', desc: 'מתקין מלא להתקנה ללא אינטרנט' }
+  ],
+  iOS: [
+    { key: 'appStore', icon: 'shop', title: 'App Store', desc: 'הורדה מחנות האפליקציות', isLink: true }
+  ],
+  macOS: [
+    { key: 'dmg', icon: 'album', title: 'DMG Image', desc: 'קובץ התקנה רגיל — הורדת הספרייה תתבצע דרך התוכנה' },
+    { key: 'zip', icon: 'folder_zip', title: 'macOS Package', desc: 'גרסה דחוסה' },
+    { key: 'zipFull', icon: 'folder_zip', title: 'Full Package', desc: 'מתקין מלא להתקנה במחשב ללא אינטרנט' }
+  ]
+}
+
 function renderDownloadOptions(platform: string, links: PlatformLinks) {
   // כשיש מסייע הורדה לפלטפורמה מוצג רק הוא; release ישן בלעדיו מציג את הקבצים הישירים.
   if (hasDownloadAssistant(platform, links)) {
     return <DownloadAssistantOptions platform={platform} links={links} />
   }
 
-  const options: Record<string, DownloadOption[]> = {
-    Windows: [
-      { key: 'exe', icon: 'install_desktop', title: 'EXE Installer', desc: 'קובץ התקנה רגיל — הורדת הספרייה תתבצע דרך התוכנה' },
-      { key: 'exeArm64', icon: 'memory', title: 'EXE Installer (ARM64)', desc: 'למחשבי ARM עם מעבד Snapdragon — רק בגרסה זו התוספים עובדים' },
-      { key: 'exeFull', icon: 'install_desktop', title: 'EXE Installer (Full)', desc: 'מתקין מלא להתקנה במחשב ללא אינטרנט' },
-      { key: 'msix', icon: 'package_2', title: 'MSIX Package', desc: 'התקנה דרך החנות' }
-    ],
-    Linux: [
-      { key: 'deb', icon: 'package_2', title: 'DEB Package', desc: 'עבור Ubuntu/Debian' },
-      { key: 'rpm', icon: 'package_2', title: 'RPM Package', desc: 'עבור Fedora/RedHat' },
-      { key: 'appimage', icon: 'apps', title: 'AppImage', desc: 'קובץ הרצה אוניברסלי' },
-      { key: 'tarFull', icon: 'folder_zip', title: 'Full Package', desc: 'מתקין מלא להתקנה במחשב ללא אינטרנט' }
-    ],
-    Android: [
-      { key: 'playStore', icon: 'shop', title: 'Google Play', desc: 'התקנה מהחנות', isLink: true },
-      { key: 'apk', icon: 'android', title: 'APK File', desc: 'התקנה ידנית — הורדת הספרייה תתבצע דרך התוכנה' },
-      { key: 'zipFull', icon: 'folder_zip', title: 'Full Package', desc: 'מתקין מלא להתקנה ללא אינטרנט' }
-    ],
-    iOS: [
-      { key: 'appStore', icon: 'shop', title: 'App Store', desc: 'הורדה מחנות האפליקציות', isLink: true }
-    ],
-    macOS: [
-      { key: 'dmg', icon: 'album', title: 'DMG Image', desc: 'קובץ התקנה רגיל — הורדת הספרייה תתבצע דרך התוכנה' },
-      { key: 'zip', icon: 'folder_zip', title: 'macOS Package', desc: 'גרסה דחוסה' },
-      { key: 'zipFull', icon: 'folder_zip', title: 'Full Package', desc: 'מתקין מלא להתקנה במחשב ללא אינטרנט' }
-    ]
-  }
-
-  const platformOptions = options[platform] || []
+  const platformOptions = DOWNLOAD_OPTIONS[platform] || []
   const validOptions = platformOptions.filter((opt) => links && links[opt.key])
 
   if (validOptions.length === 0) {

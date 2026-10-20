@@ -4,6 +4,15 @@ import Link from 'next/link'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import AppIcon from '@/components/ui/AppIcon'
 
+// matches(':focus-visible') זורק בדפדפנים ישנים שלא מכירים את הסלקטור — אז אין פוקוס-מקלדת לזהות
+function isFocusVisible(element) {
+  try {
+    return element.matches(':focus-visible')
+  } catch {
+    return false
+  }
+}
+
 /**
  * פריט ניווט שנפתח לרשימת קישורים (בכותרת העליונה, בדסקטופ) — דפוס disclosure נגיש:
  * כפתור עם aria-expanded/aria-controls ורשימת קישורים רגילה (לא role="menu" — אלה ניווט).
@@ -18,7 +27,8 @@ import AppIcon from '@/components/ui/AppIcon'
  * Esc סוגר (גם כשהעכבר עדיין מעליו) — מאזין ברמת document כל עוד הרשימה פתוחה, כי ב-Safari
  * לחיצה לא ממקדת את הכפתור, ותפריט שננעץ בלחיצת עכבר לא היה מקבל את המקש. הפוקוס חוזר לכפתור
  * רק אם הוא היה בתוך הרכיב. יציאת הפוקוס מהרכיב סוגרת.
- * חיצים: למטה מהכפתור — אל הקישור הראשון; למעלה/למטה בין הקישורים.
+ * חיצים: למטה מהכפתור — אל הקישור הראשון, למעלה — אל האחרון; למעלה/למטה בין הקישורים;
+ * Home/End — אל הראשון/האחרון (כשהפוקוס ברשימה).
  *
  * @param {{ label: string, items: Array<{ href: string, label: string, icon?: string, customIcon?: string, more?: boolean }>,
  *           className?: string }} props
@@ -73,22 +83,25 @@ export default function NavDropdown({ label, items, className = '' }) {
   const links = () => Array.from(rootRef.current?.querySelectorAll('[data-nav-dropdown-item]') ?? [])
 
   const onKeyDown = (event) => {
-    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
     const list = links()
     if (list.length === 0) return
     const index = list.indexOf(document.activeElement)
+    // Home/End פועלים רק כשהפוקוס כבר בתוך הרשימה — על הכפתור הם נשארים למקלדת הרגילה (גלילת הדף)
+    if (index === -1 && (event.key === 'Home' || event.key === 'End')) return
     event.preventDefault()
     setDismissed(false)
     setFocused(true)
     if (index === -1) {
-      if (event.key === 'ArrowDown') {
-        if (open) list[0].focus()
-        else pendingFocusRef.current = list[0]
-      }
+      // מהכפתור: למטה — אל הראשון, למעלה — אל האחרון (הרשימה נפתחת וממקדים אחרי שהוחלה ב-DOM)
+      const target = event.key === 'ArrowDown' ? list[0] : list[list.length - 1]
+      if (open) target.focus()
+      else pendingFocusRef.current = target
       return
     }
-    const step = event.key === 'ArrowDown' ? 1 : -1
-    list[(index + step + list.length) % list.length].focus()
+    if (event.key === 'Home') list[0].focus()
+    else if (event.key === 'End') list[list.length - 1].focus()
+    else list[(index + (event.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length].focus()
   }
 
   return (
@@ -105,7 +118,7 @@ export default function NavDropdown({ label, items, className = '' }) {
       }}
       onFocus={(event) => {
         // פוקוס מקלדת בלבד — בנגיעה הפוקוס מגיע יחד עם הלחיצה, והלחיצה היא שמחליטה
-        if (event.target === triggerRef.current && event.target.matches(':focus-visible')) setFocused(true)
+        if (event.target === triggerRef.current && isFocusVisible(event.target)) setFocused(true)
       }}
       onBlur={(event) => {
         if (rootRef.current?.contains(event.relatedTarget)) return

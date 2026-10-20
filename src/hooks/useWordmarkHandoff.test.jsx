@@ -83,6 +83,28 @@ describe('useWordmarkHandoff', () => {
     expect(state()).toBeNull()
   })
 
+  it('עם ResizeObserver: שינוי גובה הכותרת בונה מחדש את ה-observer, ו-resize של החלון לא', () => {
+    const ros = []
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(cb) { this.cb = cb; this.disconnected = false; ros.push(this) }
+      observe() {}
+      disconnect() { this.disconnected = true }
+    })
+    let headerBottom = 60.8
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      return this.tagName === 'HEADER' ? rect(headerBottom) : rect(300)
+    })
+    render(<Harness />)
+    const before = observers.length
+    window.dispatchEvent(new Event('resize'))
+    expect(observers.length).toBe(before)
+    headerBottom = 80
+    ros[0].cb()
+    expect(observers.length).toBe(before + 1)
+    expect(observers.at(-1).options.rootMargin).toBe('-80px 0px 0px 0px')
+    spy.mockRestore()
+  })
+
   it('לא פעיל (דפים אחרים) — לא נוגע ב-<html>', () => {
     render(<Harness enabled={false} />)
     expect(state()).toBeNull()

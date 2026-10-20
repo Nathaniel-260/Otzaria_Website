@@ -35,7 +35,16 @@ export default function AccountActions({
   const loading = status === 'loading'
 
   if (compact) {
-    if (loading) return null
+    if (loading) {
+      // שומר מקום בגובה כפתור "התחבר" — כשה-session מגיע בזמן שהתפריט הנייד פתוח, התוכן לא קופץ
+      return (
+        <span
+          aria-hidden="true"
+          data-account-skeleton=""
+          className="block h-(--button-height-header) w-full rounded-(--button-radius) bg-surface-container-highest"
+        />
+      )
+    }
     if (!session) {
       return (
         <Button href={loginHref(loginCallbackUrl)} onClick={onNavigate} icon="login" fullWidth>

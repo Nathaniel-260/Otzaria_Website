@@ -60,7 +60,8 @@ export default function useWordmarkHandoff({ enabled, targetRef }) {
     observe()
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(observe)
     resizeObserver?.observe(header)
-    window.addEventListener('resize', observe)
+    // ResizeObserver על הכותרת מספיק; מאזין חלון רק כגיבוי לסביבה שבלעדיו
+    if (!resizeObserver) window.addEventListener('resize', observe)
 
     return () => {
       observer?.disconnect()

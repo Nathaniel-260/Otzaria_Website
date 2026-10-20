@@ -63,4 +63,18 @@ describe('Tooltip', () => {
     expect(host).toHaveAttribute('data-tip-dismissed', 'true')
     expect(fireEvent.keyDown(document.body, { key: 'Escape' })).toBe(true)
   })
+
+  it('יציאת עכבר אחרי Esc לא מחזירה את הרמז כשהפוקוס עדיין על הכפתור', () => {
+    render(<Tooltip content="רמז"><button>כפתור</button></Tooltip>)
+    const button = screen.getByRole('button')
+    const host = button.closest('.tooltip-host')!
+    button.focus()
+    fireEvent.pointerEnter(host, { pointerType: 'mouse' })
+    fireEvent.keyDown(button, { key: 'Escape' })
+    expect(host).toHaveAttribute('data-tip-dismissed', 'true')
+    fireEvent.pointerLeave(host, { pointerType: 'mouse' })
+    expect(host).toHaveAttribute('data-tip-dismissed', 'true')
+    fireEvent.blur(button)
+    expect(host).not.toHaveAttribute('data-tip-dismissed')
+  })
 })

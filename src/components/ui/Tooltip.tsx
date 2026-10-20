@@ -57,11 +57,8 @@ export default function Tooltip({ content, children, className, bubbleClassName 
     host.style.setProperty('--tooltip-shift', `${shift}px`)
   }, [])
 
-  useEffect(() => {
-    place()
-    window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
-  }, [place])
+  // המיקום מחושב רק בריחוף/פוקוס (onPointerEnter / onFocus), לא בכל resize — הרמז נראה רק אז,
+  // וחישוב layout לכל רמז בעמוד בכל שינוי גודל היה מיותר.
 
   // בריחוף הפוקוס עשוי להיות במקום אחר, ולכן Esc חייב להיקלט גם מחוץ לרכיב.
   useEffect(() => {
@@ -88,8 +85,10 @@ export default function Tooltip({ content, children, className, bubbleClassName 
         place()
       }}
       onFocus={place}
-      onPointerLeave={() => {
+      onPointerLeave={(event) => {
         hoveredRef.current = false
+        // Esc ואחריו יציאת עכבר, כשהפוקוס עדיין על הכפתור — הרמז נשאר מוסתר עד שהפוקוס עוזב
+        if (event.currentTarget.contains(document.activeElement)) return
         reset()
       }}
       onBlur={reset}

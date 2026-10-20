@@ -55,12 +55,14 @@ export default function Dialog({ title, subtitle, onClose, children, footer, dis
     if (closedRef.current) return
     closedRef.current = true
     if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = null
     onClose()
   }, [onClose])
 
   const requestClose = useCallback(() => {
     if (timerRef.current || closedRef.current) return
     if (prefersReducedMotion(true)) {
+      closedRef.current = true
       onClose()
       return
     }
@@ -86,7 +88,7 @@ export default function Dialog({ title, subtitle, onClose, children, footer, dis
   }, [])
 
   const dismiss = useCallback(() => { if (dismissible) requestClose() }, [dismissible, requestClose])
-  useDialogA11y(panelRef, dismiss)
+  useDialogA11y(panelRef, dismiss, dismissible)
 
   if (typeof document === 'undefined') return null
 

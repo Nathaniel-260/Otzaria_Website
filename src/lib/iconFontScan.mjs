@@ -121,8 +121,13 @@ export function stringsInExpression(text, start) {
 
 /** האם הביטוי שנקטע בירידת השורה ב-i ממשיך בשורה הבאה (אופרטור בסוף השורה או בתחילת הבאה). */
 function continuesOnNextLine(text, i) {
-  const next = text.slice(i).match(/^\s*(\S)/)?.[1]
-  const prev = text.slice(0, i).match(/(\S)\s*$/)?.[1]
+  // סריקה מקומית (O(רווחים)) ולא slice+regex על כל הקובץ בכל ירידת שורה — ריבועי בקובץ גדול
+  let n = i
+  while (n < text.length && /\s/.test(text[n])) n++
+  const next = n < text.length ? text[n] : undefined
+  let p = i - 1
+  while (p >= 0 && /\s/.test(text[p])) p--
+  const prev = p >= 0 ? text[p] : undefined
   return (next !== undefined && '?:|&.+'.includes(next)) || (prev !== undefined && '?:|&=+('.includes(prev))
 }
 

@@ -31,6 +31,9 @@ test('adminHref: מפתח לדיווחי התוכנה, כל סוגי המנהל�
 test('userInitial: אות ראשונה (גדולה באנגלית); בלי שם — null (אייקון במקומה)', () => {
   assert.equal(userInitial('  ישראל ישראלי '), 'י')
   assert.equal(userInitial('dan'), 'D')
+  // אימוג'י (זוג surrogate) לא נחתך לחצי תו שבור
+  assert.equal(userInitial('😀 דן'), '😀')
+  assert.equal(userInitial('  🙂x'), '🙂')
   assert.equal(userInitial(''), null)
 })
 

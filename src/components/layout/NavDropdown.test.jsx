@@ -80,6 +80,23 @@ describe('NavDropdown', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'true')
   })
 
+  it('חץ למעלה מהכפתור — לקישור האחרון; Home/End בתוך הרשימה', () => {
+    const { trigger } = setup()
+    trigger.focus()
+    fireEvent.keyDown(trigger, { key: 'ArrowUp' })
+    expect(screen.getByRole('link', { name: 'דרכים נוספות לסיוע' })).toHaveFocus()
+    fireEvent.keyDown(document.activeElement, { key: 'Home' })
+    expect(screen.getByRole('link', { name: 'העלה ספר חדש' })).toHaveFocus()
+    fireEvent.keyDown(document.activeElement, { key: 'End' })
+    expect(screen.getByRole('link', { name: 'דרכים נוספות לסיוע' })).toHaveFocus()
+  })
+
+  it('Home/End על הכפתור לא נבלעים', () => {
+    const { trigger } = setup()
+    trigger.focus()
+    expect(fireEvent.keyDown(trigger, { key: 'End' })).toBe(true)
+  })
+
   it('לחיצה מחוץ לרכיב סוגרת את המצב הנעוץ', () => {
     const { trigger } = setup()
     fireEvent.click(trigger)

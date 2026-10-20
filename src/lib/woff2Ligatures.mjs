@@ -12,6 +12,9 @@
 
 import { brotliDecompressSync } from 'node:zlib'
 
+// תקרה מוחלטת לגודל הגופן אחרי פריסה (גופן Material Symbols מלא הוא בסדר גודל של מאות KB-MB בודדים)
+const MAX_DECOMPRESSED_BYTES = 64 * 1024 * 1024
+
 const KNOWN_TAGS = [
   'cmap', 'head', 'hhea', 'hmtx', 'maxp', 'name', 'OS/2', 'post', 'cvt ', 'fpgm', 'glyf', 'loca', 'prep', 'CFF ',
   'VORG', 'EBDT', 'EBLC', 'gasp', 'hdmx', 'kern', 'LTSH', 'PCLT', 'VDMX', 'vhea', 'vmtx', 'BASE', 'GDEF', 'GPOS',
@@ -52,7 +55,11 @@ export function readWoff2Tables(buf) {
     entries.push({ tag, length, transformed })
   }
   if (buf.readUInt32BE(4) === 0x74746366) throw new Error('woff2: collection אינו נתמך')
-  const data = brotliDecompressSync(buf.subarray(pos.at, pos.at + totalCompressedSize))
+  // גודל הפלט הצפוי ידוע מכותרת הטבלאות — תקרה מונעת "פצצת דחיסה" מקובץ פגום/עוין
+  const expectedSize = entries.reduce((sum, entry) => sum + entry.length, 0)
+  const data = brotliDecompressSync(buf.subarray(pos.at, pos.at + totalCompressedSize), {
+    maxOutputLength: Math.min(Math.max(expectedSize, 1) + 1024, MAX_DECOMPRESSED_BYTES)
+  })
   const tables = new Map()
   let offset = 0
   for (const { tag, length, transformed } of entries) {

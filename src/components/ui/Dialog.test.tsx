@@ -21,8 +21,16 @@ describe('Dialog', () => {
     render(<Dialog title="הורדה" onClose={onClose}><p>תוכן</p></Dialog>)
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(1)
+    // אחרי סגירה (גם ב-reduced-motion) אין קריאה כפולה
     fireEvent.click(screen.getByRole('button', { name: 'סגירה' }))
-    expect(onClose).toHaveBeenCalledTimes(2)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('כפתור הסגירה קורא ל-onClose', () => {
+    const onClose = vi.fn()
+    render(<Dialog title="הורדה" onClose={onClose}><p>תוכן</p></Dialog>)
+    fireEvent.click(screen.getByRole('button', { name: 'סגירה' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 
   it('Tab נלכד בתוך החלון: מהפקד האחרון חוזרים לראשון', () => {

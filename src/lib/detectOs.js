@@ -35,6 +35,8 @@ export function detectPlatform({ userAgent = '', platform = '' } = {}) {
   if (/iphone|ipad|ipod/.test(ua)) return 'ios'
   if (/mac/.test(pf) || /macintosh/.test(ua)) return 'macos'
   if (/win/.test(pf) || /windows/.test(ua)) return 'windows'
+  // ChromeOS מדווח navigator.platform = 'Linux ...' אבל אינו Linux שאפשר להתקין עליו — לא ידוע
+  if (/cros/.test(ua)) return null
   if (/linux/.test(pf) || /linux/.test(ua)) return 'linux'
   return null
 }

@@ -1,7 +1,7 @@
 // בדיקות לכותרת הספרייה: התפריט הנייד (aria-expanded/aria-controls, Esc שמחזיר פוקוס, לחיצה
 // בחוץ, סגירה אחרי ניווט ובשינוי כתובת), שם נגיש לקישור האווטאר ולמונה ההודעות.
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LIBRARY_NAV_LINKS } from '@/lib/navigation-constants'
 
@@ -144,5 +144,34 @@ describe('Header — משתמש מחובר', () => {
     render(<Header />)
     const adminLinks = await screen.findAllByRole('link', { name: /^ניהול ?, 3 הודעות חדשות$/, hidden: true })
     expect(adminLinks.length).toBeGreaterThan(0)
+  })
+
+  test('כל תפקיד מנהל (גם admin_ocr) מושך את המונה; משתמש רגיל — לא', async () => {
+    const { apiGet } = await import('@/lib/api-utils')
+    apiGet.mockClear()
+    session = { user: { name: 'א', role: 'admin_ocr' } }
+    const { unmount } = render(<Header />)
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/api/messages/unread-count'))
+    unmount()
+    apiGet.mockClear()
+    session = { user: { name: 'ב', role: 'user' } }
+    render(<Header />)
+    expect(apiGet).not.toHaveBeenCalled()
+  })
+
+  test('הסקר מושהה בלשונית מוסתרת ומתרענן בחזרה אליה', async () => {
+    const { apiGet } = await import('@/lib/api-utils')
+    apiGet.mockClear()
+    session = { user: { name: 'admin', role: 'admin' } }
+    render(<Header />)
+    await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(1))
+    const hidden = vi.spyOn(document, 'hidden', 'get')
+    hidden.mockReturnValue(true)
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(apiGet).toHaveBeenCalledTimes(1)
+    hidden.mockReturnValue(false)
+    document.dispatchEvent(new Event('visibilitychange'))
+    await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(2))
+    hidden.mockRestore()
   })
 })
