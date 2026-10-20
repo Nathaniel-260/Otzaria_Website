@@ -47,6 +47,7 @@ async function crashedApplying({ page, conflict }, { landed }) {
     $set: {
       status: 'applying', applyToken: 'tok-crashed', applyStartedAt: t0,
       applyLeaseUntil: new Date(t0.getTime() + CONFLICT_APPLY_LEASE_MS), applyByName: 'מנהל א',
+      applyExpectedUpdatedAt: page.updatedAt,
     },
   });
   if (landed) {
@@ -164,18 +165,26 @@ test('קריסה במצב הביניים — טעינת הרשימה (settleStal
   assert.equal((await conflictOf(liveF.conflict)).status, 'applying');
 });
 
-test('קריסה לפני כתיבת העמוד — אימוץ חוזר אחרי ה-lease תופס מחדש ומחיל', async (t) => {
+test('קריסה לפני כתיבת העמוד — ההכרעה חוסמת את העמוד (updatedAt+1ms), ואימוץ חוזר אחרי רענון תופס מחדש ומחיל', async (t) => {
   if (db.skip) return t.skip(db.skip);
   const f = await fixture();
   await crashedApplying(f, { landed: false });
-  const r = await resolveConflict({ id: f.conflict._id, action: 'apply', expected: f.page.updatedAt, byName: 'ב' });
+  // אותו updatedAt שנתפס — כבר לא תקף (החסימה), כדי שגם הכתיבה המקורית לא תנחת
+  const stale = await resolveConflict({ id: f.conflict._id, action: 'apply', expected: f.page.updatedAt, byName: 'ב' });
+  assert.deepEqual(stale, { ok: false, code: 'page_changed' });
+  const fenced = await Page.findById(f.page._id).lean();
+  assert.equal(fenced.updatedAt.getTime(), f.page.updatedAt.getTime() + 1);
+  assert.equal(fenced.content, HUMAN);
+  assert.equal((await conflictOf(f.conflict)).status, 'open');
+
+  const r = await resolveConflict({ id: f.conflict._id, action: 'apply', expected: fenced.updatedAt, byName: 'ב' });
   assert.equal(r.ok, true);
   assert.equal(r.conflict.status, 'applied');
   assert.equal(r.conflict.resolvedByName, 'ב');
   assert.equal(await contentOf(f.page), OCR);
 });
 
-test('בקשת אימוץ שהתעכבה מעבר ל-lease: בקשה אחרת החזירה ל-open, ואז הכתיבה נחתה — מסומן applied ולא נשאר open', async (t) => {
+test('בקשת אימוץ שהתעכבה מעבר ל-lease: הוחזרה ל-open ונדחתה, ואז הכתיבה המאוחרת מגיעה — לא נוחתת, העמוד לא מוחלף', async (t) => {
   if (db.skip) return t.skip(db.skip);
   const f = await fixture();
   const old = new Date(Date.now() - CONFLICT_APPLY_LEASE_MS - 60000);
@@ -183,13 +192,17 @@ test('בקשת אימוץ שהתעכבה מעבר ל-lease: בקשה אחרת ה
     id: f.conflict._id, action: 'apply', expected: f.page.updatedAt, byName: 'א', now: old,
     hooks: {
       beforePageWrite: async () => {
-        // בזמן ההמתנה: ה-lease פג והרשימה הכריעה "לא נכתב" → open
+        // בזמן ההמתנה: ה-lease פג, הרשימה הכריעה "לא נכתב" → open, ומנהל אחר בחר "שמור את הקיים"
         await settleStaleConflictApplies({ job: f.job });
         assert.equal((await conflictOf(f.conflict)).status, 'open');
+        const d = await resolveConflict({ id: f.conflict._id, action: 'dismiss', byName: 'ב' });
+        assert.equal(d.ok, true);
       },
     },
   });
-  assert.equal(r.ok, true);
-  assert.equal(r.conflict.status, 'applied');
-  assert.equal(await contentOf(f.page), OCR);
+  assert.deepEqual(r, { ok: false, code: 'page_changed' });
+  assert.equal(await contentOf(f.page), HUMAN);
+  const c = await conflictOf(f.conflict);
+  assert.equal(c.status, 'dismissed');
+  assert.equal(c.resolvedByName, 'ב');
 });

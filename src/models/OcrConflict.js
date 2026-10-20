@@ -26,6 +26,8 @@ const OcrConflictSchema = new mongoose.Schema({
   applyStartedAt: { type: Date },
   applyLeaseUntil: { type: Date },
   applyByName: { type: String },
+  // updatedAt של העמוד שעליו מותנית כתיבת האימוץ — הכרעה אחרי lease שפג מקדמת אותו (חסימה)
+  applyExpectedUpdatedAt: { type: Date },
 }, { timestamps: true });
 
 // התנגשות אחת לכל עמוד בעבודה (upsert בשליחה חוזרת לא יוצר כפילות)

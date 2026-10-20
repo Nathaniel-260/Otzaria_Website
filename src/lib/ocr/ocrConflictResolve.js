@@ -9,6 +9,10 @@
 // קריסה בין התפיסה לסיום משאירה applying. אחרי שה-lease פג, הפעולה הבאה על ההתנגשות (או טעינת
 // הרשימה) מכריעה לפי העמוד: נושא את סימון האימוץ (lastOcrJobId+sha+lastOcrAt === applyStartedAt,
 // נכתבים באותו $set עם הטקסט) → applied; אחרת → open.
+// לפני הקריאה ההכרעה "חוסמת" את העמוד: מקדמת את updatedAt שלו אם הוא עדיין בדיוק זה שהאימוץ
+// תפס (applyExpectedUpdatedAt). כך כתיבה של הבקשה המקורית שעדיין "בדרך" (תהליך מושהה, תור
+// חיבורים, ניסיון חוזר של הדרייבר) כבר לא תתפוס את התנאי — ולא תחליף את העמוד אחרי שההתנגשות
+// הוחזרה ל-open ואולי נדחתה. אחרי חסימה מוצלחת ברור שהכתיבה לא קרתה ולא תקרה.
 // imports יחסיים בלבד (נבדק ב-node:test).
 import { randomUUID } from 'node:crypto';
 import Page from '../../models/Page.js';
@@ -16,11 +20,13 @@ import OcrConflict from '../../models/OcrConflict.js';
 import { pageApplySet } from './localApply.pure.js';
 import { CONFLICT_APPLY_LEASE_MS, conflictApplyLanded, conflictApplyStale } from './ocrConflictView.js';
 
-// תקרה לזמן כתיבת העמוד בשרת ה-DB — קצרה בהרבה מה-lease, כדי שכתיבה "מאוחרת" לא תנחת אחרי
-// שבקשה אחרת כבר הכריעה שהאימוץ נקטע
+// תקרה לזמן כתיבת העמוד בשרת ה-DB — קצרה בהרבה מה-lease. אינה מבטיחה לבדה שכתיבה מאוחרת לא
+// תנחת (הזמן נמדד רק משהשרת התחיל לבצע); את זה מבטיחה החסימה ב-settleStaleConflictApply.
 const PAGE_WRITE_MAX_TIME_MS = 15 * 1000;
 
-const CLEAR_APPLY = { applyToken: '', applyStartedAt: '', applyLeaseUntil: '', applyByName: '' };
+const CLEAR_APPLY = {
+  applyToken: '', applyStartedAt: '', applyLeaseUntil: '', applyByName: '', applyExpectedUpdatedAt: '',
+};
 const AFTER = { returnDocument: 'after', lean: true };
 
 /**
@@ -29,10 +35,24 @@ const AFTER = { returnDocument: 'after', lean: true };
  * @returns {Promise<any|null>} ההתנגשות אחרי ההכרעה (lean)
  */
 export async function settleStaleConflictApply(conflict) {
+  const expected = conflict.applyExpectedUpdatedAt ? new Date(conflict.applyExpectedUpdatedAt) : null;
+  if (expected) {
+    // חסימה: העמוד עדיין במצב שהאימוץ תפס → הכתיבה לא קרתה; מקדמים את updatedAt באלפית שנייה
+    // אחת (בלי timestamps אוטומטי — תוכן ו"עודכן לאחרונה" כמעט ללא שינוי) כדי שגם לא תקרה
+    const fence = await Page.updateOne(
+      { _id: conflict.page, book: conflict.book, updatedAt: expected },
+      { $set: { updatedAt: new Date(expected.getTime() + 1) } },
+      { timestamps: false }
+    );
+    if (fence.matchedCount > 0) return finishStale(conflict, false);
+  }
   const page = await Page.findOne({ _id: conflict.page, book: conflict.book })
     .select('lastOcrJobId lastOcrResultSha256 lastOcrAt')
     .lean();
-  const landed = conflictApplyLanded(page, conflict);
+  return finishStale(conflict, conflictApplyLanded(page, conflict));
+}
+
+async function finishStale(conflict, landed) {
   const update = landed
     ? {
       $set: { status: 'applied', resolvedAt: conflict.applyStartedAt, resolvedByName: conflict.applyByName || '' },
@@ -53,7 +73,7 @@ export async function settleStaleConflictApply(conflict) {
  */
 export async function settleStaleConflictApplies(scope, now = new Date(), limit = 100) {
   const stale = await OcrConflict.find({ ...scope, status: 'applying', applyLeaseUntil: { $not: { $gt: now } } })
-    .select('_id job book page resultSha256 status applyToken applyStartedAt applyLeaseUntil applyByName')
+    .select('_id job book page resultSha256 status applyToken applyStartedAt applyLeaseUntil applyByName applyExpectedUpdatedAt')
     .limit(limit)
     .lean();
   for (const c of stale) await settleStaleConflictApply(c);
@@ -106,6 +126,7 @@ export async function resolveConflict({ id, action, expected = null, byName = ''
         applyStartedAt: now,
         applyLeaseUntil: new Date(now.getTime() + CONFLICT_APPLY_LEASE_MS),
         applyByName: byName,
+        applyExpectedUpdatedAt: expected,
       },
     },
     AFTER
@@ -134,8 +155,9 @@ export async function resolveConflict({ id, action, expected = null, byName = ''
   );
   if (done) return { ok: true, conflict: done };
 
-  // הבקשה הזו התעכבה מעבר ל-lease ובקשה אחרת כבר הכריעה. אם הוחזרה ל-open (העמוד נקרא לפני
-  // שהכתיבה נחתה) — הטקסט כבר בעמוד, ולכן מסמנים applied.
+  // הבקשה הזו התעכבה מעבר ל-lease ובקשה אחרת כבר הכריעה. הכתיבה שלנו נחתה, ולכן ההכרעה ראתה את
+  // הסימון (applied) — החסימה מונעת הכרעת open שאחריה הכתיבה נוחתת. הגנה נוספת לרשומה בלי
+  // applyExpectedUpdatedAt: אם הוחזרה ל-open — הטקסט כבר בעמוד, ולכן מסמנים applied.
   const fixed = await OcrConflict.findOneAndUpdate(
     { _id: claimed._id, status: 'open' },
     { $set: { status: 'applied', resolvedAt: now, resolvedByName: byName } },
