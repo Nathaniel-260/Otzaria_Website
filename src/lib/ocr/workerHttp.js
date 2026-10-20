@@ -15,8 +15,8 @@ export function workerJson(status, body, extraHeaders = {}) {
   });
 }
 
-export function workerError(status, code, extra = {}) {
-  const headers = {};
+export function workerError(status, code, extra = {}, extraHeaders = {}) {
+  const headers = { ...extraHeaders };
   if (status === 401) headers['WWW-Authenticate'] = 'Bearer realm="otzaria-worker"';
   return workerJson(status, { ...extra, error: code }, headers);
 }

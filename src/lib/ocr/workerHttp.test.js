@@ -25,6 +25,10 @@ describe('workerHttp', () => {
     }
     expect(workerError(401, 'unauthorized').headers.get('www-authenticate')).toBe('Bearer realm="otzaria-worker"');
     expect(await workerError(409, 'x', { foo: 1 }).json()).toEqual({ foo: 1, error: 'x' });
+    // כותרות נוספות (Retry-After) — בלי לדרוס content-type/no-store
+    const ra = workerError(503, 'storage_unavailable', {}, { 'Retry-After': '300', 'Cache-Control': 'public' });
+    expect(ra.headers.get('retry-after')).toBe('300');
+    expect(ra.headers.get('cache-control')).toBe('no-store');
   });
 
   it('withWorker: בלי Bearer 401 JSON ובלי DB', async () => {
