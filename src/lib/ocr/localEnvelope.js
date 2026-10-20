@@ -95,13 +95,33 @@ export function parseListQuery(searchParams) {
   return { limit, cursor: rawCursor };
 }
 
+// רישום מינימלי של פריט שדולג: מזהה העבודה ושם/קוד החריגה בלבד — לא message/stack ולא
+// תוכן הרשומה (עלולים להכיל נתיבים או נתונים פנימיים).
+function logSkippedItem(job, err) {
+  const jobId = String(job?._id ?? '?');
+  const code = String(err?.code ?? err?.name ?? 'unknown');
+  console.error(`[ocr-worker] list item skipped: jobId=${jobId} code=${code}`);
+}
+
 // jobs — עד limit+1 רשומות ממוינות לפי _id. nextCursor תמיד קיים: null בעמוד האחרון,
-// אחרת מזהה האחרונה בעמוד (גדול ממש מה-cursor שנשלח — הדפדוף תמיד מתקדם).
-export function pageOf(jobs, limit) {
+// אחרת מזהה האחרונה **שנסרקה** בעמוד (גדול ממש מה-cursor שנשלח — הדפדוף תמיד מתקדם).
+// רשומה שהסריאליזציה שלה נכשלת (למשל תאריך לא תקין → toISOString זורק) מדולגת לבדה ונרשמת
+// בלוג — אחרת עבודה פגומה אחת הייתה מפילה את כל הרשימה ב-500 בכל סבב, לנצח. ה-cursor עדיין
+// לפי הרשומה האחרונה שנסרקה (גם אם דולגה), כך שהעמוד הבא לא חוזר עליה. העובד רואה את
+// היעלמותה מהרשימה ושואל עליה ב-GET /jobs/{id}, שלא תלוי בתאריכים ועונה כרגיל.
+export function pageOf(jobs, limit, onSkip = logSkippedItem) {
   const hasMore = jobs.length > limit;
   const page = hasMore ? jobs.slice(0, limit) : jobs;
+  const items = [];
+  for (const job of page) {
+    try {
+      items.push(toListItem(job));
+    } catch (err) {
+      onSkip(job, err);
+    }
+  }
   return {
-    items: page.map(toListItem),
+    items,
     nextCursor: hasMore ? String(page[page.length - 1]._id) : null,
   };
 }

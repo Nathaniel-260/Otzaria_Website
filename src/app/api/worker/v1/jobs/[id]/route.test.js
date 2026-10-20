@@ -1,7 +1,8 @@
 // @vitest-environment node
 // GET /api/worker/v1/jobs/{id} — מול MongoDB אמיתי (mongodb-memory-server). בלי הבינארי — מדולג.
 // מכסה: 404 not_found (לא קיים, לא-hex, רישיות אחרת, של עובד אחר, לא נמסרה לעובד/preparing,
-// gemini), state/closed/cancelRequested לכל סוג מצב, ack שמור, jobId זהה בדיוק למבוקש, no-store.
+// gemini), state/closed/cancelRequested לכל סוג מצב, ack שמור, jobId זהה בדיוק למבוקש, no-store,
+// ורשומה עם תאריכים פגומים (מדולגת ברשימה) שעונה כרגיל.
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 
 vi.mock('@/lib/db', () => ({ default: vi.fn().mockResolvedValue(undefined) }))
@@ -123,6 +124,18 @@ describe('GET /api/worker/v1/jobs/{id}', () => {
     // סגורה בלי ack (למשל אחרי ניקוי הקבצים) — אין שדה ack
     const noAck = await makeJob({ status: 'completed', active: false, inputPurgedAt: new Date() })
     expect(Object.hasOwn((await get(noAck)).body, 'ack')).toBe(false)
+  })
+
+  it('רשומה עם תאריכים פגומים (שמדולגת ברשימה) → 200 JSON רגיל, לא קריסה', async () => {
+    const id = await makeJob({ status: 'running' })
+    await OcrJob.collection.updateOne(
+      { _id: new mongoose.Types.ObjectId(id) },
+      { $set: { createdAt: 'garbage', updatedAt: 'garbage' }, $unset: { 'pageMap.0.expectedUpdatedAt': '' } }
+    )
+    const { res, body } = await get(id)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('application/json; charset=utf-8')
+    expect(body).toEqual({ jobId: id, state: 'in_progress', cancelRequested: false, closed: false })
   })
 
   it('עבודה פעילה עם cancelRequested (לפני סגירה) מוצגת כך', async () => {

@@ -3,7 +3,8 @@
 // מכסה: אימות (401/403 JSON + no-store), רשימה ריקה, רק עבודות לא-סגורות וגלויות של העובד
 // (לא preparing/סגורות/של עובד אחר/gemini), צורת הפריט מול החוזה, מהישנה לחדשה, דפדוף (101 →
 // 100+cursor ו-1+null), cursor יציב כשעבודות נסגרות/נוספות בין עמודים, limit ו-cursor לא תקינים,
-// ועדכון OcrWorkerState.lastSeenAt.
+// רשומה פגומה שמדולגת לבדה (cursor לפי האחרונה שנסרקה), שימוש באינדקס הרשימה (explain), ועדכון
+// OcrWorkerState.lastSeenAt.
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 
 vi.mock('@/lib/db', () => ({ default: vi.fn().mockResolvedValue(undefined) }))
@@ -13,6 +14,7 @@ import OcrJob from '@/models/OcrJob'
 import OcrWorkerState from '@/models/OcrWorkerState'
 import { startMongo } from '@/lib/corrections/testing/mongo.js'
 import { GET } from './route'
+import { listFilter } from '@/lib/ocr/localEnvelope'
 
 vi.setConfig({ testTimeout: 30000 })
 
@@ -196,6 +198,48 @@ describe('GET /api/worker/v1/jobs', () => {
       expect(res.headers.get('cache-control')).toBe('no-store')
       expect(body).toEqual({ error: 'bad_request' })
     }
+  })
+
+  it('רשומה פגומה (תאריך לא תקין) מדולגת לבדה עם לוג מינימלי; השאר מוחזרים וה-cursor מתקדם', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      // 3 עבודות; האמצעית (האחרונה בעמוד של limit=2) עם createdAt לא תקין ו-expectedUpdatedAt חסר
+      const docs = Array.from({ length: 3 }, () => jobDoc())
+      await OcrJob.insertMany(docs)
+      await OcrJob.collection.updateOne(
+        { _id: docs[1]._id },
+        { $set: { createdAt: 'garbage' }, $unset: { 'pageMap.0.expectedUpdatedAt': '' } }
+      )
+      const p1 = await list('?limit=2')
+      expect(p1.res.status).toBe(200)
+      expect(p1.body.items.map((i) => i.jobId)).toEqual([String(docs[0]._id)])
+      expect(p1.body.nextCursor).toBe(String(docs[1]._id))
+      const p2 = await list(`?limit=2&cursor=${p1.body.nextCursor}`)
+      expect(p2.body).toMatchObject({ nextCursor: null })
+      expect(p2.body.items.map((i) => i.jobId)).toEqual([String(docs[2]._id)])
+      expect(err).toHaveBeenCalledTimes(1)
+      expect(err.mock.calls[0]).toEqual([`[ocr-worker] list item skipped: jobId=${docs[1]._id} code=RangeError`])
+    } finally {
+      err.mockRestore()
+    }
+  })
+
+  it('שאילתת הרשימה משתמשת באינדקס הרשימה, בלי מיון בזיכרון ובלי סריקת אוסף', async () => {
+    await OcrJob.insertMany(Array.from({ length: 30 }, (_, i) => jobDoc(i % 3 ? { status: 'completed', active: false } : {})))
+    const ex = await OcrJob.find(listFilter(WORKER, null)).sort({ _id: 1 }).limit(101).explain('executionStats')
+    const stages = []
+    const walk = (s) => {
+      if (!s) return
+      stages.push(s)
+      ;(s.inputStages || (s.inputStage ? [s.inputStage] : [])).forEach(walk)
+    }
+    walk(ex.executionStats.executionStages)
+    const names = stages.map((s) => s.stage)
+    expect(names).not.toContain('SORT')
+    expect(names).not.toContain('COLLSCAN')
+    expect(stages.filter((s) => s.stage === 'IXSCAN').map((s) => s.indexName)).toContain('method_1_workerId_1_active_1__id_1')
+    expect(ex.executionStats.nReturned).toBe(10)
+    expect(ex.executionStats.totalKeysExamined).toBe(10)
   })
 
   it('OcrWorkerState.lastSeenAt מתעדכן בכל פנייה מאומתת (ולא בפנייה שנדחתה)', async () => {

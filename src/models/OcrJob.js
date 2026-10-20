@@ -149,7 +149,10 @@ OcrJobSchema.index(
   { name: 'requestId_unique', unique: true, partialFilterExpression: { requestId: { $type: 'string' } } }
 );
 
-// רשימת העבודות לעובד (GET /api/worker/v1/jobs — דפדוף לפי _id)
+// רשימת העבודות לעובד (GET /api/worker/v1/jobs — דפדוף לפי _id). משרת גם את שני ענפי ה-$or
+// של activeFilter (שוויון על method/workerId/active, טווח ומיון על _id → SORT_MERGE בלי מיון
+// בזיכרון; נבדק ב-explain ב-src/app/api/worker/v1/jobs/route.test.js).
+// כל אינדקס שנוסף כאן חייב להיכנס גם ל-TARGET_INDEXES (ocrJobMigration.js) — נבדק בטסט.
 OcrJobSchema.index({ method: 1, workerId: 1, active: 1, _id: 1 });
 
 // ניקוי קבצים אחרי ack (cron)

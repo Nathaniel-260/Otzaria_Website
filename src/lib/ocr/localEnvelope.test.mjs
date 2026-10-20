@@ -146,6 +146,40 @@ test('pageOf: 0, 100, 101 ו-250 רשומות — nextCursor תמיד קיים �
   assert.equal(new Set(seen).size, 250);
 });
 
+test('pageOf: רשומה שהסריאליזציה שלה נכשלת מדולגת לבדה, ה-cursor לפי האחרונה שנסרקה', () => {
+  const ok = (n) => dbJob({ _id: idObj(oid(n)) });
+  const skipped = [];
+  const onSkip = (job, err) => skipped.push([String(job._id), err.name]);
+
+  // תאריך לא תקין (toISOString זורק), תאריך חסר, ורשומת pageMap ריקה (null)
+  const badCreated = dbJob({ _id: idObj(oid(2)), createdAt: 'not-a-date' });
+  const noCreated = dbJob({ _id: idObj(oid(3)), createdAt: undefined });
+  const badEntry = dbJob({ _id: idObj(oid(4)), pageMap: [null] });
+  const p = pageOf([ok(1), badCreated, noCreated, badEntry, ok(5)], 100, onSkip);
+  assert.deepEqual(p.items.map((i) => i.jobId), [oid(1), oid(5)]);
+  assert.equal(p.nextCursor, null);
+  assert.deepEqual(skipped, [[oid(2), 'RangeError'], [oid(3), 'RangeError'], [oid(4), 'TypeError']]);
+
+  // הפגומה היא האחרונה בעמוד מלא: nextCursor = המזהה שלה (לא של האחרונה שהוחזרה), כך שהעמוד
+  // הבא מתחיל אחריה ולא חוזר עליה
+  const jobs = Array.from({ length: 101 }, (_, i) => (i === 99 ? dbJob({ _id: idObj(oid(100)), createdAt: 'x' }) : ok(i + 1)));
+  const full = pageOf(jobs, 100, () => {});
+  assert.equal(full.items.length, 99);
+  assert.equal(full.items.at(-1).jobId, oid(99));
+  assert.equal(full.nextCursor, oid(100));
+
+  // כל העמוד פגום: items ריק, אבל nextCursor עדיין מתקדם
+  const allBad = Array.from({ length: 3 }, (_, i) => dbJob({ _id: idObj(oid(i + 1)), createdAt: 'x' }));
+  assert.deepEqual(pageOf(allBad, 2, () => {}), { items: [], nextCursor: oid(2) });
+});
+
+test('pageOf: ברירת המחדל רושמת בלוג רק jobId וקוד — בלי הודעת החריגה ובלי נתוני הרשומה', (t) => {
+  const err = t.mock.method(console, 'error', () => {});
+  pageOf([dbJob({ _id: idObj(oid(9)), createdAt: 'secret-path-C:\\x' })], 100);
+  assert.equal(err.mock.callCount(), 1);
+  assert.deepEqual(err.mock.calls[0].arguments, [`[ocr-worker] list item skipped: jobId=${oid(9)} code=RangeError`]);
+});
+
 test('isJobActive / jobInfo: closed הפוך מ-activeFilter, ack רק כשנשמר', () => {
   assert.equal(isJobActive({ active: true, status: 'queued' }), true);
   assert.equal(isJobActive({ active: false, status: 'running' }), false);
