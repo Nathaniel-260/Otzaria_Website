@@ -19,7 +19,7 @@ describe('workerHttp', () => {
   });
 
   it('workerJson/workerError: JSON ו-no-store', async () => {
-    for (const r of [workerJson(200, { a: 1 }), workerError(404, 'not_found'), workerError(401, 'unauthorized'), workerError(503, 'worker_api_disabled')]) {
+    for (const r of [workerJson(200, { a: 1 }), workerError(404, 'not_found'), workerError(401, 'unauthorized'), workerError(403, 'worker_api_disabled')]) {
       expect(r.headers.get('content-type')).toBe('application/json; charset=utf-8');
       expect(r.headers.get('cache-control')).toBe('no-store');
     }
@@ -36,10 +36,16 @@ describe('workerHttp', () => {
     expect(updateOne).not.toHaveBeenCalled();
   });
 
-  it('withWorker: תצורה חסרה — 503 worker_api_disabled', async () => {
+  it('withWorker: תצורה חסרה או חלשה — 403 worker_api_disabled בלי DB', async () => {
+    process.env.OCR_WORKER_SECRET = 'short';
+    const weak = await withWorker(vi.fn())(mk(`Bearer short`));
+    expect(weak.status).toBe(403);
+    expect(await weak.json()).toEqual({ error: 'worker_api_disabled' });
     delete process.env.OCR_WORKER_SECRET;
     const r = await withWorker(vi.fn())(mk(`Bearer ${SECRET}`));
-    expect(r.status).toBe(503);
+    expect(r.status).toBe(403);
+    expect(r.headers.get('retry-after')).toBeNull();
+    expect(connectDB).not.toHaveBeenCalled();
     expect(r.headers.get('cache-control')).toBe('no-store');
     expect(await r.json()).toEqual({ error: 'worker_api_disabled' });
   });
@@ -67,6 +73,24 @@ describe('workerHttp', () => {
     expect(r.status).toBe(500);
     expect(r.headers.get('cache-control')).toBe('no-store');
     expect(await r.text()).toBe('{"error":"internal_error"}');
+  });
+
+  it('withWorker: רישום החריגה מינימלי — name/code ונתיב, בלי הודעה ובלי סוד', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const err = Object.assign(new TypeError(`סוד ${SECRET} בנתיב C:\secret`), { code: 'E_TEST' });
+      await withWorker(async () => { throw err; })(mk(`Bearer ${SECRET}`));
+      expect(spy).toHaveBeenCalledOnce();
+      const line = spy.mock.calls[0].join(' ');
+      expect(line).toContain('/api/worker/v1/jobs');
+      expect(line).toContain('TypeError');
+      expect(line).toContain('E_TEST');
+      expect(line).not.toContain(SECRET);
+      expect(line).not.toContain('סוד');
+      expect(line).not.toContain('secret');
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('isJobIdParam', () => {

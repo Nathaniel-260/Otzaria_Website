@@ -47,8 +47,8 @@ test('secretsEqual', () => {
   assert.equal(secretsEqual(HEX, HEX + 'x'), false);
 });
 
-test('authenticateWorker: תצורה חסרה 503, Bearer חסר/שגוי 401, נכון ok', () => {
-  const disabled = { ok: false, status: 503, code: 'worker_api_disabled' };
+test('authenticateWorker: תצורה חסרה/חלשה 403, Bearer חסר/שגוי 401, נכון ok', () => {
+  const disabled = { ok: false, status: 403, code: 'worker_api_disabled' };
   assert.deepEqual(authenticateWorker(req(`Bearer ${HEX}`), {}), disabled);
   assert.deepEqual(authenticateWorker(req(`Bearer ${HEX}`), env('short')), disabled);
   const bad = { ok: false, status: 401, code: 'unauthorized' };

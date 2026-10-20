@@ -18,15 +18,22 @@ export function workerJson(status, body, extraHeaders = {}) {
 export function workerError(status, code, extra = {}) {
   const headers = {};
   if (status === 401) headers['WWW-Authenticate'] = 'Bearer realm="otzaria-worker"';
-  if (status === 503) headers['Retry-After'] = '60';
   return workerJson(status, { ...extra, error: code }, headers);
 }
 
 export const isJobIdParam = (id) => typeof id === 'string' && /^[a-f0-9]{24}$/.test(id);
 
 // handler(request, { workerId, params }) — חריגה מחזירה 500 internal_error בלי טקסט החריגה.
+// הלוג מינימלי בכוונה: רק name/code של החריגה ושם הנתיב — לא message/stack (עלולים להכיל
+// נתיבי קבצים, תוכן בקשה או סודות).
 export function withWorker(handler) {
   return async (request, routeCtx) => {
+    let route = '?';
+    try {
+      route = new URL(request.url).pathname;
+    } catch {
+      // URL לא תקין — נשאר '?'
+    }
     try {
       const auth = authenticateWorker(request);
       if (!auth.ok) {
@@ -38,7 +45,7 @@ export function withWorker(handler) {
       try {
         await OcrWorkerState.updateOne(
           { workerId: auth.workerId },
-          { $max: { lastSeenAt: new Date() }, $set: { lastRoute: `${request.method} ${new URL(request.url).pathname}` } },
+          { $max: { lastSeenAt: new Date() }, $set: { lastRoute: `${request.method} ${route}` } },
           { upsert: true }
         );
       } catch {
@@ -46,8 +53,10 @@ export function withWorker(handler) {
       }
       const params = routeCtx?.params ? await routeCtx.params : {};
       return await handler(request, { workerId: auth.workerId, params });
-    } catch {
-      console.error('[ocr-worker] internal error');
+    } catch (err) {
+      console.error(
+        `[ocr-worker] internal error route=${route} name=${String(err?.name ?? 'unknown')} code=${String(err?.code ?? '-')}`
+      );
       return workerError(500, 'internal_error');
     }
   };

@@ -43,9 +43,12 @@ export function secretsEqual(a, b) {
   return timingSafeEqual(digest(a), digest(b));
 }
 
+// תצורה חסרה/חלשה בשרת → 403 worker_api_disabled (ולא 503): השירות מסווג 401/403 כבעיית
+// תצורה/אימות — מחזיק את העבודות, מתריע למפעיל וממשיך לנסות מעצמו. 503 היה נבלע כתקלה זמנית
+// בלי התראה. 401 שמור ל-Bearer חסר/שגוי.
 export function authenticateWorker(request, env = process.env) {
   const cfg = readWorkerConfig(env);
-  if (!cfg.ok) return { ok: false, status: 503, code: 'worker_api_disabled' };
+  if (!cfg.ok) return { ok: false, status: 403, code: 'worker_api_disabled' };
   const token = parseBearer(request.headers.get('authorization'));
   if (token === null || !secretsEqual(token, cfg.secret)) {
     return { ok: false, status: 401, code: 'unauthorized' };
