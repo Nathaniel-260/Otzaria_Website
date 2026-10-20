@@ -4,7 +4,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { filterPlugins, extractSortedTags } from './pluginFilter.js'
+import { filterPlugins, countTags, rankTags, popularTags, searchTags, isCompatibilityTag } from './pluginFilter.js'
 
 function plugin(overrides = {}) {
   return {
@@ -78,14 +78,50 @@ test('filterPlugins סובלני לתוסף בלי שדה tags', () => {
   assert.deepEqual(filterPlugins(plugins, { activeTag: 'משהו' }), [])
 })
 
-test('extractSortedTags מאחד תגיות כפולות וממיין א"ב עברי', () => {
-  const plugins = [
-    plugin({ tags: ['ב', 'א'] }),
-    plugin({ tags: ['א', 'ג'] })
-  ]
-  assert.deepEqual(extractSortedTags(plugins), ['א', 'ב', 'ג'])
+test('countTags סופר תוספים לכל תגית (כפילות באותו תוסף — פעם אחת)', () => {
+  const counts = countTags([plugin({ tags: ['א', 'ב', 'א'] }), plugin({ tags: ['א'] }), plugin({ tags: undefined })])
+  assert.equal(counts.get('א'), 2)
+  assert.equal(counts.get('ב'), 1)
+  assert.equal(counts.size, 2)
 })
 
-test('extractSortedTags מחזיר מערך ריק כשאין תגיות', () => {
-  assert.deepEqual(extractSortedTags([plugin(), plugin()]), [])
+test('rankTags ממיין לפי שכיחות, ובשוויון לפי א"ב', () => {
+  const ranked = rankTags([plugin({ tags: ['ת', 'ב'] }), plugin({ tags: ['ת', 'א'] })])
+  assert.deepEqual(ranked, [{ tag: 'ת', count: 2 }, { tag: 'א', count: 1 }, { tag: 'ב', count: 1 }])
+})
+
+test('popularTags: N הראשונות; תגית פעילה מחוץ להן נוספת ראשונה', () => {
+  const ranked = [{ tag: 'א', count: 3 }, { tag: 'ב', count: 2 }, { tag: 'ג', count: 1 }]
+  assert.deepEqual(popularTags(ranked, 'all', 2).map(t => t.tag), ['א', 'ב'])
+  assert.deepEqual(popularTags(ranked, 'ב', 2).map(t => t.tag), ['א', 'ב'])
+  assert.deepEqual(popularTags(ranked, 'ג', 2).map(t => t.tag), ['ג', 'א', 'ב'])
+  // תגית שלא קיימת (קישור ישן) — עדיין גלויה, עם 0
+  assert.deepEqual(popularTags(ranked, 'ז', 1), [{ tag: 'ז', count: 0 }, { tag: 'א', count: 3 }])
+})
+
+test('searchTags: התאמה חלקית בלי רישיות; שאילתה ריקה מחזירה הכל', () => {
+  const tags = [{ tag: 'English', count: 1 }, { tag: 'כלי עזר', count: 2 }]
+  assert.deepEqual(searchTags(tags, '  eng '), [tags[0]])
+  assert.deepEqual(searchTags(tags, 'עזר'), [tags[1]])
+  assert.equal(searchTags(tags, ''), tags)
+})
+
+test('isCompatibilityTag: תגית ההתאמה הרשמית והווריאציות שלה בנתונים, לא תגיות נושא', () => {
+  for (const tag of ['מראה תואם לאוצריא', 'עיצוב תואם לאוצריא', 'מראה תואם אוצריא', 'תואם אוצריא']) {
+    assert.equal(isCompatibilityTag(tag), true, tag)
+  }
+  for (const tag of ['אוצריא', 'כלי עזר', 'תוכנת אוצריא', '', undefined]) {
+    assert.equal(isCompatibilityTag(tag), false, String(tag))
+  }
+})
+
+test('rankTags: תגיות התאמה בסוף; popularTags לא כולל אותן, אלא אם נבחרו', () => {
+  const ranked = rankTags([
+    plugin({ tags: ['מראה תואם לאוצריא', 'כלי עזר'] }),
+    plugin({ tags: ['מראה תואם לאוצריא', 'תואם אוצריא'] }),
+    plugin({ tags: ['מראה תואם לאוצריא', 'לימוד'] })
+  ])
+  assert.deepEqual(ranked.map(t => t.tag), ['כלי עזר', 'לימוד', 'מראה תואם לאוצריא', 'תואם אוצריא'])
+  assert.deepEqual(popularTags(ranked).map(t => t.tag), ['כלי עזר', 'לימוד'])
+  assert.deepEqual(popularTags(ranked, 'מראה תואם לאוצריא').map(t => t.tag), ['מראה תואם לאוצריא', 'כלי עזר', 'לימוד'])
 })

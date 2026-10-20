@@ -9,23 +9,31 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import RatingStars from '@/components/plugins/RatingStars'
 import PluginRatingPanel from '@/components/plugins/PluginRatingPanel'
 import { useDialog } from '@/components/providers/DialogContext'
 import { useDirectInstall } from '@/components/plugins/useDirectInstall'
-import { formatPluginStatus } from '@/lib/pluginStatus'
-import { formatHebrewDate } from '@/lib/hebrewDate'
-import { formatFileSize } from '@/lib/formatFileSize'
 import { getErrorMessage } from '@/lib/errors'
 import { reloadOnChunkError } from '@/lib/chunkLoadRecovery'
-import { statusBadgeClass } from '@/components/plugins/StatusBadge'
-import DirectInstallButton from '@/components/plugins/DirectInstallButton'
-import Breadcrumbs, { type BreadcrumbItem } from '@/components/plugins/Breadcrumbs'
-import ScreenshotGallery from '@/components/plugins/ScreenshotGallery'
-import type { CategoryRef } from '@/components/plugins/types'
+import PluginInstallActions, { canDirectInstall } from '@/components/plugins/PluginInstallActions'
+import Breadcrumbs from '@/components/plugins/Breadcrumbs'
+import ScreenshotCarousel from '@/components/plugins/detail/ScreenshotCarousel'
+import UserText from '@/components/plugins/detail/UserText'
+import Section from '@/components/ui/Section'
 import Loader from '@/components/ui/Loader'
+import DetailSection from '@/components/plugins/detail/DetailSection'
+import PluginHero from '@/components/plugins/detail/PluginHero'
+import PluginStateBanners from '@/components/plugins/detail/PluginStateBanners'
+import PluginSecondaryActions from '@/components/plugins/detail/PluginSecondaryActions'
+import PluginInfoList from '@/components/plugins/detail/PluginInfoList'
+import PluginTaxonomy from '@/components/plugins/detail/PluginTaxonomy'
+import PluginVersionHistory from '@/components/plugins/detail/PluginVersionHistory'
+import PluginReportCallout from '@/components/plugins/detail/PluginReportCallout'
+import PluginDetailSkeleton from '@/components/plugins/detail/PluginDetailSkeleton'
+import { buildPluginBreadcrumbs, hasDistinctDescription, ownerPermissions } from '@/components/plugins/detail/pluginDetailModel'
+import type { Plugin } from '@/components/plugins/detail/types'
+
+export type { Plugin } from '@/components/plugins/detail/types'
 
 // חלונות העריכה (למעלה התוסף בלבד) והדיווח נפתחים רק בלחיצה — נטענים
 // בנפרד כדי שלא יכבידו על הטעינה הראשונה של כל צופה בדף. בזמן הטעינה מוצגת
@@ -33,8 +41,8 @@ import Loader from '@/components/ui/Loader'
 // מרענן את הדף במקום להפיל אותו ל-error boundary.
 function ModalLoadingOverlay() {
   return (
-    <div className="fixed inset-0 z-[calc(var(--z-legacy-modal)_-_1)] flex items-center justify-center bg-black/50 p-4">
-      <Loader size="lg" tone="current" showLabel={false} className="text-white" />
+    <div className="fixed inset-0 z-[calc(var(--z-legacy-modal)_-_1)] flex items-center justify-center bg-scrim/45 p-4">
+      <Loader size="lg" tone="current" showLabel={false} className="text-on-scrim" />
     </div>
   )
 }
@@ -46,42 +54,6 @@ const PluginReportModal = dynamic(
   () => import('@/components/plugins/PluginReportModal').catch(reloadOnChunkError),
   { ssr: false, loading: ModalLoadingOverlay }
 )
-
-export interface Plugin {
-  id: string
-  pluginUid?: string | null
-  name: string
-  shortDescription: string
-  description: string
-  version: string
-  status: 'stable' | 'beta' | 'experimental'
-  author: string
-  updatedAt: string
-  originalDate?: string
-  fileUpdatedAt?: string
-  compatibleWith: string
-  requiresNetwork?: boolean
-  tags: string[]
-  image: string
-  screenshots: string[]
-  downloadUrl: string
-  supportsDirectInstall: boolean
-  homepage: string
-  authorId?: string | null
-  downloadCount?: number
-  ratingAvg?: number
-  ratingCount?: number
-  ratingVerifiedCount?: number
-  ratingBreakdown?: number[]
-  pluginFileSize?: number
-  isHistoricalVersion?: boolean
-  latestVersion?: string
-  // מצב השהיה — מוחזר רק למי שרשאי לראות תוסף מושהה (המעלה / מנהל תוספים)
-  isSuspended?: boolean
-  suspendedByRole?: 'owner' | 'admin' | null
-  // הקטגוריות שהתוסף משובץ בהן (מוחזר מ-GET /api/plugins/[id])
-  categories?: CategoryRef[]
-}
 
 interface PluginEditPayload extends Plugin {
   _id: string
@@ -162,10 +134,6 @@ export default function PluginDetailClient({ initialPlugin }: PluginDetailClient
     loadPlugin()
   }, [params.id, router, initialPlugin])
 
-  const canDirectInstall = (plugin: Plugin) => {
-    return Boolean(plugin.supportsDirectInstall && plugin.downloadUrl)
-  }
-
   const handleDirectInstall = () => {
     if (plugin && canDirectInstall(plugin)) {
       install(plugin)
@@ -173,28 +141,16 @@ export default function PluginDetailClient({ initialPlugin }: PluginDetailClient
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-1 flex-col">
-        <main id="main-content" className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <Loader size="lg" label="טוען פרטי תוסף…" />
-          </div>
-        </main>
-      </div>
-    )
+    return <PluginDetailSkeleton />
   }
 
   if (!plugin) {
     return null
   }
 
-  const canEdit = Boolean(currentUser && currentUser.id === plugin.authorId && !plugin.isHistoricalVersion)
-  // השהיה מדף התוסף זמינה למעלה התוסף בלבד, ורק על הגרסה החיה. מנהל משהה
-  // ומחזיר מממשק הניהול (/library/admin/plugins) ולא מכאן.
-  const canSuspend = canEdit
-  // תוסף שהושהה בניהול — רק מנהל יכול להחזירו לחנות
-  const suspendedByAdmin = plugin.isSuspended === true && plugin.suspendedByRole === 'admin'
-  const canResume = plugin.isSuspended === true && !suspendedByAdmin
+  // עריכה והשהיה מדף התוסף — למעלה התוסף בלבד, ורק על הגרסה החיה. מנהל משהה ומחזיר מממשק
+  // הניהול (/library/admin/plugins) ולא מכאן; תוסף שהושהה בניהול — רק מנהל מחזיר.
+  const { canEdit, suspendedByAdmin, showSuspendToggle } = ownerPermissions(plugin, currentUser?.id)
 
   const handleToggleSuspend = async () => {
     const suspend = plugin.isSuspended !== true
@@ -254,323 +210,102 @@ export default function PluginDetailClient({ initialPlugin }: PluginDetailClient
     }
   }
 
+  const titleId = 'plugin-title'
+  const showDescription = hasDistinctDescription(plugin)
+  const screenshots = plugin.screenshots || []
+  const versions = plugin.versions || []
+
   return (
     <div className="flex flex-1 flex-col">
-      
-      <main id="main-content" className="flex-1 py-8 px-4">
-        <div className="container mx-auto max-w-5xl">
-          {/* פירורי לחם: חנות התוספים ‹ קטגוריה ראשונה (אם משובץ) ‹ שם התוסף */}
-          <Breadcrumbs
-            className="flex flex-wrap items-center gap-2 text-sm text-on-surface/60 mb-3"
-            items={[
-              { label: 'חנות התוספים', href: '/plugins' },
-              ...(plugin.categories && plugin.categories.length > 0
-                ? [{ label: plugin.categories[0].name, href: `/plugins/category/${plugin.categories[0].slug}` } as BreadcrumbItem]
-                : []),
-              { label: plugin.name }
-            ]}
+      <main id="main-content" className="flex-1">
+        {/* ראש העמוד — מעל הקפל: שם, תיאור קצר, הורדה/התקנה ונתוני המפתח (S13) */}
+        <Section labelledBy={titleId} spacing="none" className="pt-4 md:pt-6">
+          <Breadcrumbs items={buildPluginBreadcrumbs(plugin)} className="mb-3 md:mb-4" />
+
+          <PluginStateBanners
+            plugin={plugin}
+            canEdit={canEdit}
+            suspendedByAdmin={suspendedByAdmin}
+            className="mb-6"
           />
 
-          {/* Back Button */}
-          <Link
-            href="/plugins"
-            className="inline-flex items-center gap-2 text-primary hover:text-primary/80 mb-6 font-medium"
-          >
-            <span className="material-symbols-outlined">arrow_forward</span>
-            <span>חזרה לחנות</span>
-          </Link>
+          <PluginHero
+            plugin={plugin}
+            titleId={titleId}
+            media={screenshots.length > 0 ? <ScreenshotCarousel screenshots={screenshots} /> : undefined}
+            actions={
+              <PluginInstallActions
+                plugin={plugin}
+                installState={installState}
+                onInstall={handleDirectInstall}
+                emphasis="page"
+                installLabel="התקנה ישירה לאוצריא"
+                className="sm:w-fit"
+              />
+            }
+            secondaryActions={
+              <PluginSecondaryActions
+                homepage={plugin.homepage}
+                onReport={() => setReporting(true)}
+                canEdit={canEdit}
+                loadingEdit={loadingEdit}
+                onEdit={handleEdit}
+                showSuspendToggle={showSuspendToggle}
+                isSuspended={plugin.isSuspended === true}
+                suspending={suspending}
+                onToggleSuspend={handleToggleSuspend}
+              />
+            }
+          />
+        </Section>
 
-          {/* Historical Version Banner */}
-          {plugin.isHistoricalVersion && (
-            <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-warning-200 bg-warning-50 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-warning-700">history</span>
-                <div>
-                  <div className="font-bold text-warning-900">
-                    גרסה ישנה ({plugin.version})
-                  </div>
-                  <div className="text-sm text-warning-800/80">
-                    אתה צופה בגרסה קודמת של התוסף.
-                    {plugin.latestVersion && plugin.latestVersion !== plugin.version
-                      ? ` הגרסה העדכנית היא ${plugin.latestVersion}.`
-                      : ''}
-                  </div>
-                </div>
-              </div>
-              <Link
-                href={`/plugins/${plugin.id}`}
-                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-warning-600 px-5 py-2.5 font-bold text-white transition-colors hover:bg-warning-700"
-              >
-                <span className="material-symbols-outlined">upgrade</span>
-                <span>עבור לגרסה העדכנית</span>
-              </Link>
+        {/* הפרטים — אזורים עם כותרות, ברווח אחד קבוע ביניהם (S11) */}
+        <Section spacing="none" className="pt-12 pb-14 md:pt-16 md:pb-20">
+          <div className="flex flex-col gap-12 md:gap-16">
+            <div
+              className={
+                showDescription
+                  ? 'grid gap-12 md:gap-16 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-12'
+                  : 'grid gap-12 md:gap-16 lg:grid-cols-2 lg:gap-12'
+              }
+            >
+              {showDescription && (
+                <DetailSection id="plugin-description" title="תיאור">
+                  {/* שורה = בלוק עם dir="auto"; ירידות השורה שהמפתח הזין נשמרות (issue #175) — UserText */}
+                  <UserText text={plugin.description} className="max-w-measure text-body-md text-on-surface md:text-body-lg" />
+                </DetailSection>
+              )}
+
+              <DetailSection id="plugin-info" title="מידע כללי">
+                <PluginInfoList plugin={plugin} />
+                <PluginTaxonomy categories={plugin.categories} tags={plugin.tags} className="mt-6" />
+              </DetailSection>
             </div>
-          )}
 
-          {/* Suspended Banner — מוצג רק למי שרשאי לראות תוסף מושהה */}
-          {plugin.isSuspended && (
-            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-warning-strong-200 bg-warning-strong-50 p-5">
-              <span className="material-symbols-outlined text-warning-strong-700">pause_circle</span>
-              <div>
-                <div className="font-bold text-warning-strong-900">
-                  התוסף מושהה {suspendedByAdmin ? 'על ידי הנהלת האתר' : canEdit ? 'על ידך' : 'על ידי מעלה התוסף'}
-                </div>
-                <div className="text-sm text-warning-strong-800/80">
-                  התוסף אינו מופיע בחנות ואינו זמין להורדה. הדף נגיש בקישור ישיר למעלה התוסף ולמנהלי האתר בלבד.
-                  {canEdit && (suspendedByAdmin
-                    ? ' להחזרת התוסף לחנות יש לפנות למנהל.'
-                    : ' ניתן להחזירו לחנות בכל עת בכפתור "החזר לחנות".')}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Plugin Header */}
-          <div className="bg-white rounded-2xl border border-neutral-100 p-8 mb-6">
-            {/* flow-root + תמונה צפה: תיאור ארוך ממשיך לזרום גם מתחת לתמונה במקום להשאיר עמודה ריקה */}
-            <div className="flow-root">
-              {/* Plugin Image */}
-              <div className="mb-6 w-full rounded-2xl overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5 aspect-[4/3] md:float-right md:ml-8 md:mb-4 md:w-[380px]">
-                <img
-                  src={plugin.image || '/logo.webp'}
-                  alt={plugin.name}
-                  className="w-full h-full object-cover"
+            {/* דירוגים — הדירוג הוא של התוסף כולו, ולכן אינו מוצג בתצוגת גרסה ישנה */}
+            {!plugin.isHistoricalVersion && (
+              <DetailSection id="plugin-ratings" title="דירוג המשתמשים">
+                <PluginRatingPanel
+                  pluginId={plugin.id}
+                  initial={{
+                    ratingAvg: plugin.ratingAvg || 0,
+                    ratingCount: plugin.ratingCount || 0,
+                    ratingVerifiedCount: plugin.ratingVerifiedCount || 0,
+                    ratingBreakdown: plugin.ratingBreakdown || [0, 0, 0, 0, 0]
+                  }}
                 />
-              </div>
+              </DetailSection>
+            )}
 
-              {/* Plugin Info — לא flex/grid (הם יוצרים הקשר עיצוב חוסם שלא עוטף את התמונה הצפה) */}
-              <div className="space-y-4">
-                <div>
-                  <h1 className="text-4xl font-bold text-on-surface mb-3 font-frank leading-tight">
-                    {plugin.name}
-                  </h1>
-                  {/* whitespace-pre-line: שמירת ירידות השורה שהמפתח הזין בתיאור (issue #175) */}
-                  <p className="text-lg text-on-surface/70 leading-relaxed whitespace-pre-line">
-                    {plugin.description}
-                  </p>
-                </div>
+            {versions.length > 1 && (
+              <DetailSection id="plugin-versions" title="היסטוריית גרסאות">
+                <PluginVersionHistory pluginId={plugin.id} versions={versions} currentVersion={plugin.version} />
+              </DetailSection>
+            )}
 
-                {/* Status & Version */}
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className={`px-4 py-2 rounded-full text-sm font-bold ${statusBadgeClass(plugin.status)}`}>
-                    {formatPluginStatus(plugin.status)}
-                  </span>
-                  <span className="px-4 py-2 rounded-full text-sm font-bold bg-surface text-on-surface/60">
-                    גרסה {plugin.version}
-                  </span>
-                  <span
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold bg-surface text-on-surface/60"
-                    title="מספר הורדות"
-                  >
-                    <span className="material-symbols-outlined text-base leading-none">download</span>
-                    {(plugin.downloadCount || 0).toLocaleString('he-IL')} הורדות
-                  </span>
-                  {(plugin.ratingCount || 0) > 0 && (
-                    <span
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-surface text-on-surface/70"
-                      title={`דירוג ממוצע מתוך ${plugin.ratingCount} מדרגים`}
-                    >
-                      <RatingStars value={plugin.ratingAvg || 0} size="md" />
-                      <span>
-                        {(plugin.ratingAvg || 0).toLocaleString('he-IL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                        <span className="text-on-surface/50"> ({plugin.ratingCount})</span>
-                      </span>
-                    </span>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <a
-                    href={plugin.downloadUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-lg hover:shadow-xl"
-                  >
-                    <span className="material-symbols-outlined">download</span>
-                    <span>הורדה</span>
-                  </a>
-                  {canDirectInstall(plugin) && (
-                    <DirectInstallButton
-                      pluginId={plugin.id}
-                      installState={installState}
-                      onInstall={handleDirectInstall}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-white border-2 border-primary text-primary rounded-xl font-bold hover:bg-primary/5 transition-colors disabled:cursor-default disabled:opacity-80"
-                      showIcons
-                      idleLabel="התקנה ישירה לאוצריא"
-                    />
-                  )}
-                  {plugin.homepage && (
-                    <a
-                      href={plugin.homepage}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-neutral-200 text-on-surface rounded-xl font-medium hover:border-primary/30 transition-colors"
-                    >
-                      <span className="material-symbols-outlined">open_in_new</span>
-                      <span>מקור</span>
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setReporting(true)}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-neutral-200 text-on-surface rounded-xl font-medium hover:border-primary/30 transition-colors"
-                    title="דיווח על תקלה או בעיה למפתח התוסף"
-                  >
-                    <span className="material-symbols-outlined">flag</span>
-                    <span>דיווח למפתח</span>
-                  </button>
-                  {canEdit && (
-                    <button
-                      onClick={handleEdit}
-                      disabled={loadingEdit}
-                      className="inline-flex items-center gap-2 rounded-xl bg-neutral-warm-700 px-6 py-3 font-medium text-white transition-colors hover:bg-neutral-warm-800 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <span className="material-symbols-outlined">edit</span>
-                      <span>{loadingEdit ? 'טוען...' : 'ערוך'}</span>
-                    </button>
-                  )}
-                  {canSuspend && (!plugin.isSuspended || canResume) && (
-                    <button
-                      onClick={handleToggleSuspend}
-                      disabled={suspending}
-                      className={`inline-flex items-center gap-2 rounded-xl px-6 py-3 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                        plugin.isSuspended
-                          ? 'bg-success-600 hover:bg-success-700'
-                          : 'bg-warning-strong-600 hover:bg-warning-strong-700'
-                      }`}
-                      title={
-                        plugin.isSuspended
-                          ? 'החזרת התוסף לחנות'
-                          : 'השהיית התוסף — לא יופיע בחנות ולא יהיה ניתן להורדה'
-                      }
-                    >
-                      <span className="material-symbols-outlined">
-                        {plugin.isSuspended ? 'play_circle' : 'pause_circle'}
-                      </span>
-                      <span>
-                        {suspending
-                          ? 'מעדכן...'
-                          : plugin.isSuspended
-                            ? 'החזר לחנות'
-                            : 'השהה מהחנות'}
-                      </span>
-                    </button>
-                  )}
-                </div>
-
-                {/* קטגוריות שהתוסף משובץ בהן — צ'יפים מקושרים */}
-                {plugin.categories && plugin.categories.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <span className="text-sm font-bold text-on-surface/50">מופיע בקטגוריות:</span>
-                    {plugin.categories.map(category => (
-                      <Link
-                        key={category.slug}
-                        href={`/plugins/category/${category.slug}`}
-                        className="px-3 py-1.5 bg-primary/5 border border-primary/15 rounded-full text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
-                      >
-                        {category.name}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            <PluginReportCallout onReport={() => setReporting(true)} />
           </div>
-
-          {/* Plugin Details Grid */}
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
-            {/* Info Section */}
-            <div className="bg-white rounded-2xl border border-neutral-100 p-6">
-              <h2 className="text-xl font-bold text-on-surface mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">info</span>
-                <span>מידע כללי</span>
-              </h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-surface rounded-xl">
-                  <div className="text-sm text-on-surface/60 mb-1">גרסה</div>
-                  <div className="font-bold text-on-surface">{plugin.version}</div>
-                </div>
-                <div className="p-4 bg-surface rounded-xl">
-                  <div className="text-sm text-on-surface/60 mb-1">סטטוס</div>
-                  <div className="font-bold text-on-surface">{formatPluginStatus(plugin.status)}</div>
-                </div>
-                <div className="p-4 bg-surface rounded-xl">
-                  <div className="text-sm text-on-surface/60 mb-1">מפתח</div>
-                  <div className="font-bold text-on-surface">{plugin.author}</div>
-                </div>
-                <div className="p-4 bg-surface rounded-xl">
-                  <div className="text-sm text-on-surface/60 mb-1">עודכן</div>
-                  <div className="font-bold text-on-surface text-sm">{formatHebrewDate(plugin.fileUpdatedAt || plugin.originalDate || plugin.updatedAt)}</div>
-                </div>
-                <div className={`p-4 bg-surface rounded-xl ${(plugin.pluginFileSize ?? 0) > 0 ? '' : 'col-span-2'}`}>
-                  <div className="text-sm text-on-surface/60 mb-1">הורדות</div>
-                  <div className="font-bold text-on-surface flex items-center gap-2">
-                    <span className="material-symbols-outlined text-base">download</span>
-                    <span>{(plugin.downloadCount || 0).toLocaleString('he-IL')}</span>
-                  </div>
-                </div>
-                {(plugin.pluginFileSize ?? 0) > 0 && (
-                  <div className="p-4 bg-surface rounded-xl">
-                    <div className="text-sm text-on-surface/60 mb-1">גודל</div>
-                    <div className="font-bold text-on-surface flex items-center gap-2">
-                      <span className="material-symbols-outlined text-base">hard_drive</span>
-                      <span>{formatFileSize(plugin.pluginFileSize as number)}</span>
-                    </div>
-                  </div>
-                )}
-                <div className="p-4 bg-surface rounded-xl col-span-2">
-                  <div className="text-sm text-on-surface/60 mb-1">תאימות</div>
-                  <div className="font-bold text-on-surface">{plugin.compatibleWith}</div>
-                </div>
-                <div className="p-4 bg-surface rounded-xl col-span-2">
-                  <div className="text-sm text-on-surface/60 mb-1">חיבור אינטרנט</div>
-                  <div className="font-bold text-on-surface flex items-center gap-2">
-                    <span className="material-symbols-outlined text-base">
-                      {plugin.requiresNetwork ? 'wifi' : 'wifi_off'}
-                    </span>
-                    <span>{plugin.requiresNetwork ? 'נדרש' : 'לא נדרש'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Tags Section */}
-            <div className="bg-white rounded-2xl border border-neutral-100 p-6">
-              <h2 className="text-xl font-bold text-on-surface mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">label</span>
-                <span>תגיות</span>
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {plugin.tags?.map(tag => (
-                  <Link
-                    key={tag}
-                    href={`/plugins?tag=${encodeURIComponent(tag)}`}
-                    className="px-4 py-2 bg-surface hover:bg-primary/10 rounded-full text-sm font-medium text-on-surface/70 hover:text-primary transition-colors"
-                  >
-                    {tag}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* דירוגים — הדירוג הוא של התוסף כולו, ולכן אינו מוצג בתצוגת גרסה ישנה */}
-          {!plugin.isHistoricalVersion && (
-            <PluginRatingPanel
-              pluginId={plugin.id}
-              initial={{
-                ratingAvg: plugin.ratingAvg || 0,
-                ratingCount: plugin.ratingCount || 0,
-                ratingVerifiedCount: plugin.ratingVerifiedCount || 0,
-                ratingBreakdown: plugin.ratingBreakdown || [0, 0, 0, 0, 0]
-              }}
-            />
-          )}
-
-          <ScreenshotGallery screenshots={plugin.screenshots || []} />
-
-        </div>
+        </Section>
       </main>
 
       {reporting && (

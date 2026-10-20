@@ -40,7 +40,7 @@ const VARIANT: Record<Exclude<ButtonVariant, 'donation'>, string> = {
  * מטרת מגע של 44px לכפתור שגובהו החזותי נמוך ממנה (header): שכבה שקופה ב-::before, ממורכזת
  * אנכית, בגובה max(100%, 44px) — כמו .donation-nav-link שלצדו בכותרת.
  */
-const TOUCH_TARGET_OVERLAY =
+export const TOUCH_TARGET_OVERLAY =
   "relative before:absolute before:inset-x-0 before:top-1/2 before:h-[max(100%,var(--touch-target))] before:-translate-y-1/2 before:content-['']"
 
 /** גובה (מטרת מגע ≥44px בכל הגדלים — ב-header דרך ::before), ריפוד וגודל טקסט */

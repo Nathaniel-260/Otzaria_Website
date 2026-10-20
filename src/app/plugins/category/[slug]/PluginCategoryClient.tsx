@@ -3,19 +3,30 @@
 // חלק הלקוח של דף הקטגוריה — מקבל את נתוני הקטגוריה כ-props מה-Server
 // Component (page.tsx) במקום לשלוף אותם בעצמו ב-fetch, אבל שומר על כל
 // האינטראקטיביות: התקנה ישירה (useDirectInstall) + דיאלוגים.
+//
+// מבנה (מפרט החנות, סעיף 6 / סוכן 2): StorePageHeader — פירורי לחם, אריח אייקון הקטגוריה, שם
+// (h1), תיאור, ושורת נתונים שקטה (מספר התוספים, סדר המיון); תיבת החיפוש בקצה הכותרת. מתחת —
+// PluginGrid ישירות מתחת ל-h1, ולכן שמות התוספים בכרטיסים הם h2.
 
-import Link from 'next/link'
 import { useDirectInstall } from '@/components/plugins/useDirectInstall'
 import { useDialog } from '@/components/providers/DialogContext'
 import PluginCard from '@/components/plugins/PluginCard'
+import PluginGrid from '@/components/plugins/PluginGrid'
 import PluginSearchBox from '@/components/plugins/PluginSearchBox'
-import Breadcrumbs from '@/components/plugins/Breadcrumbs'
+import StorePageHeader from '@/components/plugins/StorePageHeader'
+import AppIcon from '@/components/ui/AppIcon'
+import Button from '@/components/ui/Button'
+import EmptyState from '@/components/ui/EmptyState'
+import Section from '@/components/ui/Section'
+import { validCategoryIcon } from '@/components/plugins/categoryIcons'
 import type { CategoryData } from './types'
 
 interface PluginCategoryClientProps {
   category: CategoryData | null
   notFound: boolean
 }
+
+const TITLE_ID = 'plugin-category-title'
 
 export default function PluginCategoryClient({ category, notFound }: PluginCategoryClientProps) {
   const { showAlert } = useDialog() as { showAlert: (title: string, message: string) => void }
@@ -24,21 +35,20 @@ export default function PluginCategoryClient({ category, notFound }: PluginCateg
   if (notFound || !category) {
     return (
       <div className="flex flex-1 flex-col">
-        <main id="main-content" className="flex-1 flex items-center justify-center px-4">
-          <div className="text-center max-w-lg bg-white rounded-2xl border border-neutral-100 py-16 px-8">
-            <span className="material-symbols-outlined text-5xl text-primary/40 mb-4 inline-block">search_off</span>
-            <h1 className="text-3xl font-bold text-on-surface mb-3">הקטגוריה לא נמצאה</h1>
-            <p className="text-on-surface/60 leading-relaxed mb-6">
-              ייתכן שהקטגוריה הוסרה או שהקישור שגוי. אפשר לחזור לחנות התוספים ולעיין משם.
-            </p>
-            <Link
-              href="/plugins"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors"
-            >
-              <span>לחנות התוספים</span>
-              <span aria-hidden="true">←</span>
-            </Link>
-          </div>
+        <main id="main-content" className="flex flex-1 flex-col justify-center">
+          <Section container="narrow">
+            <EmptyState
+              as="h1"
+              icon="search_off"
+              title="הקטגוריה לא נמצאה"
+              description="ייתכן שהקטגוריה הוסרה או שהקישור שגוי. אפשר לחזור לחנות התוספים ולעיין משם."
+              actions={
+                <Button href="/plugins" variant="filled" iconEnd="chevron_left">
+                  לחנות התוספים
+                </Button>
+              }
+            />
+          </Section>
         </main>
       </div>
     )
@@ -48,84 +58,60 @@ export default function PluginCategoryClient({ category, notFound }: PluginCateg
     <div className="flex flex-1 flex-col">
 
       <main id="main-content" className="flex-1">
-        {/* Category Header */}
-        <section className="py-8 px-4 bg-white border-b border-neutral-100">
-          <div className="container mx-auto max-w-6xl">
-            <Breadcrumbs
-              items={[{ label: 'חנות התוספים', href: '/plugins' }, { label: category.name }]}
-              className="flex items-center gap-2 text-sm text-on-surface/60 mb-4"
-            />
-
-            <div className="flex flex-wrap items-start justify-between gap-6">
-              <div className="max-w-2xl">
-                <div className="flex items-center gap-3 mb-2">
-                  {category.icon && (
-                    <span className="material-symbols-outlined text-4xl text-primary">
-                      {category.icon}
-                    </span>
-                  )}
-                  <h1 className="text-4xl font-bold text-on-surface font-frank leading-tight">
-                    {category.name}
-                  </h1>
-                </div>
-                {category.description && (
-                  <p className="text-lg text-on-surface/70 leading-relaxed mb-2">
-                    {category.description}
-                  </p>
-                )}
-                <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-on-surface/50">
-                  <span>{category.total} תוספים בקטגוריה</span>
-                  {category.sortMode === 'rating' && (
-                    <span className="inline-flex items-center gap-1 font-medium">
-                      <span aria-hidden="true">·</span>
-                      <span className="material-symbols-outlined text-sm leading-none text-warning-500">star</span>
-                      <span>מסודרים לפי דירוג המשתמשים</span>
-                    </span>
-                  )}
-                </p>
-              </div>
-
-              <div className="w-full md:w-80">
-                <PluginSearchBox placeholder="חיפוש בכל החנות..." />
-              </div>
+        <StorePageHeader
+          titleId={TITLE_ID}
+          breadcrumbs={[{ label: 'חנות התוספים', href: '/plugins' }, { label: category.name }]}
+          // אייקון רק אם לקטגוריה יש אייקון תקף (קיים בגופן) — הכלל ב-components/plugins/categoryIcons
+          icon={validCategoryIcon(category) ?? undefined}
+          title={category.name}
+          subtitle={category.description || undefined}
+          meta={
+            <>
+              <span className="tabular-nums">{category.total.toLocaleString('he-IL')} תוספים בקטגוריה</span>
+              {category.sortMode === 'rating' && (
+                // בלי "·" מפריד: הכוכב עצמו מפריד, ושבירת שורה לא משאירה נקודה יתומה
+                <span className="ms-2 inline-flex items-center gap-1">
+                  {/* אייקון בודד (קו מתאר) — סימן ל"דירוג", לא דירוג בפועל */}
+                  <AppIcon name="star" className="text-[1.15em] text-rating" />
+                  <span>מסודרים לפי דירוג המשתמשים</span>
+                </span>
+              )}
+            </>
+          }
+          actions={
+            <div className="w-full md:w-80">
+              <PluginSearchBox placeholder="חיפוש בכל החנות..." />
             </div>
-          </div>
-        </section>
+          }
+        />
 
-        {/* Plugins Grid */}
-        <section className="py-12 px-4">
-          <div className="container mx-auto max-w-6xl">
-            {category.plugins.length === 0 ? (
-              <div className="text-center py-16 px-4 bg-white rounded-2xl border border-neutral-100">
-                <h2 className="text-2xl font-bold text-on-surface mb-3">
-                  בקרוב יתווספו תוספים לקטגוריה זו
-                </h2>
-                <p className="text-on-surface/60 leading-relaxed mb-6">
-                  בינתיים אפשר לעיין ברשימה המלאה של כל התוספים בחנות.
-                </p>
-                <Link
-                  href="/plugins/all"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors"
-                >
-                  <span>לכל התוספים</span>
-                  <span aria-hidden="true">←</span>
-                </Link>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {category.plugins.map((plugin, pluginIndex) => (
-                  <PluginCard
-                    priority={pluginIndex === 0}
-                    key={plugin.id}
-                    plugin={plugin}
-                    installState={installState}
-                    onInstall={install}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
+        <Section spacing="none" className="pb-14 md:pb-20">
+          {category.plugins.length === 0 ? (
+            <EmptyState
+              icon="extension"
+              title="בקרוב יתווספו תוספים לקטגוריה זו"
+              description="בינתיים אפשר לעיין ברשימה המלאה של כל התוספים בחנות."
+              actions={
+                <Button href="/plugins/all" variant="tonal" iconEnd="chevron_left">
+                  לכל התוספים
+                </Button>
+              }
+            />
+          ) : (
+            <PluginGrid columns="full" labelledBy={TITLE_ID}>
+              {category.plugins.map((plugin, pluginIndex) => (
+                <PluginCard
+                  priority={pluginIndex === 0}
+                  key={plugin.id}
+                  plugin={plugin}
+                  installState={installState}
+                  onInstall={install}
+                  headingLevel="h2"
+                />
+              ))}
+            </PluginGrid>
+          )}
+        </Section>
       </main>
     </div>
   )

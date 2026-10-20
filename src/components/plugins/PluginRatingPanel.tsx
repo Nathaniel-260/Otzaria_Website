@@ -8,9 +8,13 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
-import RatingStars from '@/components/plugins/RatingStars'
+import RatingStars, { StarIcon, formatRatingValue } from '@/components/plugins/RatingStars'
 import { useDialog } from '@/components/providers/DialogContext'
+import Badge from '@/components/ui/Badge'
+import { cx } from '@/components/ui/cx'
 import { FOCUS_RING } from '@/components/ui/focusRing'
+
+// כוכב בודד — StarIcon מ-RatingStars (SVG; הגליף 'star' בגופן המוקטן הוא קו מתאר בלבד, FILL=0).
 
 interface RatingSummary {
   ratingAvg: number
@@ -26,11 +30,13 @@ interface PluginRatingPanelProps {
   pluginId: string
   /** מה שהגיע כבר בתשובת התוסף — כדי שהלוח יוצג מיד ולא יקרוץ */
   initial: Pick<RatingSummary, 'ratingAvg' | 'ratingCount' | 'ratingVerifiedCount' | 'ratingBreakdown'>
+  /** פריסה בלבד. הכותרת ("דירוג המשתמשים") — אצל העמוד (DetailSection) */
+  className?: string
 }
 
 const STAR_LABELS = [5, 4, 3, 2, 1]
 
-export default function PluginRatingPanel({ pluginId, initial }: PluginRatingPanelProps) {
+export default function PluginRatingPanel({ pluginId, initial, className }: PluginRatingPanelProps) {
   const { data: session, status: sessionStatus } = useSession()
   const { showAlert, showConfirm } = useDialog() as {
     showAlert: (title: string, message: string) => Promise<void> | void
@@ -108,86 +114,85 @@ export default function PluginRatingPanel({ pluginId, initial }: PluginRatingPan
   const displayed = hovered ?? myRating?.value ?? 0
 
   return (
-    <div className="bg-white rounded-2xl border border-neutral-100 p-6 mt-6">
-      <h2 className="text-xl font-bold text-on-surface mb-4 flex items-center gap-2">
-        <span className="material-symbols-outlined text-primary">star</span>
-        <span>דירוג המשתמשים</span>
-      </h2>
-
-      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
+    <div className={cx('rounded-(--card-radius) bg-(--card-bg) p-4 sm:p-6', className)}>
+      {/* בלי דירוגים — רק "עדיין לא דורג" (חמישה פסים ריקים עם 0 הם רעש) */}
+      <div className={cx('grid gap-6 sm:gap-8', ratingCount > 0 && 'sm:grid-cols-[12rem_minmax(0,1fr)]')}>
         {/* הממוצע */}
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl bg-surface p-5 text-center">
+        <div className={cx(
+          'flex items-center justify-center gap-2 rounded-(--radius-shape) bg-surface-container-low p-5 text-center',
+          ratingCount > 0 ? 'flex-col' : 'flex-col sm:flex-row sm:gap-4'
+        )}>
           {ratingCount > 0 ? (
             <>
-              <div className="text-4xl font-bold text-on-surface">
-                {ratingAvg.toLocaleString('he-IL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+              <div className="text-5xl font-bold leading-none tabular-nums text-on-surface">
+                {formatRatingValue(ratingAvg)}
               </div>
               <RatingStars value={ratingAvg} size="lg" />
-              <div className="text-sm text-on-surface/60">
+              <div className="text-body-sm text-on-surface-variant">
                 {ratingCount.toLocaleString('he-IL')} {ratingCount === 1 ? 'מדרג' : 'מדרגים'}
               </div>
               {ratingVerifiedCount > 0 && (
-                <div
-                  className="inline-flex items-center gap-1 text-xs font-bold text-success-700"
-                  title="מדרגים שהתקנת התוסף אצלם נרשמה בפועל"
-                >
-                  <span className="material-symbols-outlined text-sm leading-none">verified</span>
-                  <span>{ratingVerifiedCount.toLocaleString('he-IL')} מאומתים</span>
-                </div>
+                <span title="מדרגים שהתקנת התוסף אצלם נרשמה בפועל">
+                  <Badge tone="success" icon="verified">
+                    {ratingVerifiedCount.toLocaleString('he-IL')} מאומתים
+                  </Badge>
+                </span>
               )}
             </>
           ) : (
             <>
               <RatingStars value={0} size="lg" />
-              <div className="text-sm text-on-surface/60">התוסף עדיין לא דורג</div>
+              <div className="text-body-sm text-on-surface-variant">התוסף עדיין לא דורג</div>
             </>
           )}
         </div>
 
-        {/* התפלגות */}
-        <div className="flex flex-col justify-center gap-2">
+        {/* התפלגות — הפסים בצבע הכוכבים; כל שורה: "5★ ▬▬▬ 12" */}
+        {ratingCount > 0 && (
+        <div className="flex flex-col justify-center gap-2.5">
           {STAR_LABELS.map((star) => {
             const count = ratingBreakdown[star - 1] || 0
             const percent = ratingCount > 0 ? (count / ratingCount) * 100 : 0
             return (
               <div key={star} className="flex items-center gap-3">
-                <span className="flex w-10 shrink-0 items-center justify-end gap-0.5 text-sm text-on-surface/60">
+                <span className="flex w-8 shrink-0 items-center justify-end gap-1 text-label-md font-normal tabular-nums text-on-surface-variant">
                   {star}
-                  <span className="material-symbols-outlined text-sm leading-none text-warning-500">star</span>
+                  <StarIcon filled className="size-3.5" />
                 </span>
-                <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface">
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-container-high">
                   <span
-                    className="block h-full rounded-full bg-warning-500 transition-all duration-300"
+                    className="block h-full rounded-full bg-rating transition-[width] duration-300 motion-reduce:transition-none"
                     style={{ width: `${percent}%` }}
                   />
                 </span>
-                <span className="w-10 shrink-0 text-sm text-on-surface/50">{count.toLocaleString('he-IL')}</span>
+                <span className="w-10 shrink-0 text-label-md font-normal tabular-nums text-on-surface-variant">{count.toLocaleString('he-IL')}</span>
               </div>
             )
           })}
         </div>
+        )}
       </div>
 
       {/* הדירוג שלי */}
-      <div className="mt-6 border-t border-neutral-100 pt-5">
+      <div className="mt-6 border-t border-outline-variant pt-5">
         {isOwnPlugin ? (
-          <p className="text-sm text-on-surface/60">
+          <p className="text-body-sm text-on-surface-variant">
             זה התוסף שהעלית — מפתח אינו מדרג את התוסף של עצמו.
           </p>
         ) : !isLoggedIn ? (
-          <p className="text-sm text-on-surface/70">
+          <p className="text-body-sm text-on-surface-variant">
             <Link
               href={`/auth/login?callbackUrl=${encodeURIComponent(`/plugins/${pluginId}`)}`}
               prefetch={false}
-              className={`rounded font-bold text-primary hover:underline ${FOCUS_RING}`}
+              className={`rounded-sm font-bold text-primary underline-offset-4 hover:underline ${FOCUS_RING}`}
             >
               התחבר לאתר
             </Link>
             {' '}כדי לדרג את התוסף. דירוג אחד לכל משתמש, ואפשר לשנות אותו בכל עת.
           </p>
         ) : (
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="text-sm font-bold text-on-surface/60">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="text-label-lg text-on-surface">
               {myRating ? 'הדירוג שלך:' : 'דרג את התוסף:'}
             </span>
             <div className="flex items-center" onMouseLeave={() => setHovered(null)}>
@@ -199,27 +204,25 @@ export default function PluginRatingPanel({ pluginId, initial }: PluginRatingPan
                   onClick={() => submit(star)}
                   onMouseEnter={() => setHovered(star)}
                   onFocus={() => setHovered(star)}
-                  className="p-0.5 transition-transform hover:scale-110 disabled:cursor-default disabled:opacity-60"
+                  onBlur={() => setHovered(null)}
+                  className={cx(
+                    'group/star flex size-(--touch-target) items-center justify-center rounded-(--radius-control) disabled:cursor-default disabled:opacity-60',
+                    FOCUS_RING
+                  )}
                   title={`${star} מתוך 5`}
                   aria-label={`דרג ${star} מתוך 5`}
+                  aria-pressed={myRating ? myRating.value === star : undefined}
                 >
-                  <span
-                    className={`material-symbols-outlined text-3xl leading-none ${
-                      star <= displayed ? 'text-warning-500' : 'text-on-surface/25'
-                    }`}
-                  >
-                    star
-                  </span>
+                  <StarIcon
+                    filled={star <= displayed}
+                    className="size-8 transition-transform group-hover/star:scale-110 motion-reduce:transition-none motion-reduce:group-hover/star:scale-100"
+                  />
                 </button>
               ))}
             </div>
             {myRating?.verifiedInstall && (
-              <span
-                className="inline-flex items-center gap-1 rounded-full bg-success-50 px-3 py-1 text-xs font-bold text-success-700"
-                title="התקנת התוסף אצלך נרשמה — הדירוג שלך מסומן כמאומת"
-              >
-                <span className="material-symbols-outlined text-sm leading-none">verified</span>
-                <span>דירוג מאומת</span>
+              <span title="התקנת התוסף אצלך נרשמה — הדירוג שלך מסומן כמאומת">
+                <Badge tone="success" icon="verified">דירוג מאומת</Badge>
               </span>
             )}
             {myRating && (
@@ -227,7 +230,10 @@ export default function PluginRatingPanel({ pluginId, initial }: PluginRatingPan
                 type="button"
                 onClick={remove}
                 disabled={saving}
-                className="text-sm font-medium text-danger-600 hover:underline disabled:opacity-50"
+                className={cx(
+                  'inline-flex min-h-(--touch-target) items-center rounded-sm px-1 text-label-md text-error underline-offset-4 hover:underline disabled:opacity-50',
+                  FOCUS_RING
+                )}
               >
                 הסר דירוג
               </button>

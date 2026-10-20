@@ -2,18 +2,28 @@
 
 import { useState } from 'react'
 import { PLUGIN_REPORT_WEB_PLATFORM } from '@/lib/email-templates'
+import Dialog from '@/components/ui/Dialog'
+import Button from '@/components/ui/Button'
+import Chip from '@/components/ui/Chip'
+import AppIcon from '@/components/ui/AppIcon'
+import FormField from '@/components/plugins/form/FormField'
+import { FIELD_LABEL, fieldA11yProps, fieldClasses } from '@/components/ui/fieldStyles'
 
 // חלון קופץ לדיווח לבעל התוסף מתוך דף התוסף באתר.
 // משתמש באותה נקודת קצה שמשמשת את תוכנת אוצריא (POST /api/plugin-reports).
+// ui/Dialog: פוקוס נלכד וחוזר לכפתור "דיווח", Esc/רקע סוגרים; הפעולות בשורה הקבועה בתחתית
+// (כפתור השליחה מחובר לטופס ב-form=, כי הוא מחוץ ל-<form>).
 
 type ReportType = 'bug' | 'crash' | 'content' | 'other'
 
-const REPORT_TYPES: Array<{ value: ReportType; label: string }> = [
-  { value: 'bug', label: 'תקלה' },
-  { value: 'crash', label: 'קריסה' },
-  { value: 'content', label: 'תוכן' },
-  { value: 'other', label: 'אחר' },
+const REPORT_TYPES: Array<{ value: ReportType; label: string; icon: string }> = [
+  { value: 'bug', label: 'תקלה', icon: 'bug_report' },
+  { value: 'crash', label: 'קריסה', icon: 'error' },
+  { value: 'content', label: 'תוכן', icon: 'article' },
+  { value: 'other', label: 'אחר', icon: 'help' },
 ]
+
+const FORM_ID = 'plugin-report-form'
 
 const MAX_DETAILS_LENGTH = 5000
 
@@ -67,7 +77,7 @@ export default function PluginReportModal({ plugin, defaultEmail, onClose, onSuc
       if (!response.ok) {
         throw new Error(
           response.status === 429
-            ? 'נשלחו יותר מדי דיווחים. נסו שוב בעוד מספר דקות.'
+            ? 'נשלחו יותר מדי דיווחים. נסה שוב בעוד מספר דקות.'
             : result?.error || 'שגיאה בשליחת הדיווח'
         )
       }
@@ -80,112 +90,79 @@ export default function PluginReportModal({ plugin, defaultEmail, onClose, onSuc
   }
 
   return (
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="plugin-report-title"
-      >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-neutral-200 bg-white p-6">
-          <h2 id="plugin-report-title" className="text-2xl font-bold text-on-surface">דיווח לבעל התוסף</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-on-surface/60 transition-colors hover:bg-neutral-100 hover:text-on-surface"
-            aria-label="סגירה"
-          >
-            <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
+    <Dialog
+      title="דיווח לבעל התוסף"
+      subtitle={<>הדיווח על <strong className="font-semibold text-on-surface">{plugin.name}</strong> (גרסה <bdi dir="ltr">{plugin.version}</bdi>) יישלח במייל למפתח התוסף.</>}
+      onClose={onClose}
+      footer={
+        <>
+          <Button type="submit" form={FORM_ID} variant="filled" icon="send" loading={submitting} className="flex-1 sm:flex-none">
+            {submitting ? 'שולח...' : 'שליחת הדיווח'}
+          </Button>
+          <Button type="button" variant="outlined" onClick={onClose} disabled={submitting} className="flex-1 sm:flex-none">
+            ביטול
+          </Button>
+        </>
+      }
+    >
+      <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-5">
+        <fieldset>
+          <legend className={FIELD_LABEL}>סוג הדיווח</legend>
+          <div className="flex flex-wrap gap-x-2 gap-y-2.5">
+            {REPORT_TYPES.map((type) => (
+              <Chip
+                key={type.value}
+                icon={type.icon}
+                selected={reportType === type.value}
+                onClick={() => setReportType(type.value)}
+              >
+                {type.label}
+              </Chip>
+            ))}
+          </div>
+        </fieldset>
 
-        <form onSubmit={handleSubmit} className="space-y-5 p-6">
-          <p className="text-sm text-on-surface/70">
-            הדיווח על <strong>{plugin.name}</strong> (גרסה {plugin.version}) יישלח במייל למפתח התוסף.
+        <FormField
+          id="plugin-report-details"
+          label="תיאור הבעיה"
+          required
+          hint={`${details.length.toLocaleString('he-IL')} / ${MAX_DETAILS_LENGTH.toLocaleString('he-IL')}`}
+        >
+          <textarea
+            value={details}
+            onChange={(e) => setDetails(e.target.value.slice(0, MAX_DETAILS_LENGTH))}
+            className={fieldClasses({ kind: 'textarea' })}
+            placeholder="מה קרה, באיזה מצב, ומה היית מצפה שיקרה"
+            required
+            maxLength={MAX_DETAILS_LENGTH}
+            {...fieldA11yProps('plugin-report-details', { required: true, hint: true })}
+          />
+        </FormField>
+
+        <FormField
+          id="plugin-report-email"
+          label="כתובת מייל למענה (לא חובה)"
+          hint="הכתובת תועבר למפתח התוסף כדי שיוכל לחזור אליך. השאר ריק כדי לדווח באופן אנונימי."
+        >
+          <input
+            type="email"
+            value={reporterEmail}
+            onChange={(e) => setReporterEmail(e.target.value)}
+            className={fieldClasses({ className: 'text-start' })}
+            placeholder="name@example.com"
+            dir="ltr"
+            autoComplete="email"
+            {...fieldA11yProps('plugin-report-email', { hint: true })}
+          />
+        </FormField>
+
+        {error && (
+          <p role="alert" className="flex items-start gap-2 rounded-(--radius-control) bg-error-container px-4 py-3 text-body-sm text-on-error-container">
+            <AppIcon name="error" className="mt-0.5 text-[1.15rem]" />
+            <span>{error}</span>
           </p>
-
-          <div>
-            <label className="mb-2 block text-sm font-bold text-on-surface/60">סוג הדיווח</label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {REPORT_TYPES.map((type) => (
-                <button
-                  key={type.value}
-                  type="button"
-                  onClick={() => setReportType(type.value)}
-                  className={`rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
-                    reportType === type.value
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-neutral-200 text-on-surface/70 hover:border-primary/30'
-                  }`}
-                >
-                  {type.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="plugin-report-details" className="mb-2 block text-sm font-bold text-on-surface/60">
-              תיאור הבעיה <span className="text-danger-500">*</span>
-            </label>
-            <textarea
-              id="plugin-report-details"
-              value={details}
-              onChange={(e) => setDetails(e.target.value.slice(0, MAX_DETAILS_LENGTH))}
-              className="min-h-[150px] w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
-              placeholder="מה קרה, באיזה מצב, ומה הייתם מצפים שיקרה"
-              required
-              maxLength={MAX_DETAILS_LENGTH}
-            />
-            <p className="mt-1 text-xs text-on-surface/50">
-              {details.length.toLocaleString('he-IL')} / {MAX_DETAILS_LENGTH.toLocaleString('he-IL')}
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="plugin-report-email" className="mb-2 block text-sm font-bold text-on-surface/60">
-              כתובת מייל למענה (לא חובה)
-            </label>
-            <input
-              id="plugin-report-email"
-              type="email"
-              value={reporterEmail}
-              onChange={(e) => setReporterEmail(e.target.value)}
-              className="w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
-              placeholder="name@example.com"
-              dir="ltr"
-            />
-            <p className="mt-1 text-xs text-on-surface/50">
-              הכתובת תועבר למפתח התוסף כדי שיוכל לחזור אליכם. השאירו ריק כדי לדווח באופן אנונימי.
-            </p>
-          </div>
-
-          {error && (
-            <div className="rounded-xl border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">
-              {error}
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex-1 rounded-xl bg-primary px-6 py-3 font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {submitting ? 'שולח...' : 'שליחת הדיווח'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              className="rounded-xl border border-neutral-200 px-6 py-3 font-bold text-on-surface transition-colors hover:bg-neutral-50"
-            >
-              ביטול
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        )}
+      </form>
+    </Dialog>
   )
 }

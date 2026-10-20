@@ -28,11 +28,47 @@ export function filterPlugins(plugins, { searchQuery = '', statusFilter = 'all',
   return filtered
 }
 
-// כל התגיות הקיימות ברשימת תוספים, ממוינות א"ב עברי — חולץ מאותו דף.
-export function extractSortedTags(plugins) {
-  const tags = new Set()
+// כמה תוספים משויכים לכל תגית — Map של תגית → מספר. תגית כפולה באותו תוסף נספרת פעם אחת.
+export function countTags(plugins) {
+  const counts = new Map()
   plugins.forEach(plugin => {
-    plugin.tags?.forEach(tag => tags.add(tag))
+    new Set(plugin.tags || []).forEach(tag => counts.set(tag, (counts.get(tag) || 0) + 1))
   })
-  return Array.from(tags).sort((a, b) => a.localeCompare(b, 'he'))
+  return counts
+}
+
+// תגית התאמה ולא נושא: "מראה תואם לאוצריא" (OTZARIA_DESIGN_TAG ב-pluginValidation.js, שמתווספת
+// אוטומטית לתוסף שעומד בהנחיות העיצוב), והווריאציות הידניות שלה בנתונים — "עיצוב תואם לאוצריא",
+// "מראה תואם אוצריא", "תואם אוצריא". בתצוגה בלבד: הן לא נכנסות לתגיות הנפוצות, ומופיעות בסוף.
+const COMPATIBILITY_TAG_RE = /תואם\s*ל?\s*אוצריא/
+export function isCompatibilityTag(tag) {
+  return COMPATIBILITY_TAG_RE.test(tag || '')
+}
+
+// כל התגיות לפי שכיחות (הנפוצה ראשונה), ובשוויון — א"ב עברי. [{ tag, count }]. תגיות ההתאמה
+// (isCompatibilityTag) — אחרי כל תגיות הנושא, באותו סדר ביניהן.
+// מסנן התגיות בדף "כל התוספים" מציג את הראשונות כ"נפוצות", ואת כולן בתפריט "כל התגיות".
+export function rankTags(plugins) {
+  return Array.from(countTags(plugins), ([tag, count]) => ({ tag, count }))
+    .sort((a, b) =>
+      Number(isCompatibilityTag(a.tag)) - Number(isCompatibilityTag(b.tag)) ||
+      b.count - a.count ||
+      a.tag.localeCompare(b.tag, 'he')
+    )
+}
+
+// התגיות שמוצגות כשבבים: N תגיות הנושא הראשונות בדירוג (בלי תגיות התאמה). התגית הפעילה תמיד
+// גלויה — אם היא לא ביניהן (תגית התאמה, או בכלל לא ברשימה, למשל מקישור ישן), היא נוספת ראשונה.
+export function popularTags(ranked, activeTag = 'all', limit = 8) {
+  const top = ranked.filter(t => !isCompatibilityTag(t.tag)).slice(0, limit)
+  if (activeTag === 'all' || top.some(t => t.tag === activeTag)) return top
+  const active = ranked.find(t => t.tag === activeTag) || { tag: activeTag, count: 0 }
+  return [active, ...top]
+}
+
+// חיפוש בתוך רשימת התגיות (תפריט "כל התגיות"): התאמה חלקית, בלי תלות ברישיות וברווחים בקצוות.
+export function searchTags(tags, query) {
+  const q = (query || '').trim().toLowerCase()
+  if (!q) return tags
+  return tags.filter(t => t.tag.toLowerCase().includes(q))
 }

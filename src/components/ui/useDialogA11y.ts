@@ -22,25 +22,37 @@ export function isFocusableVisible(el: HTMLElement): boolean {
   return style.display !== 'none' && style.visibility !== 'hidden' && style.visibility !== 'collapse'
 }
 
+/** מחסנית החלונות המודאליים הפתוחים. רק החלון העליון מגיב ל-Tab ול-Esc. */
+const openPanels: HTMLElement[] = []
+// הנעילה שייכת למחסנית כולה: חלון תחתון יכול להיעלם לפני חלון שמעליו.
+let stackRestore: { overflow: string; paddingRight: string; paddingLeft: string; opener: HTMLElement | null } | null = null
+
+/** האם panel הוא החלון המודאלי העליון כרגע (לבדיקות ולרכיבים שמאזינים למקלדת בעצמם) */
+export function isTopDialog(panel: HTMLElement | null): boolean {
+  return panel !== null && openPanels[openPanels.length - 1] === panel
+}
+
+export type DialogReturnFocus = HTMLElement | null | (() => HTMLElement | null | undefined)
+type DialogA11yOptions = { escapeEnabled?: boolean; returnFocus?: DialogReturnFocus }
+
 /**
- * התנהגות נגישה בסיסית של חלון מודאלי, בלי עיצוב:
- * - פוקוס עובר לחלון בפתיחה (אלא אם ילד כבר ממוקד, למשל autoFocus), ו"נלכד" בתוכו
- *   (Tab / Shift+Tab מסתובבים בין הפקדים הגלויים שבו).
- * - Esc קורא ל-onEscape — רק כש-escapeEnabled, וכש-event.defaultPrevented כוזב (רכיב אחר,
- *   למשל רמז, כבר טיפל במקש). כש-escapeEnabled כבוי המקש לא נבלע.
- * - גלילת הדף ברקע ננעלת. פיצוי על רוחב פס הגלילה רק כשאין scrollbar-gutter: stable ב-html
- *   (אחרת הפס נשאר במקומו והפיצוי יוצר קפיצה כפולה), ובצד הנכון: שמאל ב-RTL, ימין ב-LTR.
- * - בסגירה (unmount) הפוקוס חוזר לאלמנט שהיה ממוקד לפני הפתיחה — בדרך כלל הכפתור שפתח.
- *
- * panelRef צריך להצביע על אלמנט עם tabIndex={-1}, כדי שאפשר יהיה למקד אותו עצמו.
+ * התנהגות נגישה בסיסית של חלון מודאלי, בלי עיצוב. תומך ב-Escape אופציונלי, חלונות מקוננים,
+ * נעילת גלילה עם scrollbar-gutter ו-RTL, ושחזור פוקוס ל-opener או ל-returnFocus.
  */
-export function useDialogA11y(panelRef: RefObject<HTMLElement | null>, onEscape: () => void, escapeEnabled = true) {
-  // הפונקציה מתחלפת בכל רינדור; ref מונע הרשמה מחדש של המאזין בכל פעם
+export function useDialogA11y(
+  panelRef: RefObject<HTMLElement | null>,
+  onEscape: () => void,
+  options: boolean | DialogA11yOptions = true
+) {
+  const escapeEnabled = typeof options === 'boolean' ? options : options.escapeEnabled ?? true
+  const returnFocus = typeof options === 'boolean' ? undefined : options.returnFocus
   const onEscapeRef = useRef(onEscape)
   const escapeEnabledRef = useRef(escapeEnabled)
+  const returnFocusRef = useRef(returnFocus)
   useEffect(() => {
     onEscapeRef.current = onEscape
     escapeEnabledRef.current = escapeEnabled
+    returnFocusRef.current = returnFocus
   })
 
   // ה-opener נלכד בזמן הרינדור הראשון — לפני ה-commit, שבו autoFocus של ילד עלול לגנוב את הפוקוס
@@ -52,24 +64,27 @@ export function useDialogA11y(panelRef: RefObject<HTMLElement | null>, onEscape:
     const panel = panelRef.current
     if (!panel) return
     const { body } = document
-    const prevOverflow = body.style.overflow
-    const prevPaddingRight = body.style.paddingRight
-    const prevPaddingLeft = body.style.paddingLeft
-    const root = document.documentElement
-    const scrollbarWidth = window.innerWidth - root.clientWidth
-    const hasGutter = window.getComputedStyle(root).getPropertyValue('scrollbar-gutter').includes('stable')
-    const rtl = window.getComputedStyle(body).direction === 'rtl'
-    body.style.overflow = 'hidden'
-    if (scrollbarWidth > 0 && !hasGutter) {
-      if (rtl) body.style.paddingLeft = `${scrollbarWidth}px`
-      else body.style.paddingRight = `${scrollbarWidth}px`
+    if (openPanels.length === 0) {
+      stackRestore = { overflow: body.style.overflow, paddingRight: body.style.paddingRight, paddingLeft: body.style.paddingLeft, opener }
+      const root = document.documentElement
+      const scrollbarWidth = window.innerWidth - root.clientWidth
+      const hasGutter = window.getComputedStyle(root).getPropertyValue('scrollbar-gutter').includes('stable')
+      const rtl = window.getComputedStyle(body).direction === 'rtl'
+      body.style.overflow = 'hidden'
+      if (scrollbarWidth > 0 && !hasGutter) {
+        if (rtl) body.style.paddingLeft = `${scrollbarWidth}px`
+        else body.style.paddingRight = `${scrollbarWidth}px`
+      }
     }
 
+    openPanels.push(panel)
     // ילד שכבר ממוקד (autoFocus) לא נדרס
     if (!panel.contains(document.activeElement)) panel.focus({ preventScroll: true })
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!isTopDialog(panel)) return
       if (event.key === 'Escape') {
+        // חלון שאינו dismissible אינו בולע Escape; רכיב פנימי שטיפל במקש מונע סגירת החלון.
         if (!escapeEnabledRef.current || event.defaultPrevented) return
         event.preventDefault()
         onEscapeRef.current()
@@ -101,10 +116,26 @@ export function useDialogA11y(panelRef: RefObject<HTMLElement | null>, onEscape:
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
-      body.style.overflow = prevOverflow
-      body.style.paddingRight = prevPaddingRight
-      body.style.paddingLeft = prevPaddingLeft
-      opener?.focus({ preventScroll: true })
+      const wasTop = isTopDialog(panel)
+      const index = openPanels.lastIndexOf(panel)
+      if (index !== -1) openPanels.splice(index, 1)
+      const remaining = openPanels[openPanels.length - 1]
+      const restore = stackRestore
+      if (!remaining && restore) {
+        body.style.overflow = restore.overflow
+        body.style.paddingRight = restore.paddingRight
+        body.style.paddingLeft = restore.paddingLeft
+        stackRestore = null
+      }
+      // הסרת חלון ברקע אינה משנה את הפוקוס בחלון העליון.
+      if (!wasTop) return
+      const target = typeof returnFocusRef.current === 'function' ? returnFocusRef.current() : returnFocusRef.current
+      const preferred = target ?? opener
+      if (remaining) {
+        ;(preferred?.isConnected && remaining.contains(preferred) ? preferred : remaining).focus({ preventScroll: true })
+      } else {
+        ;(preferred?.isConnected ? preferred : restore?.opener)?.focus({ preventScroll: true })
+      }
     }
   }, [panelRef, opener])
 }

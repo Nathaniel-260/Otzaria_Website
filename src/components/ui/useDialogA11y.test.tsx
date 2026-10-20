@@ -73,4 +73,49 @@ describe('useDialogA11y', () => {
     expect(document.body.style.overflow).toBe('')
     root.style.scrollbarGutter = ''
   })
+  it('keeps scroll locked and focus in the top dialog when a lower dialog unmounts first', () => {
+    const outside = document.createElement('button')
+    document.body.append(outside)
+    outside.focus()
+    document.body.style.overflow = 'auto'
+    document.body.style.paddingLeft = '7px'
+    const lower = render(<Harness onEscape={() => {}}><button>lower</button></Harness>)
+    screen.getByRole('button', { name: 'lower' }).focus()
+    const upper = render(<Harness onEscape={() => {}}><button>upper</button></Harness>)
+    const top = screen.getByRole('button', { name: 'upper' })
+    top.focus()
+    lower.unmount()
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(top).toHaveFocus()
+    upper.unmount()
+    expect(document.body.style.overflow).toBe('auto')
+    expect(document.body.style.paddingLeft).toBe('7px')
+    expect(outside).toHaveFocus()
+    outside.remove()
+    document.body.style.overflow = ''
+    document.body.style.paddingLeft = ''
+  })
+
+  it('only the top dialog handles Tab and Escape, then restores the lower dialog', () => {
+    const lowerEscape = vi.fn()
+    const upperEscape = vi.fn()
+    const lower = render(<Harness onEscape={lowerEscape}><button>lower first</button><button>lower last</button></Harness>)
+    const lowerLast = screen.getByRole('button', { name: 'lower last' })
+    lowerLast.focus()
+    const upper = render(<Harness onEscape={upperEscape}><button>upper first</button><button>upper last</button></Harness>)
+    screen.getByRole('button', { name: 'upper last' }).focus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(screen.getByRole('button', { name: 'upper first' })).toHaveFocus()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(upperEscape).toHaveBeenCalledTimes(1)
+    expect(lowerEscape).not.toHaveBeenCalled()
+    upper.unmount()
+    expect(lowerLast).toHaveFocus()
+    expect(document.body.style.overflow).toBe('hidden')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(lowerEscape).toHaveBeenCalledTimes(1)
+    lower.unmount()
+    expect(document.body.style.overflow).toBe('')
+  })
+
 })

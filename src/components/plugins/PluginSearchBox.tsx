@@ -7,6 +7,10 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { tokenizeHebrew } from '@/lib/hebrewSearchNormalize'
+import AppIcon from '@/components/ui/AppIcon'
+import { cx } from '@/components/ui/cx'
+import { FIELD_ICON_GLYPH, fieldClasses, fieldAdornmentClasses } from '@/components/ui/fieldStyles'
+import PluginImage from '@/components/plugins/PluginImage'
 import type { Plugin } from '@/components/plugins/types'
 
 // --- הדגשת מונחי חיפוש בטקסט ---
@@ -68,7 +72,7 @@ export function highlightMatches(text: string, query: string): ReactNode {
     const segment = chars.slice(i, j).join('')
     out.push(
       flag
-        ? <mark key={i} className="bg-primary/15 text-inherit font-bold rounded-sm">{segment}</mark>
+        ? <mark key={i} className="rounded-sm bg-secondary-container font-bold text-on-secondary-container">{segment}</mark>
         : <span key={i}>{segment}</span>
     )
     i = j
@@ -82,9 +86,16 @@ const DEBOUNCE_MS = 250
 const MIN_QUERY_LENGTH = 2
 const SUGGESTIONS_LIMIT = 6
 
+// מראה השדה — ui/fieldStyles (מקור אחד לכל שדות האתר). אייקון החיפוש בעוטף ולא על הגליף: לגליף יש
+// direction: ltr (base.css), ו-start-* עליו היה מצייר אותו בשמאל.
+
 interface PluginSearchBoxProps {
   placeholder?: string
   size?: 'lg' | 'md'
+  /** שם נגיש לשדה, כשאין <label> גלוי שמחובר אליו (inputId) */
+  ariaLabel?: string
+  /** id לשדה — לחיבור <label htmlFor> גלוי */
+  inputId?: string
   // אם סופק — Enter בלי בחירת הצעה יפעיל אותו (סינון מקומי ב"כל התוספים")
   // במקום ניווט לדף תוצאות החיפוש.
   onSubmit?: (query: string) => void
@@ -95,7 +106,9 @@ export default function PluginSearchBox({
   placeholder = 'חפשו תוסף לפי שם, תיאור או נושא...',
   size = 'md',
   onSubmit,
-  defaultValue = ''
+  defaultValue = '',
+  ariaLabel = 'חיפוש תוספים',
+  inputId
 }: PluginSearchBoxProps) {
   const router = useRouter()
   const baseId = useId()
@@ -104,6 +117,8 @@ export default function PluginSearchBox({
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const abortRef = useRef<AbortController | null>(null)
+  // הצעות רק אחרי הקלדה: ערך התחלתי (defaultValue, למשל ?q= ב"כל התוספים") לא פותח רשימה מעצמו
+  const typedRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const trimmed = value.trim()
@@ -112,6 +127,7 @@ export default function PluginSearchBox({
 
   // שינוי ערך: מתחת לאורך המינימלי מנקים את ההצעות מיד (בלי לחכות ל-debounce)
   const handleChange = (next: string) => {
+    typedRef.current = true
     setValue(next)
     if (next.trim().length < MIN_QUERY_LENGTH) {
       abortRef.current?.abort()
@@ -123,7 +139,7 @@ export default function PluginSearchBox({
 
   // הצעות חיות: debounce + ביטול בקשות שעברו
   useEffect(() => {
-    if (trimmed.length < MIN_QUERY_LENGTH) return
+    if (!typedRef.current || trimmed.length < MIN_QUERY_LENGTH) return
     const timer = setTimeout(async () => {
       abortRef.current?.abort()
       const controller = new AbortController()
@@ -203,23 +219,26 @@ export default function PluginSearchBox({
         submit()
       }
     } else if (e.key === 'Escape') {
+      // רשימה פתוחה — Esc סוגר רק אותה (preventDefault: חלון מודאלי שמסביב לא ייסגר, ראו useDialogA11y)
+      if (open) e.preventDefault()
       setOpen(false)
       setActiveIndex(-1)
     }
   }
-
-  const inputClasses = size === 'lg'
-    ? 'w-full px-6 py-4 text-lg border border-neutral-200 rounded-2xl shadow-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all bg-white'
-    : 'w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all bg-white'
 
   const listboxId = `${baseId}-listbox`
   const optionId = (index: number) => `${baseId}-option-${index}`
 
   return (
     <div ref={containerRef} className="relative w-full">
+      <span className={fieldAdornmentClasses(size, 'start')} aria-hidden="true">
+        <AppIcon name="search" className={FIELD_ICON_GLYPH} />
+      </span>
       <input
+        id={inputId}
         type="search"
         role="combobox"
+        aria-label={inputId ? undefined : ariaLabel}
         aria-expanded={open}
         aria-controls={listboxId}
         aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
@@ -231,14 +250,16 @@ export default function PluginSearchBox({
         onFocus={() => {
           if (trimmed.length >= MIN_QUERY_LENGTH && suggestions.length > 0) setOpen(true)
         }}
-        className={inputClasses}
+        className={fieldClasses({ size, withIcon: true })}
       />
 
       {open && (
         <ul
           id={listboxId}
           role="listbox"
-          className="absolute z-30 mt-2 w-full bg-white border border-neutral-100 rounded-2xl shadow-xl overflow-hidden"
+          aria-label="הצעות"
+          // מעל התוכן (גם מעל כפתורי הכרטיסים, שהם z-raised) ומתחת לכותרת הדביקה
+          className="absolute inset-x-0 top-full z-(--z-below-header) mt-2 overflow-hidden rounded-(--radius-container) bg-surface py-1 text-start shadow-menu"
         >
           {suggestions.map((plugin, index) => (
             <li
@@ -249,22 +270,19 @@ export default function PluginSearchBox({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => selectIndex(index)}
               onMouseEnter={() => setActiveIndex(index)}
-              className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-neutral-100 transition-colors ${
-                activeIndex === index ? 'bg-primary/5' : 'bg-white'
-              }`}
+              className={cx(
+                'flex min-h-14 cursor-pointer items-center gap-3 px-3 py-2 transition-colors',
+                activeIndex === index && 'bg-surface-selected'
+              )}
             >
-              <img
-                src={plugin.image || '/logo.webp'}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="w-10 h-10 rounded-lg object-cover bg-surface shrink-0"
-              />
-              <div className="min-w-0">
-                <div className="text-sm font-bold text-on-surface truncate">
+              <PluginImage src={plugin.image} size="sm" />
+              {/* טקסט של המפתח — אולי באנגלית: dir="auto" מסדר את הסימנים, והיישור נשאר לימין כמו
+                  ב-PluginResultRow */}
+              <div className="min-w-0 flex-1">
+                <div dir="auto" className="truncate text-right text-label-lg text-on-surface">
                   {highlightMatches(plugin.name, trimmed)}
                 </div>
-                <div className="text-xs text-on-surface/60 truncate">
+                <div dir="auto" className="truncate text-right text-body-sm text-on-surface-variant">
                   {plugin.shortDescription}
                 </div>
               </div>
@@ -278,9 +296,11 @@ export default function PluginSearchBox({
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => selectIndex(suggestions.length)}
             onMouseEnter={() => setActiveIndex(suggestions.length)}
-            className={`px-4 py-3 cursor-pointer text-sm font-bold text-primary transition-colors ${
-              activeIndex === suggestions.length ? 'bg-primary/5' : 'bg-white'
-            }`}
+            className={cx(
+              'flex min-h-12 cursor-pointer items-center px-4 text-label-lg text-primary transition-colors',
+              suggestions.length > 0 && 'mt-1 border-t border-outline-variant',
+              activeIndex === suggestions.length && 'bg-surface-selected'
+            )}
           >
             כל התוצאות עבור &apos;{trimmed}&apos; ←
           </li>
