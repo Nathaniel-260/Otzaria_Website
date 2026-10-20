@@ -29,6 +29,16 @@ beforeEach(() => {
 })
 
 describe('OcrConflictsPanel', () => {
+  it('אימוץ בתהליך (applying) — תווית מצב ובלי כפתורי החלטה', async () => {
+    fetchMock.mockResolvedValueOnce(reply(200, listBody([conflict({ status: 'applying' })], { openCount: 1 })))
+    const user = userEvent.setup()
+    render(<OcrConflictsPanel jobId="job1" />)
+    expect(await screen.findByText('אימוץ ה-OCR בתהליך')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'הצג טקסטים' }))
+    expect(screen.queryByRole('button', { name: 'שמור את הטקסט הקיים' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'אמץ את טקסט ה-OCR' })).toBeNull()
+  })
+
   it('מציג את הרשימה ואת שני הטקסטים כטקסט רגיל', async () => {
     fetchMock.mockResolvedValueOnce(reply(200, listBody([conflict(), conflict({ id: 'c2', pageNumber: 9, status: 'dismissed', ocrText: '<i>x</i>' })])))
     const user = userEvent.setup()

@@ -12,6 +12,7 @@ import { readWorkerConfig } from '@/lib/ocr/workerAuth';
 import { WORKER_ONLINE_WINDOW_MS, workerAvailability } from '@/lib/ocr/localJobState';
 import { prepLeaseExpired } from '@/lib/ocr/localJobCreate.pure';
 import { hasBookLibraryAccess } from '@/lib/roles';
+import { PENDING_CONFLICT_STATUSES } from '@/lib/ocr/ocrConflictView';
 import { reapStaleOcrJobs } from '@/lib/ocr/staleJobs';
 import { badRequest, notFound, requireAccess, serverError } from '@/lib/apiResponse';
 
@@ -163,7 +164,9 @@ export async function GET(request) {
     const now = new Date();
     const [worker, conflictsOpen] = await Promise.all([
       readWorkerInfo(now),
-      job?.method === 'local' ? OcrConflict.countDocuments({ job: job._id, status: 'open' }) : 0,
+      job?.method === 'local'
+        ? OcrConflict.countDocuments({ job: job._id, status: { $in: PENDING_CONFLICT_STATUSES } })
+        : 0,
     ]);
 
     return NextResponse.json({

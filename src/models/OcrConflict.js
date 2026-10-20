@@ -15,9 +15,17 @@ const OcrConflictSchema = new mongoose.Schema({
   resultSha256: { type: String },
   expectedUpdatedAt: { type: Date },
   foundUpdatedAt: { type: Date },
-  status: { type: String, enum: ['open', 'applied', 'dismissed'], default: 'open' },
+  // applying — מצב ביניים של "אמץ OCR": ההכרעה נתפסה (open → applying) לפני כתיבת העמוד, כך
+  // ש"שמור את הקיים" (מותנה ב-status:'open') כבר לא יכול לנצח. בסיום: applied, או חזרה ל-open
+  // אם העמוד השתנה. קריסה באמצע — אחרי applyLeaseUntil מוכרע לפי סימון העמוד (ocrConflictResolve.js).
+  status: { type: String, enum: ['open', 'applying', 'applied', 'dismissed'], default: 'open' },
   resolvedAt: { type: Date },
   resolvedByName: { type: String },
+  applyToken: { type: String },
+  // = lastOcrAt שנכתב לעמוד באימוץ הזה — הסימון שלפיו מזהים אחרי קריסה אם הכתיבה קרתה
+  applyStartedAt: { type: Date },
+  applyLeaseUntil: { type: Date },
+  applyByName: { type: String },
 }, { timestamps: true });
 
 // התנגשות אחת לכל עמוד בעבודה (upsert בשליחה חוזרת לא יוצר כפילות)

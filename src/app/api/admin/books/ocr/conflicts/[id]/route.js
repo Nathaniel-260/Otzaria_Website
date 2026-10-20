@@ -4,9 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import connectDB from '@/lib/db';
 import Page from '@/models/Page';
-import OcrConflict from '@/models/OcrConflict';
 import { hasBookLibraryAccess } from '@/lib/roles';
-import { pageApplySet } from '@/lib/ocr/localApply.pure';
+import { resolveConflict } from '@/lib/ocr/ocrConflictResolve';
 import { CONFLICT_ACTIONS, parseClientDate, serializeConflict } from '@/lib/ocr/ocrConflictView';
 import { badRequest, notFound, requireAccess, serverError } from '@/lib/apiResponse';
 
@@ -16,11 +15,20 @@ const conflictResponse = (error, code, status = 409) =>
   NextResponse.json({ error, code }, { status });
 
 // POST /api/admin/books/ocr/conflicts/:id  { action: 'apply' | 'dismiss', expectedPageUpdatedAt? }
-// - dismiss: הטקסט הקיים בעמוד נשאר; ההתנגשות מסומנת dismissed.
+// - dismiss: הטקסט הקיים בעמוד נשאר; ההתנגשות מסומנת dismissed (רק אם עדיין open).
 // - apply: אימוץ טקסט ה-OCR — רק בהחלטה מפורשת של מנהל, ומותנה ב-updatedAt של העמוד כפי שהמנהל
 //   ראה אותו (expectedPageUpdatedAt). אם העמוד נערך שוב בינתיים — 409, ושום דבר לא נדרס.
-//   סדר: קודם העמוד (עדכון מותנה), אחר כך ההתנגשות (מותנה ב-status:'open'). קריסה ביניהם
-//   משאירה התנגשות פתוחה שהטקסט שלה כבר בעמוד — אימוץ חוזר או דחייה מסדרים אותה.
+//   ההכרעה נתפסת לפני כתיבת העמוד (open → applying → applied), כך שדחייה במקביל נכשלת ב-409
+//   apply_in_progress ולא מסתיימת ב"נשמר הקיים" עם טקסט OCR בעמוד. פירוט והתאוששות מקריסה:
+//   src/lib/ocr/ocrConflictResolve.js.
+const FAILURES = {
+  not_found: () => notFound('ההתנגשות לא נמצאה'),
+  page_missing: () => notFound('העמוד כבר לא קיים בספר'),
+  page_changed: () => conflictResponse('העמוד השתנה שוב — רעננו', 'page_changed'),
+  already_resolved: () => conflictResponse('ההתנגשות כבר טופלה — רעננו', 'already_resolved'),
+  apply_in_progress: () => conflictResponse('אימוץ טקסט ה-OCR בתהליך — רעננו בעוד רגע', 'apply_in_progress'),
+};
+
 export async function POST(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
@@ -38,43 +46,12 @@ export async function POST(request, { params }) {
 
     await connectDB();
 
-    const conflict = await OcrConflict.findById(id).lean();
-    if (!conflict) return notFound('ההתנגשות לא נמצאה');
-    if (conflict.status !== 'open') {
-      return conflictResponse('ההתנגשות כבר טופלה — רעננו', 'already_resolved');
-    }
+    const result = await resolveConflict({ id, action, expected, byName: session.user?.name || '' });
+    if (!result.ok) return FAILURES[result.code]();
 
-    const now = new Date();
-    const byName = session.user?.name || '';
-
-    if (action === 'apply') {
-      const res = await Page.updateOne(
-        { _id: conflict.page, book: conflict.book, updatedAt: expected },
-        { $set: pageApplySet(conflict.ocrText || '', conflict.job, conflict.resultSha256 || '', now) }
-      );
-      if (res.matchedCount === 0) {
-        const exists = await Page.exists({ _id: conflict.page, book: conflict.book });
-        if (!exists) return notFound('העמוד כבר לא קיים בספר');
-        return conflictResponse('העמוד השתנה שוב — רעננו', 'page_changed');
-      }
-    }
-
-    const nextStatus = action === 'apply' ? 'applied' : 'dismissed';
-    const updated = await OcrConflict.findOneAndUpdate(
-      { _id: conflict._id, status: 'open' },
-      { $set: { status: nextStatus, resolvedAt: now, resolvedByName: byName } },
-      { returnDocument: 'after', lean: true }
-    );
-    // דחייה שמנהל אחר הקדים — לא נגענו בכלום
-    if (!updated && action === 'dismiss') {
-      return conflictResponse('ההתנגשות כבר טופלה — רעננו', 'already_resolved');
-    }
-    // באימוץ העמוד כבר עודכן; אם מנהל אחר סגר את ההתנגשות במקביל — מחזירים את מצבה הנוכחי
-    const current = updated || (await OcrConflict.findById(conflict._id).lean());
-    const page = await Page.findById(conflict.page).select(PAGE_FIELDS).lean();
-
+    const page = await Page.findById(result.conflict.page).select(PAGE_FIELDS).lean();
     return NextResponse.json(
-      { success: true, conflict: serializeConflict(current, page) },
+      { success: true, conflict: serializeConflict(result.conflict, page) },
       { headers: { 'Cache-Control': 'private, no-store' } }
     );
   } catch (error) {

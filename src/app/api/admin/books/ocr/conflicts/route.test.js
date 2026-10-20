@@ -2,7 +2,7 @@
 // API התנגשויות OCR מקומי (רשימה + אימוץ/דחייה) — מול MongoDB אמיתי (mongodb-memory-server).
 // בלי בינארי Mongo — הבדיקות מדולגות. מכסה: 401/403, רשימה ממוינת עם הטקסט הנוכחי של העמוד,
 // אימוץ מותנה ב-updatedAt (עריכה חדשה יותר לא נדרסת → 409), דחייה, טיפול כפול ועמוד שנמחק.
-import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
 
 const { getServerSessionMock } = vi.hoisted(() => ({ getServerSessionMock: vi.fn() }))
 vi.mock('@/lib/db', () => ({ default: vi.fn().mockResolvedValue(undefined) }))
@@ -71,6 +71,8 @@ const act = async (id, body) => {
   return { res, body: await res.json() }
 }
 const conflictOf = (page) => OcrConflict.findOne({ page: page._id }).lean()
+
+afterEach(() => vi.restoreAllMocks())
 
 describe('הרשאות', () => {
   it('401 בלי session, 403 בלי הרשאת ספרייה — ברשימה ובפעולה', async () => {
@@ -186,5 +188,66 @@ describe('POST פעולה', () => {
     expect((await act(c._id, { action: 'apply', expectedPageUpdatedAt: 'not-a-date' })).res.status).toBe(400)
     expect((await act('zzz', { action: 'dismiss' })).res.status).toBe(400)
     expect((await act(new mongoose.Types.ObjectId(), { action: 'dismiss' })).res.status).toBe(404)
+  })
+})
+
+describe('מרוץ אימוץ מול דחייה (סקירה W05)', () => {
+  it('אימוץ שנעצר לפני כתיבת העמוד: דחייה במקביל → 409 apply_in_progress; אחרי השחרור — applied והעמוד עם ה-OCR', async () => {
+    const page = pages[0]
+    const c = await conflictOf(page)
+    let release
+    const barrier = new Promise((r) => { release = r })
+    let held = false
+    const actualUpdate = Page.updateOne.bind(Page)
+    vi.spyOn(Page, 'updateOne').mockImplementation(async (...args) => {
+      held = true
+      await barrier
+      return actualUpdate(...args)
+    })
+
+    const applying = act(c._id, { action: 'apply', expectedPageUpdatedAt: page.updatedAt.toISOString() })
+    await vi.waitFor(() => expect(held).toBe(true))
+
+    const dismiss = await act(c._id, { action: 'dismiss' })
+    expect(dismiss.res.status).toBe(409)
+    expect(dismiss.body.code).toBe('apply_in_progress')
+
+    // הרשימה מציגה את מצב הביניים וסופרת אותו כממתין
+    const list = await (await GET(listReq(`jobId=${job._id}`))).json()
+    expect(list.openCount).toBe(3)
+    expect(list.conflicts.find((x) => x.id === String(c._id)).status).toBe('applying')
+
+    release()
+    const apply = await applying
+    expect(apply.res.status).toBe(200)
+    expect(apply.body.conflict).toMatchObject({ status: 'applied', pageContent: 'טקסט OCR 5' })
+    expect((await conflictOf(page)).status).toBe('applied')
+    expect((await Page.findById(page._id).lean()).content).toBe('טקסט OCR 5')
+  })
+
+  it('דחייה שקדמה לאימוץ — האימוץ נדחה ב-409 already_resolved והעמוד לא מוחלף', async () => {
+    const page = pages[0]
+    const c = await conflictOf(page)
+    expect((await act(c._id, { action: 'dismiss' })).res.status).toBe(200)
+    const apply = await act(c._id, { action: 'apply', expectedPageUpdatedAt: page.updatedAt.toISOString() })
+    expect(apply.res.status).toBe(409)
+    expect(apply.body.code).toBe('already_resolved')
+    expect((await Page.findById(page._id).lean()).content).toBe('טקסט אנושי 5')
+    expect((await conflictOf(page)).status).toBe('dismissed')
+  })
+
+  it('קריסה במצב הביניים: applying שה-lease שלו פג מוכרע בטעינת הרשימה לפי העמוד (לא נכתב → open)', async () => {
+    const page = pages[0]
+    const c = await conflictOf(page)
+    const old = new Date(Date.now() - 10 * 60 * 1000)
+    await OcrConflict.updateOne({ _id: c._id }, {
+      $set: { status: 'applying', applyToken: 't', applyStartedAt: old, applyLeaseUntil: new Date(old.getTime() + 1000) },
+    })
+    const list = await (await GET(listReq(`jobId=${job._id}`))).json()
+    expect(list.conflicts.find((x) => x.id === String(c._id)).status).toBe('open')
+    expect((await Page.findById(page._id).lean()).content).toBe('טקסט אנושי 5')
+    const dismiss = await act(c._id, { action: 'dismiss' })
+    expect(dismiss.res.status).toBe(200)
+    expect(dismiss.body.conflict.status).toBe('dismissed')
   })
 })

@@ -4,6 +4,34 @@
 
 export const CONFLICT_ACTIONS = Object.freeze(['apply', 'dismiss']);
 
+export const CONFLICT_STATUSES = Object.freeze(['open', 'applying', 'applied', 'dismissed']);
+// ממתינות להחלטה (ספירת "פתוחות"): applying עדיין לא הוכרע — אימוץ בתהליך או שנקטע בקריסה
+export const PENDING_CONFLICT_STATUSES = Object.freeze(['open', 'applying']);
+
+// משך ה-lease של אימוץ (open → applying). כתיבת העמוד היא עדכון יחיד וקצר; אחרי שה-lease פג
+// מניחים שהבקשה קרסה ומכריעים לפי העמוד (conflictApplyLanded).
+export const CONFLICT_APPLY_LEASE_MS = 2 * 60 * 1000;
+
+/** אימוץ שנתקע ב-applying וה-lease שלו פג (או חסר) */
+export function conflictApplyStale(conflict, now) {
+  if (conflict?.status !== 'applying') return false;
+  const until = conflict.applyLeaseUntil ? new Date(conflict.applyLeaseUntil).getTime() : NaN;
+  return !Number.isFinite(until) || until <= new Date(now).getTime();
+}
+
+/**
+ * האם כתיבת העמוד של האימוץ הנוכחי (applyStartedAt) אכן קרתה: העמוד נושא את סימון ה-OCR של
+ * העבודה, ו-lastOcrAt שלו הוא בדיוק מועד תחילת האימוץ (נכתב באותו $set עם הטקסט).
+ * @param {any|null} page lean: lastOcrJobId, lastOcrResultSha256, lastOcrAt
+ * @param {any} conflict lean: job, resultSha256, applyStartedAt
+ */
+export function conflictApplyLanded(page, conflict) {
+  if (!page || !conflict?.applyStartedAt || !page.lastOcrAt) return false;
+  return String(page.lastOcrJobId) === String(conflict.job)
+    && (page.lastOcrResultSha256 || '') === (conflict.resultSha256 || '')
+    && new Date(page.lastOcrAt).getTime() === new Date(conflict.applyStartedAt).getTime();
+}
+
 // ברירת מחדל ותקרה לגודל עמוד ברשימה (כל פריט נושא שני טקסטים מלאים של עמוד)
 export const CONFLICTS_PAGE_DEFAULT = 50;
 export const CONFLICTS_PAGE_MAX = 500;

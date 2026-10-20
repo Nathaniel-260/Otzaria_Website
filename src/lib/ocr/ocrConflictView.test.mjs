@@ -1,8 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  CONFLICT_APPLY_LEASE_MS,
   CONFLICTS_PAGE_DEFAULT,
   CONFLICTS_PAGE_MAX,
+  conflictApplyLanded,
+  conflictApplyStale,
   parseClientDate,
   parsePaging,
   serializeConflict,
@@ -46,4 +49,24 @@ test('parseClientDate', () => {
   assert.equal(parseClientDate('nope'), null);
   assert.equal(parseClientDate(123), null);
   assert.equal(parseClientDate('x'.repeat(100)), null);
+});
+
+test('conflictApplyStale: רק applying שה-lease שלו פג או חסר', () => {
+  const until = new Date(at.getTime() + CONFLICT_APPLY_LEASE_MS);
+  assert.equal(conflictApplyStale({ status: 'open', applyLeaseUntil: at }, until), false);
+  assert.equal(conflictApplyStale({ status: 'applying', applyLeaseUntil: until }, at), false);
+  assert.equal(conflictApplyStale({ status: 'applying', applyLeaseUntil: until }, until), true);
+  assert.equal(conflictApplyStale({ status: 'applying' }, at), true);
+});
+
+test('conflictApplyLanded: סימון העבודה וה-sha, ו-lastOcrAt זהה בדיוק למועד תחילת האימוץ', () => {
+  const conflict = { job: 'j1', resultSha256: 's', applyStartedAt: at };
+  const page = { lastOcrJobId: 'j1', lastOcrResultSha256: 's', lastOcrAt: new Date(at.getTime()) };
+  assert.equal(conflictApplyLanded(page, conflict), true);
+  assert.equal(conflictApplyLanded({ ...page, lastOcrAt: new Date(at.getTime() + 1) }, conflict), false);
+  assert.equal(conflictApplyLanded({ ...page, lastOcrJobId: 'j2' }, conflict), false);
+  assert.equal(conflictApplyLanded({ ...page, lastOcrResultSha256: 'x' }, conflict), false);
+  assert.equal(conflictApplyLanded({ ...page, lastOcrAt: null }, conflict), false);
+  assert.equal(conflictApplyLanded(null, conflict), false);
+  assert.equal(conflictApplyLanded(page, { ...conflict, applyStartedAt: null }), false);
 });

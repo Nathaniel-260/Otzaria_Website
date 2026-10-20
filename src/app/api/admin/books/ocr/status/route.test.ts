@@ -146,7 +146,7 @@ describe("GET /api/admin/books/ocr/status - ספק local", () => {
     expect(body.worker).toEqual({ configured: true, lastSeenAt: seen.toISOString(), availability: "online" });
     expect(OcrWorkerState.findOne).toHaveBeenCalledWith({ workerId: "worker-1" });
     expect(body.conflictsOpen).toBe(3);
-    expect(OcrConflict.countDocuments).toHaveBeenCalledWith({ job: expect.anything(), status: "open" });
+    expect(OcrConflict.countDocuments).toHaveBeenCalledWith({ job: expect.anything(), status: { $in: ["open", "applying"] } });
     // pageMap ונתיבי קבצים לא נשלפים בכלל
     expect((jobQuery.select as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({ pageMap: 0, inputPath: 0, resultPath: 0, pageErrors: { $slice: 50 } });
 

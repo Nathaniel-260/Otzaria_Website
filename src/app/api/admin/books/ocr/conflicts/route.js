@@ -6,10 +6,9 @@ import connectDB from '@/lib/db';
 import Page from '@/models/Page';
 import OcrConflict from '@/models/OcrConflict';
 import { hasBookLibraryAccess } from '@/lib/roles';
-import { parsePaging, serializeConflict } from '@/lib/ocr/ocrConflictView';
+import { CONFLICT_STATUSES, PENDING_CONFLICT_STATUSES, parsePaging, serializeConflict } from '@/lib/ocr/ocrConflictView';
+import { settleStaleConflictApplies } from '@/lib/ocr/ocrConflictResolve';
 import { badRequest, requireAccess, serverError } from '@/lib/apiResponse';
-
-const STATUSES = ['open', 'applied', 'dismissed'];
 
 // GET /api/admin/books/ocr/conflicts?jobId=...|bookId=...[&status=open][&limit=50][&offset=0]
 // התנגשויות בהחלת תוצאת OCR מקומי (עמוד שנערך אחרי יצירת העבודה ולכן לא נדרס), ממוינות לפי
@@ -27,17 +26,19 @@ export async function GET(request) {
     if (!jobId && !bookId) return badRequest('חסר מזהה עבודה או ספר');
     if (jobId && !mongoose.isValidObjectId(jobId)) return badRequest('מזהה עבודה לא תקין');
     if (bookId && !mongoose.isValidObjectId(bookId)) return badRequest('מזהה ספר לא תקין');
-    if (status && !STATUSES.includes(status)) return badRequest('סינון מצב לא תקין');
+    if (status && !CONFLICT_STATUSES.includes(status)) return badRequest('סינון מצב לא תקין');
     const { limit, offset } = parsePaging(searchParams);
 
     await connectDB();
 
-    const filter = jobId ? { job: jobId } : { book: bookId };
-    if (status) filter.status = status;
+    const scope = jobId ? { job: jobId } : { book: bookId };
+    // אימוץ שנקטע בקריסה (applying שה-lease שלו פג) — מוכרע לפי העמוד לפני ההצגה והספירה
+    await settleStaleConflictApplies(scope);
+    const filter = status ? { ...scope, status } : { ...scope };
 
     const [total, openCount, conflicts] = await Promise.all([
       OcrConflict.countDocuments(filter),
-      OcrConflict.countDocuments({ ...filter, status: 'open' }),
+      OcrConflict.countDocuments({ ...filter, status: { $in: PENDING_CONFLICT_STATUSES } }),
       OcrConflict.find(filter).sort({ pageNumber: 1, _id: 1 }).skip(offset).limit(limit).lean(),
     ]);
 

@@ -7,6 +7,7 @@ import { formatDateTime } from './ocrJobView'
 
 const STATUS = {
   open: { label: 'ממתינה להחלטה', tone: 'warning' },
+  applying: { label: 'אימוץ ה-OCR בתהליך', tone: 'info' },
   applied: { label: 'אומץ טקסט ה-OCR', tone: 'success' },
   dismissed: { label: 'נשמר הטקסט הקיים', tone: 'neutral' },
 }
