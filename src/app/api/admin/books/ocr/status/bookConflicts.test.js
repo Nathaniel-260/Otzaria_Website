@@ -57,6 +57,8 @@ beforeEach(async (ctx) => {
 async function status() {
   const res = await getStatus(new Request(`http://t.test/api/admin/books/ocr/status?bookId=${book._id}`))
   expect(res.status).toBe(200)
+  // נתוני ניהול תלויי-session (ונקראים ב-polling) — לעולם לא במטמון משותף
+  expect(res.headers.get('Cache-Control')).toBe('private, no-store')
   return res.json()
 }
 

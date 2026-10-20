@@ -203,7 +203,7 @@ export async function GET(request) {
       conflictsOpen,
       bookConflictsOpen,
       olderResultConflicts: pendingResultConflicts(olderJobs),
-    });
+    }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('OCR status error:', error);
     return serverError('Internal Server Error');
