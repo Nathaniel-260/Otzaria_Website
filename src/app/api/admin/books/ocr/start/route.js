@@ -11,7 +11,7 @@ import { runOcrJob } from '@/lib/ocr/runOcrJob';
 import { reapStaleOcrJobs } from '@/lib/ocr/staleJobs';
 import { activeFilter } from '@/lib/ocr/localJobState';
 import { readWorkerConfig } from '@/lib/ocr/workerAuth';
-import { createOrResumeLocalJob } from '@/lib/ocr/localJobCreate';
+import { closeAbandonedPreparation, createOrResumeLocalJob } from '@/lib/ocr/localJobCreate';
 import { normalizeLocalRequest } from '@/lib/ocr/localJobCreate.pure';
 import { badRequest, notFound, requireAccess, serverError } from '@/lib/apiResponse';
 
@@ -97,7 +97,11 @@ export async function POST(request) {
     }
 
     // מניעת שתי עבודות פעילות במקביל על אותו ספר (בכל הספקים, כולל local)
-    const existing = await OcrJob.findOne({ book: book._id, ...activeFilter() });
+    let existing = await OcrJob.findOne({ book: book._id, ...activeFilter() });
+    // הכנת local נטושה (נקטעה לפני queued) אינה חוסמת לעד — נסגרת כמו בבקשת local חדשה
+    if (existing && (await closeAbandonedPreparation(existing))) {
+      existing = await OcrJob.findOne({ book: book._id, ...activeFilter() });
+    }
     if (existing) {
       return NextResponse.json(
         { error: 'כבר רצה עבודת OCR על הספר הזה', jobId: existing._id.toString() },

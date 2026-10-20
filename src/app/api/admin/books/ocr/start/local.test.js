@@ -22,7 +22,7 @@ const env = await vi.hoisted(async () => {
 
 const { getServerSessionMock, buildCtl } = vi.hoisted(() => ({
   getServerSessionMock: vi.fn(),
-  buildCtl: { failNext: 0, calls: 0 },
+  buildCtl: { failNext: 0, calls: 0, hold: null },
 }))
 vi.mock('@/lib/db', () => ({ default: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('next-auth', () => ({ getServerSession: getServerSessionMock }))
@@ -38,6 +38,13 @@ vi.mock('@/lib/ocr/localPdf', async (importOriginal) => {
       if (buildCtl.failNext > 0) {
         buildCtl.failNext--
         throw Object.assign(new Error('simulated I/O failure'), { code: 'EIO' })
+      }
+      // עצירה לפני הבנייה — מדמה מחזיק lease איטי (התהליך עוד עובד אחרי שה-lease פג)
+      if (buildCtl.hold) {
+        const h = buildCtl.hold
+        buildCtl.hold = null
+        h.entered()
+        await h.release
       }
       return actual.buildJobInput(args)
     },
@@ -109,6 +116,7 @@ beforeEach(async (ctx) => {
   vi.clearAllMocks()
   buildCtl.failNext = 0
   buildCtl.calls = 0
+  buildCtl.hold = null
   process.env.OCR_WORKER_SECRET = SECRET
   process.env.OCR_WORKER_ID = 'worker-1'
   getServerSessionMock.mockResolvedValue(session)
@@ -362,5 +370,115 @@ describe('ולידציה, תצורה והרשאות', () => {
     getServerSessionMock.mockResolvedValueOnce({ user: { role: 'admin_ocr' } })
     expect((await start({ requestId: rid() })).res.status).toBe(403)
     expect(await OcrJob.countDocuments({})).toBe(0)
+  })
+})
+
+describe('QA שלב 4: מרוצים ומקרי קצה', () => {
+  const holdBuild = () => {
+    let entered
+    let release
+    const h = {
+      entered: null,
+      release: new Promise((r) => { release = r }),
+      wait: new Promise((r) => { entered = r }),
+    }
+    h.entered = entered
+    buildCtl.hold = h
+    return { wait: h.wait, release }
+  }
+  const inputFiles = async (jobId) => fs.readdir(path.join(env.storage, jobId)).catch(() => [])
+
+  it('lease פג בזמן שהמחזיק עוד עובד (אותו קלט) → עבודה queued אחת, הקובץ הזוכה נשאר ותואם ל-hash', async () => {
+    const requestId = rid()
+    const hold = holdBuild()
+    const slow = start({ requestId })
+    await hold.wait
+    const job = await OcrJob.findOne({ requestId }).lean()
+    // ה-lease של הבקשה האיטית פג — בקשה חוזרת לוקחת אותו ומסיימת
+    await OcrJob.updateOne({ _id: job._id }, { $set: { prepLeaseUntil: new Date(Date.now() - 1000) } })
+    const fast = await start({ requestId })
+    expect(fast.res.status).toBe(202)
+    hold.release()
+    const late = await slow
+    expect(late.res.status).toBe(202)
+    expect(late.body).toMatchObject({ jobId: String(job._id), status: 'queued' })
+    const done = await OcrJob.findById(job._id).lean()
+    expect(done.status).toBe('queued')
+    const buf = await fs.readFile(relToAbs(done.inputPath))
+    expect(sha(buf)).toBe(done.inputSha256)
+    expect((await inputFiles(String(job._id))).filter((f) => f.endsWith('.pdf'))).toHaveLength(1)
+  })
+
+  it('lease פג והקלט השתנה בינתיים → נשאר רק הקובץ של הזוכה, הקובץ של המפסיד נמחק', async () => {
+    const requestId = rid()
+    const hold = holdBuild()
+    const slow = start({ requestId })
+    await hold.wait
+    const job = await OcrJob.findOne({ requestId }).lean()
+    await OcrJob.updateOne({ _id: job._id }, { $set: { prepLeaseUntil: new Date(Date.now() - 1000) } })
+    const fast = await start({ requestId })
+    expect(fast.res.status).toBe(202)
+    // תמונה של עמוד השתנתה לפני שהבקשה האיטית בונה — ה-PDF שלה שונה
+    await fs.writeFile(path.join(env.uploads, 'books', book.slug, 'page.1.jpg'), await solid(90, 90, 200))
+    hold.release()
+    const late = await slow
+    expect(late.res.status).toBe(202)
+    const done = await OcrJob.findById(job._id).lean()
+    const files = (await inputFiles(String(job._id))).filter((f) => f.endsWith('.pdf'))
+    expect(files).toEqual([path.basename(done.inputPath)])
+    expect(sha(await fs.readFile(relToAbs(done.inputPath)))).toBe(done.inputSha256)
+  })
+
+  it('ביטול בזמן ההכנה → אין 202, העבודה לא עוברת ל-queued והקובץ נמחק', async () => {
+    const requestId = rid()
+    const hold = holdBuild()
+    const pending = start({ requestId })
+    await hold.wait
+    const job = await OcrJob.findOne({ requestId }).lean()
+    await OcrJob.updateOne(
+      { _id: job._id, status: 'preparing' },
+      { $set: { status: 'cancelled', active: false, cancelRequested: true, decision: 'cancel', prepLeaseUntil: null } }
+    )
+    hold.release()
+    const { res, body } = await pending
+    expect(res.status).toBe(409)
+    expect(body.code).toBe('cancelled')
+    const after = await OcrJob.findById(job._id).lean()
+    expect(after.status).toBe('cancelled')
+    expect(after.inputPath).toBeUndefined()
+    expect((await inputFiles(String(job._id))).filter((f) => f.endsWith('.pdf'))).toHaveLength(0)
+    // ניסיון חוזר באותו requestId — אותה תשובה, לא 202
+    expect((await start({ requestId })).res.status).toBe(409)
+  })
+
+  it('ספר לא קיים → 404 בלי ליצור רשומה; requestId ארוך מדי → 400', async () => {
+    const missing = await POST(post({ bookId: '507f1f77bcf86cd799439011', method: 'local', existingTextMode: 'overwrite', requestId: rid() }))
+    expect(missing.status).toBe(404)
+    expect((await start({ requestId: 'a'.repeat(65) })).res.status).toBe(400)
+    expect((await start({ requestId: { $gt: '' } })).res.status).toBe(400)
+    expect(await OcrJob.countDocuments({})).toBe(0)
+  })
+
+  it('אותו requestId עם options בסדר מפתחות אחר / ברירות מחדל מפורשות → אותה עבודה', async () => {
+    const requestId = rid()
+    const first = await start({ requestId })
+    expect(first.res.status).toBe(202)
+    const again = await start({ requestId, options: { defaultScript: 'square', lm: 'rabbinic' } })
+    expect(again.res.status).toBe(202)
+    expect(again.body.jobId).toBe(first.body.jobId)
+  })
+
+  it('הכנת local נטושה אינה חוסמת לעד את OCRWin', async () => {
+    buildCtl.failNext = 1
+    const stale = await start({ requestId: rid() })
+    expect(stale.res.status).toBe(500)
+    // עדיין לא נטושה — ocrwin נחסם כמו היום
+    const blocked = await POST(post({ bookId: String(book._id), method: 'ocrwin', existingTextMode: 'overwrite' }))
+    expect(blocked.status).toBe(409)
+    await OcrJob.updateOne({ _id: stale.body.jobId }, { $set: { prepLeaseUntil: new Date(Date.now() - 20 * 60_000) } })
+    const ocrwin = await POST(post({ bookId: String(book._id), method: 'ocrwin', existingTextMode: 'overwrite' }))
+    expect(ocrwin.status).toBe(200)
+    expect(runOcrJob).toHaveBeenCalledTimes(1)
+    expect(await OcrJob.findById(stale.body.jobId).lean()).toMatchObject({ status: 'failed', active: false, errorCode: 'prep_abandoned' })
   })
 })

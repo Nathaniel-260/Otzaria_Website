@@ -100,22 +100,8 @@ export async function createOrResumeLocalJob({ book, req, session, config, now =
       // בקשה מקבילה עם אותו requestId יצרה את העבודה בין שתי הקריאות — זו העבודה שלנו
       if (other.requestId === req.requestId) continue;
       if (!isAbandonedPreparation(other, now)) return ACTIVE_CONFLICT(other._id);
-      // הכנה נטושה (ה-lease פג לפני יותר מ-15 דקות) — סוגרים אותה ומפנים את הספר.
-      // מותנה ב-lease שנקרא: אם מישהו חידש אותו בינתיים, לא נוגעים (וה-create ייכשל ב-11000).
-      await OcrJob.updateOne(
-        { _id: other._id, status: 'preparing', prepLeaseUntil: other.prepLeaseUntil ?? null },
-        {
-          $set: {
-            status: 'failed',
-            active: false,
-            error: 'הכנת הקלט נקטעה',
-            errorCode: 'prep_abandoned',
-            finishedAt: now,
-            prepLeaseUntil: null,
-          },
-        },
-        DURABLE
-      );
+      // הכנה נטושה — סוגרים ומפנים את הספר (אם נכשל, ה-create ייכשל ב-11000 → 409)
+      await closeAbandonedPreparation(other, now);
     }
 
     const lease = new Date(now.getTime() + PREP_LEASE_MS);
@@ -157,6 +143,32 @@ export async function createOrResumeLocalJob({ book, req, session, config, now =
     status: 503,
     body: { error: 'השרת עמוס כרגע, נסו שוב בעוד רגע', code: 'busy' },
   };
+}
+
+/**
+ * סוגר הכנת local נטושה (ה-lease פג לפני יותר מ-15 דקות, החלטה פתוחה 14) ומשחרר את הספר —
+ * בכל בקשת start לספר, גם של gemini/ocrwin, כדי שהכנה שנקטעה לא תחסום את הספר לעד.
+ * מותנה ב-lease שנקרא: אם מישהו חידש אותו בינתיים, לא נוגעים. מחזיר true אם נסגרה.
+ * @param {{_id:any,method?:string,status?:string,prepLeaseUntil?:Date|null}} job
+ * @param {Date} [now]
+ */
+export async function closeAbandonedPreparation(job, now = new Date()) {
+  if (!isAbandonedPreparation(job, now)) return false;
+  const res = await OcrJob.updateOne(
+    { _id: job._id, status: 'preparing', prepLeaseUntil: job.prepLeaseUntil ?? null },
+    {
+      $set: {
+        status: 'failed',
+        active: false,
+        error: 'הכנת הקלט נקטעה',
+        errorCode: 'prep_abandoned',
+        finishedAt: now,
+        prepLeaseUntil: null,
+      },
+    },
+    DURABLE
+  );
+  return res.matchedCount > 0;
 }
 
 // סוגר עבודה בהכנה ככישלון קבוע (active:false משחרר את הספר). מחזיר true אם נסגרה.
