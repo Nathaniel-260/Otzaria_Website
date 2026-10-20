@@ -72,6 +72,9 @@ const OcrJobSchema = new mongoose.Schema({
 
   cancelRequested: { type: Boolean, default: false },
   error: { type: String, default: '' },             // שגיאה כללית שעצרה את כל העבודה
+  // קוד מכונה לשגיאה (local: כשל קבוע בהכנת הקלט, למשל missing_image / prep_abandoned) —
+  // ניסיון חוזר עם אותו requestId מחזיר את אותה תשובה בדיוק (localJobCreate)
+  errorCode: { type: String },
   pageErrors: [{ pageNumber: Number, message: String }], // שגיאות נקודתיות לעמודים
 
   startedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
