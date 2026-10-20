@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Assistant } from "next/font/google";
 import "./globals.css"; 
 import SessionProvider from "@/components/providers/SessionProvider";
 import ErrorBoundary from "@/components/providers/ErrorBoundary";
@@ -11,6 +10,7 @@ import { LoadingProvider } from '@/components/providers/LoadingContext'
 import { ICON_FONT_URL } from '@/lib/icon-font'
 import SkipLink from '@/components/layout/SkipLink'
 import { OS_DETECT_SCRIPT } from '@/lib/detectOs'
+import { SITE_URL } from '@/lib/seo'
 
 
 // Frank Ruehl CLM (Culmus, GPL-2 עם חריג לגופנים) — גופן הכותרות של הדפים הישנים (font-frank).
@@ -48,21 +48,28 @@ const vilna = localFont({
 });
 
 // Assistant — גופן הגוף והממשק בכל האתר (--font-sans / --font-hebrew ב-typography.css).
-// גופן משתנה (200–800) — קובץ אחד לכל המשקלים. next/font מוריד אותו בזמן ה-build ומגיש
-// אותו מהאתר עצמו (בלי בקשה ל-Google בזמן ריצה). Assistant נראה קטן מגופן המערכת באותו
+// גופן משתנה (200–800) — קובץ אחד לכל המשקלים, מקומי (fonts/Assistant-Variable.woff2, כ-26KB;
+// מקור, רישיון OFL ואופן היצירה — fonts/Assistant-README.md). עד עכשיו נטען דרך next/font/google,
+// שמוריד את הגופן בזמן ה-build — ולכן ה-build היה תלוי ברשת. הקובץ המקומי הוא ה-subset של
+// עברית + לטינית (אותם טווחי unicode ש-Google מגיש לשני ה-subsets האלה) באותו קובץ — בקשה
+// ו-preload אחד במקום שניים. Assistant נראה קטן מגופן המערכת באותו
 // גודל — הפיצוי ב---font-body-size-adjust (typography.css), לא בגדלים עצמם.
 //
 // display: "optional" ולא "swap": גופן הממשק קובע את רוחב כל הטקסט, וההחלפה מגופן הגיבוי
 // (Arial מותאם-מידות, שמותאם לאותיות לטיניות ולא לעבריות) הזיזה את כל קישורי הניווט בכותרת
 // בכ-20px בביקור הראשון (נמדד ב-CDP). עם optional: הגופן מוקדם (preload), וכמעט תמיד מגיע
 // לפני הציור הראשון; אם לא — העמוד הזה נשאר בגופן הגיבוי בלי להחליף באמצע, והבא כבר מהמטמון.
-const assistant = Assistant({
-  subsets: ["hebrew", "latin"],
+const assistant = localFont({
+  src: "./fonts/Assistant-Variable.woff2",
+  weight: "200 800",
   variable: "--font-assistant",
   display: "optional",
 });
 
 export const metadata: Metadata = {
+  // metadataBase: בסיס לכתובות יחסיות (canonical, Open Graph, תמונות שיתוף) — הדומיין הרשמי.
+  metadataBase: new URL(SITE_URL),
+  // בלי template: כותרות העמודים כוללות כבר את " | אוצריא" (בנוסח של master וב-pageMetadata ב-src/lib/seo.ts).
   title: "אוצריא",
   // ברירת מחדל לדפים שלא מגדירים תיאור משלהם
   description: "אוצריא – תוכנה חופשית לקריאה וללימוד ספרי קודש, עם ספרייה תורנית רחבה וחיפוש מהיר.",

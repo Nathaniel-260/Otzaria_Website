@@ -1,6 +1,9 @@
 /* ============================================================
- * effects.css — מחלקות עזר ויזואליות (זכוכית, פס גלילה, ריחוף)
- * כל אפקט מוגדר פעם אחת כאן ונשלט ממקום מרכזי.
+ * effects.css — מחלקות עזר ויזואליות
+ * שתי שכבות: utilities — זכוכית, קישוט כותרת, עוגן, פסי גלילה, הדגשת בדיקת איות;
+ * components — רכיבים עם מבנה משלהם: כפתור/אייקון התרומה, אייקון מותאם (.app-icon), מחוון הטעינה
+ * (.loader). ב-components, כך שמחלקת Tailwind על אותו אלמנט (text-sm, w-full, mt-*) גוברת
+ * עליהם בלי תלות בסדר הכתיבה — כמו nav.css ו-tooltip.css.
  * ============================================================ */
 
 @layer utilities {
@@ -16,12 +19,153 @@
     border: 1px solid var(--color-surface-variant);
   }
 
+  /* קישוט הכותרת של אוצריא (מסכי המתקין): קו דק בצבע outlineVariant ונקודת זהב במרכזו. */
+  /* רוחב יחסי לכותרת שמעליו (כמו בבלוק הכותרת של המתקין, שבו הקו נמתח כמעט לרוחב הטקסט):
+     ההורה הוא עטיפה ברוחב התוכן (w-fit) סביב הכותרת והקישוט, והקישוט תופס --ornament-ratio
+     מרוחבה, לא פחות מ---ornament-min. */
+  .title-ornament {
+    --ornament-ratio: 70%;
+    --ornament-min: 120px;
+    position: relative;
+    display: block;
+    width: max(var(--ornament-min), var(--ornament-ratio));
+    max-width: 100%;
+    height: 7px;
+    margin-inline: auto;
+  }
+
+  .title-ornament::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 3px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-outline-variant) 12%, var(--color-outline-variant) 88%, transparent);
+  }
+
+  .title-ornament::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: calc(50% - 3.5px);
+    width: 7px;
+    height: 7px;
+    border-radius: 9999px;
+    background-color: var(--color-glow);
+    box-shadow: 0 0 0 3px var(--ornament-bg, var(--color-background));
+  }
+
+  /* עוגן של אזור בדף הבית (#download מכפתור "הורד עכשיו" וכו'): הקפיצה נעצרת מתחת לכותרת
+     העליונה הדביקה ולא מאחוריה (המרווח עד הכותרת — הריפוד של האזור עצמו). בכוונה בלי גובה-מסך מלא לאזורים: במסך
+     גדול זה יצר ריק, והאזור הבא שמציץ מלמטה הוא רמז חשוב שיש עוד תוכן. */
+  .anchor-section {
+    scroll-margin-top: var(--site-header-height);
+  }
+
+  /* הסתרת פס גלילה */
+  .custom-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* פס גלילה דק לאזור גלילה פנימי (סרגל צד דביק, תוכן עניינים, טבלה או בלוק קוד רחבים):
+     ~6px, בלי חצים, מסילה שקופה, ואגודל מעוגל בצבע קו המתאר שמתכהה בריחוף.
+     Chromium/Safari — ::-webkit-scrollbar (שם scrollbar-color היה מבטל את העיצוב הזה, ולכן
+     התקני הוא רק לדפדפן בלי ::-webkit-scrollbar, כלומר Firefox). לא לפס הגלילה הראשי של הדף. */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track,
+  .scrollbar-thin::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: var(--radius-pill);
+  }
+
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    .scrollbar-thin {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
+
+    .scrollbar-thin:hover {
+      scrollbar-color: var(--scrollbar-thumb-hover) transparent;
+    }
+  }
+
+  /* פס גלילה שמופיע רק כשצריך אותו: בריחוף, בפוקוס מקלדת בתוך האזור (:focus-visible — לא אחרי
+     לחיצת עכבר על קישור), או בזמן גלילה
+     ([data-scrolling], ראו docs/DocsSidebar). בשאר הזמן האגודל שקוף — כמו בממשקים מודרניים.
+     (עם scrollbar-thin; ב-Firefox — scrollbar-color שקוף.) */
+  .scrollbar-autohide::-webkit-scrollbar-thumb {
+    background-color: transparent;
+  }
+
+  .scrollbar-autohide:hover::-webkit-scrollbar-thumb,
+  .scrollbar-autohide:has(:focus-visible)::-webkit-scrollbar-thumb,
+  .scrollbar-autohide[data-scrolling]::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+  }
+
+  .scrollbar-autohide::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    .scrollbar-autohide {
+      scrollbar-color: transparent transparent;
+    }
+
+    .scrollbar-autohide:hover,
+    .scrollbar-autohide:has(:focus-visible),
+    .scrollbar-autohide[data-scrolling] {
+      scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
+  }
+
+  /* פס הגלילה בקצה החיצוני (ימין) של סרגל בצד ימין של עמוד RTL — לא בין הסרגל לתוכן.
+     המכל LTR (שם הדפדפן מצייר את הפס מימין), והתוכן שבתוכו חוזר ל-RTL. */
+  .scrollbar-end-right {
+    direction: ltr;
+  }
+
+  .scrollbar-end-right > * {
+    direction: rtl;
+  }
+
+  .spellcheck-highlight {
+    background-color: var(--color-warning-200);
+    border-radius: 3px;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-warning-400) 35%, transparent);
+    padding: 0 1px;
+  }
+}
+
+@layer components {
   /* ============================================================
    * כפתור התרומה — משותף לכותרת העליונה (.donation-nav-link) ולאזור הסיום של דף הבית
    * (.donation-button-lg). טונלי ולא מלא: רקע חלוד-בהיר, מסגרת דקה וטקסט חלוד
    * (--color-donation-container* ב-colors.css) — פריט מיוחד אחד שבולט בצבעו, בלי להיות
-   * "גוש" כבד שמתחרה ב"הורידו בחינם". הלב "פועם" פעימה כפולה עדינה כל כמה שניות, ובריחוף
-   * הכפתור מתמלא קלות והלב מתרומם. reduced-motion — בלי פעימה ובלי תנועה.
+   * "גוש" כבד שמתחרה ב"הורידו בחינם". הלב "פועם" פעימה כפולה עדינה (פעם אחת בטעינה, ובריחוף
+   * ובפוקוס מקלדת — כל עוד המשתמש שם), ובריחוף הכפתור מתמלא קלות והלב מתרומם. reduced-motion —
+   * בלי פעימה ובלי תנועה.
    * מטרת מגע 44px ומעלה (בכותרת — דרך ::before, ראו .donation-nav-link).
    * ============================================================ */
   .donation-button {
@@ -66,7 +210,7 @@
   }
 
   .app-icon-donate {
-    --app-icon-src: url('/icons/donate-mask.png');
+    --app-icon-src: url('/icons/donate-mask.v2.png');
   }
 
   .donation-button-icon {
@@ -81,16 +225,18 @@
     transition: translate var(--default-transition-duration) var(--ease-out);
   }
 
-  /* ---- אנימציית ההמתנה של הלב — מבודדת כאן (מחלקה אחת + keyframes אחד), להחלפה בקלות.
-     פעימה כפולה ("לב") בתחילת המחזור, ואחריה מנוחה ארוכה — תנועה חיה ולא מטרידה. ---- */
-  .donation-button-icon {
+  /* ---- אנימציית ההמתנה של הלב (אייקון גליף) — מבודדת כאן (מחלקה אחת + keyframes אחד), להחלפה
+     בקלות. פעימה כפולה ("לב") בתחילת המחזור, ואחריה מנוחה.
+     WCAG 2.2.2 (תנועה אוטומטית מעל 5 שניות): מחזור אחד בלבד בטעינה (4.8s), ואינסופי רק כל עוד
+     המשתמש מרחף/מפוקס על הכפתור — כלומר יש לו שליטה. האייקון המונפש (DonateAnimatedIcon)
+     נושא אנימציה משלו, ולכן הפעימה לא חלה עליו (:not). ---- */
+  .donation-button-icon:not(.donation-animated-icon) {
     transform-origin: 50% 60%;
-    animation: donation-heartbeat var(--donation-beat-duration, 4.8s) var(--ease-in-out) infinite;
+    animation: donation-heartbeat var(--donation-beat-duration, 4.8s) var(--ease-in-out) 1;
   }
 
-  /* האייקון המונפש (DonateAnimatedIcon) נושא אנימציה משלו — בלי פעימת ההמתנה מעליו */
-  .donation-button-icon.donation-animated-icon {
-    animation: none;
+  .donation-button:is(:hover, :focus-visible) .donation-button-icon:not(.donation-animated-icon) {
+    animation-iteration-count: infinite;
   }
 
   /* ---- DonateAnimatedIcon — מטבעות לקופה שנפתחת לספר (CSS טהור, transform/opacity בלבד).
@@ -99,13 +245,29 @@
      והקופה נפתחת לספר (50–75%), מנוחה על הספר, ואיפוס מהיר (94–95%). ---- */
   .donate-anim {
     --donate-anim-duration: 4.2s;
-    animation: donate-anim-fade var(--donate-anim-duration) linear infinite;
+    /* ברירת מחדל: אינסופי (למשל אייקון הרמז, שרץ רק בזמן שהרמז גלוי — ראו tooltip.css).
+       האייקון בכפתור/בהערת הנייד/בבלוק התרומה (.donation-animated-icon) מגדיר מחזור חלקי —
+       ראו שם. */
+    --donate-anim-iterations: infinite;
+    --donate-anim-fill: none;
+    animation: donate-anim-fade var(--donate-anim-duration) linear var(--donate-anim-iterations);
+    animation-fill-mode: var(--donate-anim-fill);
+  }
+
+  /* האייקון המונפש הקבוע בדף (כפתור הכותרת, הערת התפריט הנייד, בלוק התרומה בדף הבית): WCAG 2.2.2 —
+     אנימציה שמתחילה לבד ונמשכת מעל 5 שניות חייבת מנגנון עצירה, ולכן היא לא אינסופית.
+     0.9 מחזורים = 3.78s: נעצרת בנקודת 90% — הספר הפתוח (מנוחה 75–94%, כל המטבעות כבר נעלמו,
+     הקופה חתוכה) — ונשארת שם (fill-mode: forwards). זה גם המצב הסטטי שב-reduced-motion. */
+  .donation-animated-icon {
+    --donate-anim-iterations: 0.9;
+    --donate-anim-fill: forwards;
   }
 
   .donate-anim :is(.donate-anim-reveal-box, .donate-anim-reveal-book, .donate-anim-fill, .donate-anim-coin) {
     transform-box: view-box;
     animation-duration: var(--donate-anim-duration);
-    animation-iteration-count: infinite;
+    animation-iteration-count: var(--donate-anim-iterations);
+    animation-fill-mode: var(--donate-anim-fill);
   }
 
   .donate-anim-reveal-box {
@@ -304,42 +466,6 @@
 
   }
 
-  /* קישוט הכותרת של אוצריא (מסכי המתקין): קו דק בצבע outlineVariant ונקודת זהב במרכזו. */
-  /* רוחב יחסי לכותרת שמעליו (כמו בבלוק הכותרת של המתקין, שבו הקו נמתח כמעט לרוחב הטקסט):
-     ההורה הוא עטיפה ברוחב התוכן (w-fit) סביב הכותרת והקישוט, והקישוט תופס --ornament-ratio
-     מרוחבה, לא פחות מ---ornament-min. */
-  .title-ornament {
-    --ornament-ratio: 70%;
-    --ornament-min: 120px;
-    position: relative;
-    display: block;
-    width: max(var(--ornament-min), var(--ornament-ratio));
-    max-width: 100%;
-    height: 7px;
-    margin-inline: auto;
-  }
-
-  .title-ornament::before {
-    content: '';
-    position: absolute;
-    inset-inline: 0;
-    top: 3px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--color-outline-variant) 12%, var(--color-outline-variant) 88%, transparent);
-  }
-
-  .title-ornament::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: calc(50% - 3.5px);
-    width: 7px;
-    height: 7px;
-    border-radius: 9999px;
-    background-color: var(--color-glow);
-    box-shadow: 0 0 0 3px var(--ornament-bg, var(--color-background));
-  }
-
   /* ============================================================
    * מחוון הטעינה (ui/Loader) — "שלוש נקודות עיטור": שלושה יהלומים נושמים בגל מימין לשמאל.
    * מחזור 1500ms; כל יהלום מגיע לשיא ב-30% מהמחזור שלו, וההשהיות (0 / -1300 / -1100ms)
@@ -401,117 +527,5 @@
       transform: none;
       opacity: 1;
     }
-  }
-
-  /* עוגן של אזור בדף הבית (#download מכפתור "הורד עכשיו" וכו'): הקפיצה נעצרת מתחת לכותרת
-     העליונה הדביקה ולא מאחוריה (המרווח עד הכותרת — הריפוד של האזור עצמו). בכוונה בלי גובה-מסך מלא לאזורים: במסך
-     גדול זה יצר ריק, והאזור הבא שמציץ מלמטה הוא רמז חשוב שיש עוד תוכן. */
-  .anchor-section {
-    scroll-margin-top: var(--site-header-height);
-  }
-
-  /* הסתרת פס גלילה */
-  .custom-scrollbar {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* פס גלילה דק לאזור גלילה פנימי (סרגל צד דביק, תוכן עניינים, טבלה או בלוק קוד רחבים):
-     ~6px, בלי חצים, מסילה שקופה, ואגודל מעוגל בצבע קו המתאר שמתכהה בריחוף.
-     Chromium/Safari — ::-webkit-scrollbar (שם scrollbar-color היה מבטל את העיצוב הזה, ולכן
-     התקני הוא רק לדפדפן בלי ::-webkit-scrollbar, כלומר Firefox). לא לפס הגלילה הראשי של הדף. */
-  .scrollbar-thin::-webkit-scrollbar {
-    width: var(--scrollbar-size);
-    height: var(--scrollbar-size);
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-track,
-  .scrollbar-thin::-webkit-scrollbar-corner {
-    background: transparent;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-button {
-    display: none;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: var(--scrollbar-thumb);
-    border-radius: var(--radius-pill);
-  }
-
-  .scrollbar-thin:hover::-webkit-scrollbar-thumb {
-    background-color: var(--scrollbar-thumb-hover);
-  }
-
-  @supports not selector(::-webkit-scrollbar) {
-    .scrollbar-thin {
-      scrollbar-width: thin;
-      scrollbar-color: var(--scrollbar-thumb) transparent;
-    }
-
-    .scrollbar-thin:hover {
-      scrollbar-color: var(--scrollbar-thumb-hover) transparent;
-    }
-  }
-
-  /* פס גלילה שמופיע רק כשצריך אותו: בריחוף, בפוקוס מקלדת בתוך האזור (:focus-visible — לא אחרי
-     לחיצת עכבר על קישור), או בזמן גלילה
-     ([data-scrolling], ראו docs/DocsSidebar). בשאר הזמן האגודל שקוף — כמו בממשקים מודרניים.
-     (עם scrollbar-thin; ב-Firefox — scrollbar-color שקוף.) */
-  .scrollbar-autohide::-webkit-scrollbar-thumb {
-    background-color: transparent;
-  }
-
-  .scrollbar-autohide:hover::-webkit-scrollbar-thumb,
-  .scrollbar-autohide:has(:focus-visible)::-webkit-scrollbar-thumb,
-  .scrollbar-autohide[data-scrolling]::-webkit-scrollbar-thumb {
-    background-color: var(--scrollbar-thumb);
-  }
-
-  .scrollbar-autohide::-webkit-scrollbar-thumb:hover {
-    background-color: var(--scrollbar-thumb-hover);
-  }
-
-  @supports not selector(::-webkit-scrollbar) {
-    .scrollbar-autohide {
-      scrollbar-color: transparent transparent;
-    }
-
-    .scrollbar-autohide:hover,
-    .scrollbar-autohide:has(:focus-visible),
-    .scrollbar-autohide[data-scrolling] {
-      scrollbar-color: var(--scrollbar-thumb) transparent;
-    }
-  }
-
-  /* פס הגלילה בקצה החיצוני (ימין) של סרגל בצד ימין של עמוד RTL — לא בין הסרגל לתוכן.
-     המכל LTR (שם הדפדפן מצייר את הפס מימין), והתוכן שבתוכו חוזר ל-RTL. */
-  .scrollbar-end-right {
-    direction: ltr;
-  }
-
-  .scrollbar-end-right > * {
-    direction: rtl;
-  }
-
-  .spellcheck-highlight {
-    background-color: #fde68a;
-    border-radius: 3px;
-    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
-    padding: 0 1px;
-  }
-
-  /* אפקטים נוספים */
-  .hover-lift {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .hover-lift:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   }
 }

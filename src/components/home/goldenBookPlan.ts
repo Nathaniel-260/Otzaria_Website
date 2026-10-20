@@ -1,7 +1,9 @@
 // הספר המוזהב בגיבור (GoldenBook) — ההחלטה אם לנגן את פתיחת הספר, ועד מתי מחכים לרצועה,
 // כלוגיקה טהורה.
 //
-// הרצועה (24 פריימים, ~300KB) היא הנכס הכבד בדף, ולכן מנגנים אותה רק כשזה הגיוני:
+import { SPRITE_AVIF_SRC, SPRITE_WEBP_SRC } from './goldenBookAssets'
+
+// הרצועה (12 פריימים, ~80KB ב-AVIF, ~146KB ב-WebP) היא הנכס הכבד בדף, ולכן מנגנים אותה רק כשזה הגיוני:
 // - prefers-reduced-motion — אין תנועה. גם לא מורידים אותה: ה-preload שב-HTML מסונן ב-media
 //   (SPRITE_PRELOAD_MEDIA);
 // - חיסכון בנתונים (navigator.connection.saveData) — ספר פתוח סטטי. את ההורדה עצמה אי אפשר
@@ -44,6 +46,41 @@ export function planBookOpening({ reducedMotion = false, saveData = false, hydra
 /** המועד (בשעון performance.now) שאחריו כבר לא מתחילים לנגן: OPEN_WAIT_MS מרגע ה-hydration */
 export function openingDeadline(hydratedAt: number, waitMs = OPEN_WAIT_MS): number {
   return hydratedAt + waitMs
+}
+
+// תמונת AVIF בגודל 2×2 — בדיקת יכולת פענוח (decode) אמיתית, לא ניחוש לפי user-agent
+const AVIF_PROBE =
+  'data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADybWV0YQAAAAAAAAAoaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAGxpYmF2aWYAAAAADnBpdG0AAAAAAAEAAAAeaWxvYwAAAABEAAABAAEAAAABAAABGgAAAB0AAAAoaWluZgAAAAAAAQAAABppbmZlAgAAAAABAABhdjAxQ29sb3IAAAAAamlwcnAAAABLaXBjbwAAABRpc3BlAAAAAAAAAAIAAAACAAAAEHBpeGkAAAAAAwgICAAAAAxhdjFDgQAMAAAAABNjb2xybmNseAACAAIAAYAAAAAXaXBtYQAAAAAAAAABAAEEAQKDBAAAACVtZGF0EgAKCBgANogQEAwgMg8f8D///8WfhwB8+ErK42A='
+
+let spriteSrcPromise: Promise<string> | undefined
+
+/** לטסטים: מאפס את תוצאת הבחירה השמורה */
+export function resetSpriteSrcCache() {
+  spriteSrcPromise = undefined
+}
+
+/**
+ * איזו רצועה לטעון ולפענח: AVIF אם הדפדפן מפענח אותו, אחרת WebP.
+ *
+ * הבחירה נעשית ב-JS ולא ב-CSS (image-set + type()), כך שאותו קובץ משמש גם לפענוח המוקדם וגם
+ * ל-background-image (inline, ב-GoldenBook) — בלי הורדה כפולה, ובלי תלות בתמיכה של הדפדפן ב-
+ * image-set עם type() (Chrome<113 היה מציג רקע ריק). הבדיקה היא פענוח אמיתי של AVIF קטן.
+ * ה-preload ב-HTML הוא של ה-AVIF בלבד (type=image/avif) — דפדפן בלי AVIF מדלג עליו ולא מוריד
+ * כלום מראש, ואז הרצועה (WebP) יורדת רק אחרי ה-hydration ולרוב לא מספיקה ל-OPEN_WAIT_MS: הספר
+ * הפתוח מוצג בלי אנימציה (מסלול הגיבוי הרגיל).
+ */
+export function chooseSpriteSrc(): Promise<string> {
+  spriteSrcPromise ??= (async () => {
+    try {
+      const probe = new Image()
+      probe.src = AVIF_PROBE
+      await probe.decode()
+      return SPRITE_AVIF_SRC
+    } catch {
+      return SPRITE_WEBP_SRC
+    }
+  })()
+  return spriteSrcPromise
 }
 
 /** saveData מ-Network Information API (Chromium בלבד; בשאר הדפדפנים — false) */

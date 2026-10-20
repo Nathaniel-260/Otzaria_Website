@@ -3,15 +3,16 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { preload } from 'react-dom'
 import { prefersReducedMotion } from '@/lib/reducedMotion'
-import { openingDeadline, planBookOpening, readSaveData, SPRITE_PRELOAD_MEDIA } from './goldenBookPlan'
+import { chooseSpriteSrc, openingDeadline, planBookOpening, readSaveData, SPRITE_PRELOAD_MEDIA } from './goldenBookPlan'
+import { BOOK_SIZES, CLOSED_SRC, CLOSED_SRCSET, OPEN_SRC, OPEN_SRCSET, SPRITE_AVIF_SRC } from './goldenBookAssets'
 
 // הספר המוזהב של אוצריא נפתח בתוך הילה חמה — גיבור דף הבית (מהמתקין: GLOW #E9B96A
-// ו-24 פריימי הפתיחה של download-assistant).
+// ו-24 פריימי הפתיחה של download-assistant, מהם נשארו 12 — כל פריים שני — להקטנת ההורדה והזיכרון).
 //
 // רצף התצוגה:
-// 1. ה-HTML מהשרת מכיל את הפריים הראשון — הספר הסגור (golden-book-closed.webp, ~20KB, תמונת
+// 1. ה-HTML מהשרת מכיל את הפריים הראשון — הספר הסגור (golden-book-closed.v2-*.webp, ~10–20KB, תמונת
 //    ה-LCP) — כך שהפתיחה מתחילה ממנו ואין "פתוח → נסגר → נפתח".
-// 2. באותו HTML יש preload לרצועה (~300KB) ולספר הפתוח (~36KB), שניהם ב-fetchPriority נמוך —
+// 2. באותו HTML יש preload לרצועה (AVIF, ~80KB) ולספר הפתוח (~17–36KB), שניהם ב-fetchPriority נמוך —
 //    כך שהם יורדים במקביל ל-JS ולא מתחרים ב-LCP ובגופנים. ה-preload של הרצועה מסונן ב-media
 //    (SPRITE_PRELOAD_MEDIA): עם prefers-reduced-motion הדפדפן לא מוריד אותה בכלל. הספר הפתוח
 //    מוצג בסוף בכל המסלולים, כך שהורדתו אינה בזבוז; ברשת איטית הוא כבר מוכן כשמוותרים על
@@ -20,10 +21,10 @@ import { openingDeadline, planBookOpening, readSaveData, SPRITE_PRELOAD_MEDIA } 
 // 3. אחרי ה-hydration מחליטים אם לנגן (planBookOpening): עם prefers-reduced-motion, חיסכון
 //    בנתונים, או כשהרכיב עלה בניווט צד-לקוח ולא ב-hydration — עוברים לספר הפתוח.
 // 4. אחרת מחכים לפענוח הרצועה (new Image, שמשתמש בהורדה של ה-preload). אם היא מוכנה עד
-//    OPEN_WAIT_MS מרגע ה-hydration — מנגנים פעם אחת (1 שנייה, 24fps). אם לא (רשת או מכשיר
+//    OPEN_WAIT_MS מרגע ה-hydration — מנגנים פעם אחת (1 שנייה, 12fps). אם לא (רשת או מכשיר
 //    איטיים), או שהטעינה נכשלה — מציגים את הספר הפתוח בלי אנימציה, כדי שאף אחד לא יעמוד מול
 //    ספר סגור.
-// 5. בסוף הרצועה עוברים לתמונת הספר הפתוח (golden-book.webp, 560px — חדה יותר מפריים
+// 5. בסוף הרצועה עוברים לתמונת הספר הפתוח (golden-book.v2-*.webp, 560px — חדה יותר מפריים
 //    הרצועה, 360px), אחרי פענוח, כך שאין הבהוב.
 //
 // onOpened — נקרא פעם אחת כשהספר פתוח (סוף הרצועה, או במסלולי הגיבוי), כדי שמה שבא אחריו
@@ -33,10 +34,9 @@ import { openingDeadline, planBookOpening, readSaveData, SPRITE_PRELOAD_MEDIA } 
 // מתנגנת והספר עובר ישר לפתוח — בכוונה: מי שחוזר לדף כבר ראה אותה. גם ה-preload נקרא רק
 // ברינדור השרת, כדי שניווט כזה לא יוריד רצועה שלא תנוגן.
 
-// הנתיב היחיד של הרצועה — גם ל-background-image (style), ולא כפול ב-animations.css
-const SPRITE_SRC = '/home/golden-book-sprite.webp'
-const CLOSED_SRC = '/home/golden-book-closed.webp'
-const OPEN_SRC = '/home/golden-book.webp'
+// הנתיבים ב-goldenBookAssets.ts. chooseSpriteSrc בוחר את הרצועה (AVIF, או WebP בדפדפן בלי AVIF),
+// והיא משמשת גם לפענוח המוקדם וגם ל-background-image (inline style) — אותו קובץ, בלי הורדה כפולה.
+// גודל הפריים, מספר הפריימים והאנימציה — ב-animations.css (.golden-book-sprite).
 
 type Phase = 'closed' | 'opening' | 'open'
 
@@ -53,9 +53,18 @@ function useMountedByHydration() {
 }
 
 /** טוען ומפענח תמונה; מתממש תמיד — true אם היא מוכנה, false בכשל */
-function loadImage(src: string, { lowPriority = false } = {}): Promise<boolean> {
+function loadImage(src: string, { lowPriority = false, srcSet, sizes }: {
+  lowPriority?: boolean
+  srcSet?: string
+  sizes?: string
+} = {}): Promise<boolean> {
   const img = new Image()
   if (lowPriority) img.fetchPriority = 'low'
+  // sizes/srcset לפני src — הדפדפן בוחר אז את אותו מועמד ש-<img> בדף יבחר (ושה-preload ביקש)
+  if (srcSet) {
+    if (sizes) img.sizes = sizes
+    img.srcset = srcSet
+  }
   img.src = src
   return img.decode().then(() => true, () => false)
 }
@@ -67,11 +76,13 @@ export default function GoldenBook({ className = '', onOpened }: {
   // רק ברינדור השרת: ה-<link> נכנס ל-<head> של ה-HTML הראשון. בדפדפן הוא כבר שם (טעינת דף),
   // ובניווט צד-לקוח אין צורך בו (לא מנגנים). הספר הפתוח קודם — הוא קטן ונחוץ בכל מסלול.
   if (typeof window === 'undefined') {
-    preload(OPEN_SRC, { as: 'image', fetchPriority: 'low' })
-    preload(SPRITE_SRC, { as: 'image', fetchPriority: 'low', media: SPRITE_PRELOAD_MEDIA })
+    preload(OPEN_SRC, { as: 'image', fetchPriority: 'low', imageSrcSet: OPEN_SRCSET, imageSizes: BOOK_SIZES })
+    // type: דפדפן בלי AVIF מדלג על ה-preload (ויורד ל-WebP רק אם יצליח לנגן בזמן, ראו chooseSpriteSrc)
+    preload(SPRITE_AVIF_SRC, { as: 'image', type: 'image/avif', fetchPriority: 'low', media: SPRITE_PRELOAD_MEDIA })
   }
   const hydrated = useMountedByHydration()
   const [phase, setPhase] = useState<Phase>('closed')
+  const [spriteSrc, setSpriteSrc] = useState<string | null>(null)
   const onOpenedRef = useRef(onOpened)
   const openedFired = useRef(false)
   const openReady = useRef<Promise<boolean> | null>(null)
@@ -88,7 +99,7 @@ export default function GoldenBook({ className = '', onOpened }: {
   }, [])
   // הספר הפתוח — נטען פעם אחת, רק כשבאמת עומדים להציג אותו
   const loadOpen = useCallback((lowPriority = false) => {
-    openReady.current ??= loadImage(OPEN_SRC, { lowPriority })
+    openReady.current ??= loadImage(OPEN_SRC, { lowPriority, srcSet: OPEN_SRCSET, sizes: BOOK_SIZES })
     return openReady.current
   }, [])
   // אם התמונה הפתוחה לא נטענה — לא מחליפים לתמונה שבורה: נשארים על מה שמוצג (הספר הסגור,
@@ -115,13 +126,18 @@ export default function GoldenBook({ className = '', onOpened }: {
     // אם הרצועה לא מוכנה עד המועד (OPEN_WAIT_MS מעכשיו — רגע ה-hydration) — לא מחכים לה
     const until = openingDeadline(performance.now())
     const deadline = window.setTimeout(() => { if (!cancelled) showOpen() }, until - performance.now())
-    const sprite = new Image()
-    sprite.src = SPRITE_SRC
-    // decode() מבטיח שאין הבהוב של אלמנט ריק בזמן ההחלפה
-    sprite.decode()
-      .then(() => {
+    // בחירת הפורמט (AVIF/WebP) לוקחת כמה אלפיות שנייה; ה-preload ב-HTML כבר מוריד את ה-AVIF
+    chooseSpriteSrc()
+      .then((src) => {
+        const sprite = new Image()
+        sprite.src = src
+        // decode() מבטיח שאין הבהוב של אלמנט ריק בזמן ההחלפה
+        return sprite.decode().then(() => src)
+      })
+      .then((src) => {
         if (cancelled || performance.now() > until) return
         window.clearTimeout(deadline)
+        setSpriteSrc(src)
         setPhase('opening')
         // התמונה הסופית — ברקע, בזמן שהרצועה מתנגנת
         loadOpen(true)
@@ -159,17 +175,19 @@ export default function GoldenBook({ className = '', onOpened }: {
         {/* opacity-0 ולא invisible בזמן הניגון: התמונה (וה-alt שלה) נשארת בעץ הנגישות */}
         <img
           src={phase === 'open' ? OPEN_SRC : CLOSED_SRC}
+          srcSet={phase === 'open' ? OPEN_SRCSET : CLOSED_SRCSET}
+          sizes={BOOK_SIZES}
           alt="לוגו אוצריא"
           width={560}
           height={560}
           fetchPriority="high"
           className={`size-full ${phase === 'opening' ? 'opacity-0' : ''}`}
         />
-        {phase === 'opening' && (
+        {phase === 'opening' && spriteSrc && (
           <span
             aria-hidden="true"
             className="golden-book-sprite absolute inset-0"
-            style={{ backgroundImage: `url('${SPRITE_SRC}')` }}
+            style={{ backgroundImage: `url('${spriteSrc}')` }}
             onAnimationEnd={onSpriteEnd}
           />
         )}

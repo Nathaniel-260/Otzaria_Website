@@ -17,7 +17,7 @@
 /* --font-frank: גופן הכותרות של הדפים הישנים (Frank Ruehl CLM, ‏500 ו-700). לא inline: --font-frank-ruehl
    מוגדר על <html>, ולכן הטוקן תקף כבר ב-:root — וכך גם var(--font-frank) ישיר עובד (בורר הגופן
    של עורך הגהת העמודים). עד QA-10 המשתנה היה על <body>, הטוקן נפסל ב-:root, ו-font-frank הציג Assistant.
-   גופן הגוף והממשק: Assistant (next/font/google ב-layout.tsx; --font-assistant מוגדר על <html>).
+   גופן הגוף והממשק: Assistant (next/font/local ב-layout.tsx, fonts/Assistant-Variable.woff2; --font-assistant מוגדר על <html>).
    --font-sans ו---font-hebrew זהים בכוונה — שני השמות בשימוש באתר (body, font-sans, נפילת
    הלטינית של font-display). גופני המערכת נשארים כנפילה בלבד. */
 @theme {

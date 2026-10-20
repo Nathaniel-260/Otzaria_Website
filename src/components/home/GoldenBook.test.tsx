@@ -4,10 +4,11 @@ import { renderToString } from 'react-dom/server'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import GoldenBook from './GoldenBook'
 import { OPEN_WAIT_MS } from './goldenBookPlan'
+import { CLOSED_SRC, OPEN_SRC, SPRITE_AVIF_SRC } from './goldenBookAssets'
 
-const SPRITE = '/home/golden-book-sprite.webp'
-const OPEN = '/home/golden-book.webp'
-const CLOSED = '/home/golden-book-closed.webp'
+const SPRITE = SPRITE_AVIF_SRC
+const OPEN = OPEN_SRC
+const CLOSED = CLOSED_SRC
 
 // Image מדומה: decode() מצליח או נכשל לפי הנתיב, או ממתין (deferred) עד שהטסט משחרר אותו
 let loaded: string[] = []
@@ -17,6 +18,8 @@ let pending = new Set<string>()
 class FakeImage {
   src = ''
   fetchPriority = ''
+  srcset = ''
+  sizes = ''
   decode() {
     loaded.push(this.src)
     if (failing.has(this.src)) return Promise.reject(new Error('fail'))
@@ -86,6 +89,8 @@ describe('GoldenBook', () => {
     expect(sprite).not.toBeNull()
     expect(book()).toHaveClass('opacity-0')
     expect(book()).not.toHaveClass('invisible')
+    // אותו קובץ (AVIF) לפענוח המוקדם ול-background-image
+    expect(loaded).toContain(SPRITE)
     expect(sprite.style.backgroundImage).toContain(SPRITE)
     // jsdom בלי AnimationEvent — React מאזין אז לשם עם הקידומת; שולחים את שניהם
     fireEvent.animationEnd(sprite)

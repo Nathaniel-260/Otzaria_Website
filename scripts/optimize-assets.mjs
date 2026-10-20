@@ -9,11 +9,18 @@
  *
  * המקורות (assets/) אינם מוגשים לדפדפן. הפלטים (public/) נשמרים ב-Git.
  *
+ * נכסי דף הבית (public/home): נוצרים מהמקורות ב-assets/home/ (ראו buildHomeAssets למטה).
+ * הקבצים ב-public/home וב-public/icons מוגשים כ-immutable לשנה (next.config.ts), ולכן שמם
+ * חייב לכלול גרסה (.vN) — שינוי תוכן = העלאת HOME_ASSET_VERSION והסרת הקבצים הישנים
+ * (ועדכון ההפניות ב-GoldenBook.tsx/animations.css). scripts/check-perf-budget.mjs נכשל
+ * אם קובץ בתיקיות האלה בלי גרסה בשמו.
+ *
  * שימוש:
- *   node scripts/optimize-assets.mjs      # או: npm run build:assets
+ *   node scripts/optimize-assets.mjs         # הכל (או: npm run build:assets)
+ *   node scripts/optimize-assets.mjs --home  # רק נכסי דף הבית
  */
 
-import { readFile, writeFile } from 'node:fs/promises'
+import { copyFile, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
@@ -41,7 +48,63 @@ async function emit(target, buffer) {
   report.push(`${path.relative(ROOT, target)} — ${(buffer.length / 1024).toFixed(1)}KB`)
 }
 
+// ---- דף הבית ----
+const HOME_ASSET_VERSION = 'v2'
+// הרצועה המקורית: 24 פריימים של 360px (8640×360). הגרסה הקלה: 12 פריימים — נבחרים בפיזור
+// אחיד כך שהראשון והאחרון נשמרים (0,2,4,6,8,10,13,15,17,19,21,23), ולכן האנימציה
+// (steps(11), שנייה אחת, 12fps) מתחילה ונגמרת בדיוק באותם פריימים כמו המקורית.
+// animations.css (background-size 1200%, steps(11)) חייב להתאים ל-SPRITE_FRAMES.
+const SPRITE_FRAME_SIZE = 360
+const SPRITE_SOURCE_FRAMES = 24
+const SPRITE_FRAMES = 12
+// רוחב הספר המוצג: 144–320px ב-CSS; 320w ל-DPR1, 560w (המקור) ל-DPR2 ולמסכים גדולים.
+const BOOK_SRCSET_WIDTHS = [320, 560]
+
+function spriteFrameIndices(frames = SPRITE_FRAMES, sourceFrames = SPRITE_SOURCE_FRAMES) {
+  return Array.from({ length: frames }, (_, i) => Math.round((i * (sourceFrames - 1)) / (frames - 1)))
+}
+
+async function buildHomeAssets() {
+  const HOME = path.join(PUBLIC, 'home')
+  const sourceDir = path.join(ASSETS, 'home')
+  const v = HOME_ASSET_VERSION
+
+  // תמונות הספר (הסגור — LCP, והפתוח): WebP ברוחבי srcset. 560 הוא המקור עצמו (בלי קידוד חוזר).
+  for (const name of ['golden-book-closed', 'golden-book']) {
+    const master = path.join(sourceDir, `${name}.master.webp`)
+    for (const width of BOOK_SRCSET_WIDTHS) {
+      const target = path.join(HOME, `${name}.${v}-${width}.webp`)
+      if (width === 560) {
+        await copyFile(master, target)
+        report.push(`${path.relative(ROOT, target)} — ${((await readFile(target)).length / 1024).toFixed(1)}KB (עותק המקור)`)
+      } else {
+        await emit(target, await sharp(master).resize(width, width, { kernel: 'lanczos3' }).webp({ quality: 88, effort: 6, alphaQuality: 95 }).toBuffer())
+      }
+    }
+  }
+
+  // רצועת הפתיחה: פריימים נבחרים → רצועה אחת → AVIF (עיקרי) + WebP (גיבוי לדפדפן בלי AVIF)
+  const spriteMaster = path.join(sourceDir, 'golden-book-sprite.master.webp')
+  const frames = await Promise.all(spriteFrameIndices().map(async (frame, i) => ({
+    input: await sharp(spriteMaster).extract({ left: frame * SPRITE_FRAME_SIZE, top: 0, width: SPRITE_FRAME_SIZE, height: SPRITE_FRAME_SIZE }).png().toBuffer(),
+    left: i * SPRITE_FRAME_SIZE,
+    top: 0,
+  })))
+  const strip = await sharp({
+    create: { width: SPRITE_FRAMES * SPRITE_FRAME_SIZE, height: SPRITE_FRAME_SIZE, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  }).composite(frames).png().toBuffer()
+  await emit(path.join(HOME, `golden-book-sprite.${v}.avif`), await sharp(strip).avif({ quality: 55, effort: 6, chromaSubsampling: '4:4:4' }).toBuffer())
+  await emit(path.join(HOME, `golden-book-sprite.${v}.webp`), await sharp(strip).webp({ quality: 75, effort: 6, alphaQuality: 90 }).toBuffer())
+}
+
 async function main() {
+  // --home: רק נכסי דף הבית (בלי לייצר מחדש את הלוגואים)
+  if (process.argv.includes('--home')) {
+    await buildHomeAssets()
+    console.log(`✓ נוצרו ${report.length} נכסי דף הבית:`)
+    for (const line of report) console.log(`   ${line}`)
+    return
+  }
   const square = await squareLogoMaster()
 
   // לוגו מרובע (כותרות, הירו, ברירת מחדל לתוספים) — WebP.
@@ -67,6 +130,8 @@ async function main() {
     // iOS אינו מכבד שקיפות ומצייר רקע שחור — לכן משטיחים על לבן.
     await sharp(square).resize(180, 180, { fit: 'contain', background: '#ffffff' }).flatten({ background: '#ffffff' }).png({ compressionLevel: 9, palette: true, colors: 128 }).toBuffer()
   )
+
+  await buildHomeAssets()
 
   console.log(`✓ נוצרו ${report.length} נכסים:`)
   for (const line of report) console.log(`   ${line}`)

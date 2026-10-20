@@ -7,7 +7,7 @@
  * טוקנים — שלוש שכבות:
  *   styles/palette.css          — 1. פלטת הייחוס (--ref-*): הגוונים הגולמיים. לא בשימוש ישיר.
  *   styles/colors.css           — 2. תפקידי צבע (surface / on-surface / primary ...) + כינויים
- *   styles/theme-dark.css       —    ערכה כהה: מחליפה את שכבה 2 (מוכנה, לא מופעלת)
+ *   styles/theme-dark.css       —    ערכה כהה: מחליפה את שכבה 2 (מוכנה, לא נטענת — ראו הערה ליד ה-@import)
  *   styles/typography.css       —    גופנים, סולם גדלים + סולם תפקידים (display/headline/...)
  *   styles/layout.css           —    מרווח בסיס, שבירות, מכלים, gutter, שכבות z
  *   styles/shape.css            —    רדיוסים (סולם + תפקידים: control/card/...)
@@ -26,7 +26,8 @@
 
 @import "./styles/palette.css";
 @import "./styles/colors.css";
-@import "./styles/theme-dark.css";
+/* theme-dark.css — הערכה הכהה — אינה נטענת (אין מתג ערכה, ואף אלמנט לא מקבל data-theme="dark"; ~5KB CSS מיותרים
+   בכל עמוד). להפעלה: להחזיר כאן @import "./styles/theme-dark.css" (אחרי colors.css) — ראו שלבי ההפעלה בראש הקובץ. */
 @import "./styles/typography.css";
 @import "./styles/layout.css";
 @import "./styles/shape.css";

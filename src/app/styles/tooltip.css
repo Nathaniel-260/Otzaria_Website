@@ -95,6 +95,23 @@
     }
   }
 
+  /* אנימציות בתוך הרמז (למשל DonateAnimatedIcon בהודעת התרומה): הרמז נשאר ב-DOM גם כשהוא
+     נסתר (visibility:hidden), ואנימציית CSS ממשיכה לרוץ בו — ולכן הן מושהות עד שהרמז באמת
+     מוצג: ריחוף על המארח, או פוקוס מקלדת בתוכו (אותם תנאים כמו למעלה). */
+  .tooltip :is(.donate-anim, .donate-anim *) {
+    animation-play-state: paused;
+  }
+
+  .tooltip-host:not([data-tip-dismissed]):has(:focus-visible) .tooltip :is(.donate-anim, .donate-anim *) {
+    animation-play-state: running;
+  }
+
+  @media (hover: hover) {
+    .tooltip-host:not([data-tip-dismissed]):hover .tooltip :is(.donate-anim, .donate-anim *) {
+      animation-play-state: running;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     /* דהייה בלבד, בלי החלקה */
     .tooltip {

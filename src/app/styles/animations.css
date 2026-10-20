@@ -106,18 +106,24 @@
     animation: pan 5s linear infinite;
   }
 
-  /* הספר המוזהב נפתח (GoldenBook): רצועה אופקית של 24 פריימים. התמונה עצמה (background-image)
-     נקבעת ב-GoldenBook.tsx — שם הנתיב היחיד שלה. background-size 2400% = פריים אחד ברוחב
-     האלמנט; steps(23) עובר 0%→100% ב-23 קפיצות = 24 פריימים, 24fps כמו במתקין. */
+  /* הספר המוזהב נפתח (GoldenBook): רצועה אופקית של 12 פריימים (מ-24 המקוריים — כל פריים שני,
+     הראשון והאחרון נשמרים). background-size 1200% = פריים אחד ברוחב האלמנט; steps(11) עובר
+     0%→100% ב-11 קפיצות = 12 פריימים, 12fps (שנייה אחת). הקבועים כאן חייבים להתאים ל-SPRITE_FRAMES
+     (goldenBookAssets.ts) ולרצועה שנוצרת ב-scripts/optimize-assets.mjs.
+     התמונה (background-image) נקבעת ב-GoldenBook.tsx — AVIF או WebP, לפי chooseSpriteSrc
+     (goldenBookPlan.ts), אותו קובץ שהפענוח המוקדם טען. בכוונה לא ב-CSS דרך image-set()+type():
+     דפדפן שאינו מכיר אותו (Chrome<113) היה מציג רקע ריק במקום ספר, וה-minifier של ה-build
+     משכתב את ההצהרה (-webkit-image-set ללא תמיכה ב-type). טסט (goldenBookAssets.test.ts) בודק
+     שהקבועים כאן תואמים לרצועה. */
   @keyframes golden-book-open {
     from { background-position: 0% 0; }
     to { background-position: 100% 0; }
   }
 
   .golden-book-sprite {
-    background-size: 2400% 100%;
+    background-size: 1200% 100%;
     background-repeat: no-repeat;
-    animation: golden-book-open 1s steps(23) forwards;
+    animation: golden-book-open 1s steps(11) forwards;
   }
 
   /* ============================================================
@@ -169,6 +175,14 @@
     transition: opacity 260ms cubic-bezier(0.2, 0, 0, 1), transform 260ms cubic-bezier(0.2, 0, 0, 1);
   }
 
+  /* בלי JavaScript אין מי שיקבע data-wordmark-handoff — השם בכותרת נשאר גלוי (עדיף כפילות קלה מהיעדר שם). */
+  @media (scripting: none) {
+    .wordmark-handoff-target {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .wordmark-handoff-target,
     :root[data-wordmark-handoff='docked'] .wordmark-handoff-target,
@@ -213,6 +227,21 @@
 
   .forever-first {
     transform: translateX(calc(var(--forever-shift, 1.6em) * -1));
+  }
+
+  /* בלי JS (scripting: none) — לא תתחיל אנימציה (היא מופעלת מ-React), ובלי כלל זה השורה
+     נשארת opacity:0 לתמיד. מציגים את "חינם לנצח!" הסופי, סטטי. דפדפן שאינו מכיר את
+     ה-media feature (Chrome<120, Safari<17, Firefox<113) מתעלם מהבלוק — ואז בלי JS השורה
+     נשארת נסתרת חזותית (הטקסט נגיש לקורא מסך דרך ה-sr-only). */
+  @media (scripting: none) {
+    .forever-line,
+    .forever-letter {
+      opacity: 1;
+    }
+
+    .forever-first {
+      transform: none;
+    }
   }
 
   .forever-letter {

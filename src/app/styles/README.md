@@ -43,7 +43,7 @@
 
 ## מחלקות CSS משותפות
 
-`effects.css`: `.glass`, `.donation-button` (+`-lg`, `.donation-nav-link`, `.donation-note`), `.donation-tip-*` (טיפ התרומה), `.donate-anim*` (`.donation-animated-icon`, אייקון התרומה המונפש), `.app-icon` (+`-donate`), `.loader*` (ui/Loader), `.title-ornament`, `.anchor-section`, `.spellcheck-highlight`, `.hover-lift`.
+`effects.css`: `.glass`, `.donation-button` (+`-lg`, `.donation-nav-link`, `.donation-note`), `.donation-tip-*` (טיפ התרומה), `.donate-anim*` (`.donation-animated-icon`, אייקון התרומה המונפש), `.app-icon` (+`-donate`), `.loader*` (ui/Loader), `.title-ornament`, `.anchor-section`, `.spellcheck-highlight`.
 פסי גלילה (`effects.css`): `.custom-scrollbar` **מסתיר** את פס הגלילה (גלילה בלי פס גלוי); `.scrollbar-thin` — פס דק ומעוצב לאזור גלילה פנימי (+`.scrollbar-end-right`).
 `tooltip.css`: `.tooltip`, `.tooltip-host`, `.tooltip-bubble` (ui/Tooltip).
 `nav.css`: `.nav-dropdown*`, `.mobile-nav-group*`.

@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { OPEN_WAIT_MS, openingDeadline, planBookOpening, readSaveData, SPRITE_PRELOAD_MEDIA } from './goldenBookPlan'
+import { afterEach, describe, it, expect, vi } from 'vitest'
+import { chooseSpriteSrc, OPEN_WAIT_MS, openingDeadline, planBookOpening, readSaveData, resetSpriteSrcCache, SPRITE_PRELOAD_MEDIA } from './goldenBookPlan'
+import { SPRITE_AVIF_SRC, SPRITE_WEBP_SRC } from './goldenBookAssets'
 
 describe('planBookOpening', () => {
   it('ברירת מחדל — מנגנים את הפתיחה', () => {
@@ -43,5 +44,32 @@ describe('readSaveData', () => {
     expect(readSaveData({ connection: { saveData: false } })).toBe(false)
     expect(readSaveData({})).toBe(false)
     expect(readSaveData(undefined)).toBe(false)
+  })
+})
+
+describe('chooseSpriteSrc', () => {
+  afterEach(() => {
+    resetSpriteSrcCache()
+    vi.unstubAllGlobals()
+  })
+
+  const stubImage = (decodes: boolean) => {
+    vi.stubGlobal('Image', class { src = ''; decode() { return decodes ? Promise.resolve() : Promise.reject(new Error('x')) } })
+  }
+
+  it('דפדפן שמפענח AVIF — רצועת ה-AVIF', async () => {
+    stubImage(true)
+    expect(await chooseSpriteSrc()).toBe(SPRITE_AVIF_SRC)
+  })
+
+  it('דפדפן שלא מפענח AVIF — גיבוי WebP', async () => {
+    stubImage(false)
+    expect(await chooseSpriteSrc()).toBe(SPRITE_WEBP_SRC)
+  })
+
+  it('התוצאה נשמרת — בדיקה אחת בלבד', async () => {
+    stubImage(true)
+    const first = chooseSpriteSrc()
+    expect(chooseSpriteSrc()).toBe(first)
   })
 })
