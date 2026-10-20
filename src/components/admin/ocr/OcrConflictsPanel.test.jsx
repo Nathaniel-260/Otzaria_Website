@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import OcrConflictsPanel from './OcrConflictsPanel'
 
 const fetchMock = vi.fn()
 const reply = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
+function deferred() {
+  let resolve
+  const promise = new Promise((r) => { resolve = r })
+  return { promise, resolve }
+}
 
 const UPDATED = '2026-10-20T10:00:00.000Z'
 const conflict = (over = {}) => ({
@@ -162,5 +167,68 @@ describe('OcrConflictsPanel', () => {
     render(<OcrConflictsPanel jobId="job1" />)
     const alert = await screen.findByRole('alert')
     expect(within(alert).getByText('אין הרשאה לבצע פעולה זו')).toBeInTheDocument()
+  })
+  it('שגיאת טעינה ואז טעינה מחדש מוצלחת (אחרי 409) — ההודעה נעלמת', async () => {
+    fetchMock
+      .mockResolvedValueOnce(reply(200, listBody([conflict()])))
+      .mockResolvedValueOnce(reply(409, { error: 'העמוד השתנה שוב — רעננו' }))
+      .mockResolvedValueOnce(reply(500, { error: 'שגיאת שרת' }))
+      .mockResolvedValueOnce(reply(200, { success: true, conflict: conflict({ status: 'dismissed' }) }))
+    const user = userEvent.setup()
+    render(<OcrConflictsPanel jobId="job1" />)
+    await user.click(await screen.findByRole('button', { name: 'הצג טקסטים' }))
+    await user.click(screen.getByRole('button', { name: 'שמור את הטקסט הקיים' }))
+    // טעינה מחדש נכשלה — הודעת שגיאת הרשימה מוצגת והרשימה הקודמת נשארת
+    expect(await screen.findByText('שגיאת שרת')).toBeInTheDocument()
+    expect(screen.getByText('עמוד 4')).toBeInTheDocument()
+    // טעינה מחדש נוספת (409 שני) שמצליחה מנקה את הודעת השגיאה
+    fetchMock.mockReset()
+    fetchMock
+      .mockResolvedValueOnce(reply(409, { error: 'טופלה בידי אחר' }))
+      .mockResolvedValueOnce(reply(200, listBody([conflict({ pageNumber: 5 })])))
+    await user.click(screen.getByRole('button', { name: 'שמור את הטקסט הקיים' }))
+    expect(await screen.findByText('עמוד 5')).toBeInTheDocument()
+    expect(screen.queryByText('שגיאת שרת')).toBeNull()
+  })
+
+  it('החלפת ספר — הרשימה של הספר הקודם לא מוצגת בזמן הטעינה, ותשובה מאוחרת שלו נזרקת', async () => {
+    const book1 = deferred()
+    const book2 = deferred()
+    fetchMock.mockImplementation((url) => (url.includes('bookId=book1') ? book1.promise : book2.promise))
+    const { rerender } = render(<OcrConflictsPanel bookId="book1" />)
+    rerender(<OcrConflictsPanel bookId="book2" />)
+    await act(async () => { book2.resolve(reply(200, listBody([conflict({ id: 'b2', pageNumber: 22 })]))) })
+    expect(await screen.findByText('עמוד 22')).toBeInTheDocument()
+    // התשובה של הספר הקודם מגיעה באיחור — לא דורסת את הרשימה של הספר הנוכחי
+    await act(async () => { book1.resolve(reply(200, listBody([conflict({ id: 'b1', pageNumber: 11 })]))) })
+    expect(screen.queryByText('עמוד 11')).toBeNull()
+    expect(screen.getByText('עמוד 22')).toBeInTheDocument()
+  })
+
+  it('החלפת ספר אחרי טעינה — מוצג טוען ולא הרשימה (או השגיאה) של הספר הקודם', async () => {
+    const book2 = deferred()
+    fetchMock
+      .mockResolvedValueOnce(reply(200, listBody([conflict({ pageNumber: 11 })])))
+      .mockReturnValueOnce(book2.promise)
+    const { rerender, container } = render(<OcrConflictsPanel bookId="book1" />)
+    expect(await screen.findByText('עמוד 11')).toBeInTheDocument()
+    rerender(<OcrConflictsPanel bookId="book2" />)
+    expect(screen.queryByText('עמוד 11')).toBeNull()
+    expect(screen.queryByText(/ממתינות/)).toBeNull()
+    expect(container.querySelector('ul')).toBeNull()
+    await act(async () => { book2.resolve(reply(200, listBody([conflict({ id: 'b2', pageNumber: 22 })]))) })
+    expect(await screen.findByText('עמוד 22')).toBeInTheDocument()
+    expect(fetchMock.mock.calls[1][0]).toContain('bookId=book2')
+  })
+
+  it('פירוק הרכיב לפני שהטעינה הסתיימה — בלי עדכון state ובלי שגיאות', async () => {
+    const pending = deferred()
+    fetchMock.mockReturnValueOnce(pending.promise)
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { unmount } = render(<OcrConflictsPanel jobId="job1" />)
+    unmount()
+    await act(async () => { pending.resolve(reply(200, listBody([conflict()]))) })
+    expect(errSpy).not.toHaveBeenCalled()
+    errSpy.mockRestore()
   })
 })

@@ -19,7 +19,15 @@ const LIST_URL = '/api/admin/books/ocr/conflicts'
  *
  * @param {{ jobId?: string, bookId?: string, onChanged?: () => void }} props
  */
-export default function OcrConflictsPanel({ jobId, bookId, onChanged }) {
+export default function OcrConflictsPanel(props) {
+  // מפתח לפי היקף הרשימה: החלפת ספר/עבודה מתחילה מ-state נקי (טוען) — בלי הבזק של הרשימה או
+  // השגיאה של ההיקף הקודם, ובלי שתשובות loadMore/פעולה שעוד באוויר יוחלו על ההיקף החדש
+  const scopeKey = props.bookId ? `book:${props.bookId}` : `job:${props.jobId}`
+  return <ConflictsPanelBody key={scopeKey} {...props} />
+}
+
+/** @param {{ jobId?: string, bookId?: string, onChanged?: () => void }} props */
+function ConflictsPanelBody({ jobId, bookId, onChanged }) {
   const bookMode = !!bookId
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
