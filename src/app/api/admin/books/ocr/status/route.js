@@ -15,6 +15,7 @@ import { hasBookLibraryAccess } from '@/lib/roles';
 import { reapStaleOcrJobs } from '@/lib/ocr/staleJobs';
 import { badRequest, notFound, requireAccess, serverError } from '@/lib/apiResponse';
 import { OLDER_RESULT_CONFLICTS_MAX, PENDING_CONFLICT_STATUSES, pendingResultConflicts } from '@/lib/ocr/ocrConflictView';
+import { resultMetadataView } from '@/lib/ocr/localResultLayout.pure';
 
 // GET /api/admin/books/ocr/status?bookId=...
 // מחזיר את ספירות העמודים (לקדם-בחירה), את העבודה האחרונה/הפעילה של הספר, ולספק local
@@ -86,6 +87,12 @@ function serializeJob(job, now) {
     cancelRequested: !!job.cancelRequested,
     decision: job.decision ?? null,
     resultOutcome: job.resultOutcome ?? null,
+    // נתוני התוצאה (ספק local): גרסת הצנרת, error העליון (לכל outcome — גם partial אחרי מיצוי
+    // ניסיונות), סיכום נתוני הפריסה ותת-קבוצה של metadata הספר לתצוגה (resultMetadataView)
+    pipelineVersion: job.pipelineVersion ?? null,
+    resultError: job.resultError?.code ? { code: job.resultError.code, message: job.resultError.message || '' } : null,
+    layoutSummary: job.layoutSummary ?? null,
+    resultMetadata: resultMetadataView(job.resultMetadataJson),
     summary: {
       applied: job.successPages ?? 0,
       failed: job.failedPages ?? 0,
@@ -102,6 +109,7 @@ function serializeJob(job, now) {
     cancelledByName: job.cancelledByName ?? null,
     pageErrors: (job.pageErrors || []).slice(0, MAX_PAGE_ERRORS).map((e) => ({
       pageNumber: e.pageNumber,
+      code: e.code ?? null,
       message: e.message,
     })),
     // תוצאות שלא הוחלו (בלי נתיבי קבצים): מתנגשות — hash שונה אחרי נעילה, ממתינות לסימון "נבדק";

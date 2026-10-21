@@ -252,4 +252,43 @@ describe("GET /api/admin/books/ocr/status - ספק local", () => {
     expect(body.job).toBeNull();
     expect(body.worker.availability).toBe("offline");
   });
+
+  it("נתוני התוצאה: pipelineVersion, resultError, layoutSummary, pageErrors[].code ו-resultMetadata (תת-קבוצה), בלי resultMetadataJson", async () => {
+    const meta = {
+      hardware: { device: "cuda:0", gpu: "AMD Radeon RX 9060 XT", cpu_logical: 16 },
+      models: { detector: "d" }, run_seconds: 61.2, otzaria_issues: 1,
+      otzaria_issue_list: Array.from({ length: 60 }, (_, i) => `שורה ${i}`),
+      layout: { version: 1, pages: 2, trimmed: 0, dropped: 1, bytes: 3066 },
+      salvage: { reason: "cancelled", pages: 3 }, service_version: "1.0.143", bridge_version: 2,
+      per_page: 18.9, seconds: { layout: 1 },
+    };
+    OcrJob.findOne.mockReturnValue(chain({
+      _id: { toString: () => JOB_ID }, status: "completed", method: "local", totalPages: 4,
+      pipelineVersion: "ocr-torani 0.1.0", resultError: { code: "gpu_lost", message: "failed after 3 attempts" },
+      layoutSummary: { ok: 2, absent: 0, dropped: 1 }, resultMetadataJson: JSON.stringify(meta),
+      pageErrors: [{ pageNumber: 14, code: "not_processed", message: "שגיאת OCR" }, { pageNumber: 15, message: "ישן" }],
+    }));
+    OcrWorkerState.findOne.mockReturnValue(chain(null));
+    const body = await (await GET(makeRequest(BOOK_ID))).json();
+    expect(body.job.pipelineVersion).toBe("ocr-torani 0.1.0");
+    expect(body.job.resultError).toEqual({ code: "gpu_lost", message: "failed after 3 attempts" });
+    expect(body.job.layoutSummary).toEqual({ ok: 2, absent: 0, dropped: 1 });
+    expect(body.job.pageErrors).toEqual([
+      { pageNumber: 14, code: "not_processed", message: "שגיאת OCR" },
+      { pageNumber: 15, code: null, message: "ישן" },
+    ]);
+    expect(body.job.resultMetadata).toEqual({
+      hardware: { gpu: "AMD Radeon RX 9060 XT" }, models: { detector: "d" }, run_seconds: 61.2, otzaria_issues: 1,
+      otzaria_issue_list: meta.otzaria_issue_list.slice(0, 50), layout: meta.layout, salvage: meta.salvage,
+      service_version: "1.0.143", bridge_version: 2,
+    });
+    expect(body.job).not.toHaveProperty("resultMetadataJson");
+  });
+
+  it("עבודה בלי נתוני תוצאה חדשים (לפני השדרוג) → null בשדות החדשים", async () => {
+    OcrJob.findOne.mockReturnValue(chain({ _id: { toString: () => JOB_ID }, status: "completed", method: "local", totalPages: 2 }));
+    OcrWorkerState.findOne.mockReturnValue(chain(null));
+    const body = await (await GET(makeRequest(BOOK_ID))).json();
+    expect(body.job).toMatchObject({ pipelineVersion: null, resultError: null, layoutSummary: null, resultMetadata: null });
+  });
 });

@@ -1,6 +1,6 @@
 import Badge from '@/components/ui/Badge'
 import OcrStatusBadge from './OcrStatusBadge'
-import { cancelReasonLabel, formatDateTime, jobErrorText, summaryParts } from './ocrJobView'
+import { cancelReasonLabel, formatDateTime, jobErrorText, salvageLabel, summaryParts } from './ocrJobView'
 
 /**
  * סיכום עבודת OCR מקומי שהסתיימה (completed / failed / cancelled): מצב, ספירות הקליטה
@@ -14,6 +14,7 @@ export default function OcrJobSummary({ job }) {
   const hasCounts = job.status !== 'cancelled' && parts.some((p) => p.value > 0)
   const pageErrors = Array.isArray(job.pageErrors) ? job.pageErrors : []
   const finished = formatDateTime(job.finishedAt)
+  const salvage = salvageLabel(job)
 
   return (
     <section aria-label="סיכום העבודה האחרונה" className="space-y-3 rounded-control border border-outline-variant p-3">
@@ -35,6 +36,8 @@ export default function OcrJobSummary({ job }) {
       {job.status === 'cancelled' && (
         <p className="text-sm text-on-surface">{cancelReasonLabel(job)}.</p>
       )}
+
+      {salvage && <p className="text-sm text-on-surface">{salvage}.</p>}
 
       {hasCounts && (
         <ul className="flex flex-wrap gap-2" aria-label="ספירות הקליטה">
@@ -62,6 +65,11 @@ export default function OcrJobSummary({ job }) {
       )}
 
       {finished && <p className="text-xs text-on-surface-variant">הסתיימה ב-{finished}</p>}
+      {job.pipelineVersion && (
+        <p className="break-words text-xs text-on-surface-variant">
+          גרסת עיבוד: <span dir="ltr" className="font-mono">{job.pipelineVersion}</span>
+        </p>
+      )}
     </section>
   )
 }

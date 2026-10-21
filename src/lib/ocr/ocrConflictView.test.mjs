@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  conflictReasonLabel,
   CONFLICT_APPLY_LEASE_MS,
   CONFLICTS_PAGE_DEFAULT,
   CONFLICTS_PAGE_MAX,
@@ -96,4 +97,10 @@ test('conflictApplyLanded: סימון העבודה וה-sha, ו-lastOcrAt זהה
   assert.equal(conflictApplyLanded({ ...page, lastOcrAt: null }, conflict), false);
   assert.equal(conflictApplyLanded(null, conflict), false);
   assert.equal(conflictApplyLanded(page, { ...conflict, applyStartedAt: null }), false);
+});
+
+test('conflictReasonLabel: page_changed / job_cancelled; חסר → page_changed', () => {
+  assert.equal(conflictReasonLabel('page_changed'), 'העמוד נערך אחרי יצירת העבודה');
+  assert.equal(conflictReasonLabel('job_cancelled'), 'העבודה בוטלה; טקסט שזוהה לפני הביטול');
+  assert.equal(conflictReasonLabel(undefined), 'העמוד נערך אחרי יצירת העבודה');
 });

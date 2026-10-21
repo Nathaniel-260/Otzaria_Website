@@ -5,6 +5,15 @@
 export const CONFLICT_ACTIONS = Object.freeze(['apply', 'dismiss']);
 
 export const CONFLICT_STATUSES = Object.freeze(['open', 'applying', 'applied', 'dismissed']);
+
+// סיבת ההתנגשות (OcrConflict.reason) → תווית בעברית לממשק הניהול
+export const CONFLICT_REASON_LABELS = Object.freeze({
+  page_changed: 'העמוד נערך אחרי יצירת העבודה',
+  job_cancelled: 'העבודה בוטלה; טקסט שזוהה לפני הביטול',
+});
+export function conflictReasonLabel(reason) {
+  return CONFLICT_REASON_LABELS[reason] || CONFLICT_REASON_LABELS.page_changed;
+}
 // ממתינות להחלטה (ספירת "פתוחות"): applying עדיין לא הוכרע — אימוץ בתהליך או שנקטע בקריסה
 export const PENDING_CONFLICT_STATUSES = Object.freeze(['open', 'applying']);
 

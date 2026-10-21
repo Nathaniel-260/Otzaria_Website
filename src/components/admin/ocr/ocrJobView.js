@@ -2,6 +2,7 @@
 // בלי React/DOM — מיפוי מצב → תווית/גוון/אייקון, התקדמות, זמינות המחשב המקומי, אפשרות ביטול
 // ונוסחי סיכום. מקור המצבים והתוויות: src/lib/ocr/localJobState.js.
 import { STATUS_LABELS_HE, isActiveStatus } from '@/lib/ocr/localJobState'
+import { OCR_WARNING_LABELS, ocrWarningLabel } from '@/lib/ocr/ocrWarningLabels'
 
 // גוון (ui/Badge tone) ואייקון לכל מצב — הצבע מחזק בלבד, המשמעות בטקסט
 const STATUS_TONES = Object.freeze({
@@ -198,6 +199,26 @@ const REJECTION_REASONS = Object.freeze({
 
 export function rejectionReasonLabel(reason) {
   return REJECTION_REASONS[reason] || 'התוצאה נדחתה'
+}
+
+// קודי האזהרה של נתוני הפריסה/העזר (pages[].warnings מהעובד, ואזהרות שהאתר מוסיף בקליטה). התוויות
+// משותפות לשרת ולדפדפן (src/lib/ocr/ocrWarningLabels.js); קוד לא מוכר מוצג כקוד חשוף.
+export const WARNING_LABELS = OCR_WARNING_LABELS
+export function warningLabel(code) {
+  return ocrWarningLabel(code)
+}
+
+/**
+ * עמודים שהשירות הציל מנקודת הביניים לפני ביטול / אחרי מיצוי ניסיונות (resultMetadata.salvage):
+ * "נשמרו N עמודים שזוהו לפני הביטול/הכשל". null אם אין הצלה.
+ */
+export function salvageLabel(job) {
+  const salvage = job?.resultMetadata?.salvage
+  const pages = Number(salvage?.pages)
+  if (!salvage || !Number.isFinite(pages) || pages < 0) return null
+  const when = salvage.reason === 'cancelled' ? 'הביטול' : 'הכשל'
+  const count = pages === 1 ? 'נשמר עמוד אחד שזוהה' : `נשמרו ${pages} עמודים שזוהו`
+  return `${count} לפני ${when}`
 }
 
 // סיבות needs_attention של השירות (StatusReporter.AttentionText בריפו השירות): ההודעה מגיעה כ-

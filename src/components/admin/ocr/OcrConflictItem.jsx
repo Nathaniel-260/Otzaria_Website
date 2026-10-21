@@ -5,6 +5,7 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Ltr from '@/components/ui/Ltr'
 import { formatDateTime, jobShortId } from './ocrJobView'
+import { conflictReasonLabel } from '@/lib/ocr/ocrConflictView'
 
 const STATUS = {
   open: { label: 'ממתינה להחלטה', tone: 'warning' },
@@ -14,7 +15,8 @@ const STATUS = {
 }
 
 /**
- * התנגשות אחת: העמוד נערך אחרי יצירת העבודה, ולכן טקסט ה-OCR לא נכתב עליו. מציג את הטקסט
+ * התנגשות אחת: טקסט OCR שלא נכתב לעמוד — העמוד נערך אחרי יצירת העבודה (page_changed), או שהעבודה
+ * בוטלה והעמוד זוהה לפני הביטול (job_cancelled); הסיבה מוצגת כתווית. מציג את הטקסט
  * הנוכחי (האנושי) מול טקסט ה-OCR — שניהם כטקסט רגיל — ומאפשר לאמץ את ה-OCR (באישור) או
  * לשמור את הקיים. האימוץ נשלח עם updatedAt של העמוד כפי שהוצג כאן; השרת דוחה אותו אם
  * העמוד נערך שוב בינתיים. showJob — מציג גם מאיזו עבודה ההתנגשות (ברשימה ברמת הספר).
@@ -41,6 +43,7 @@ export default function OcrConflictItem({ conflict, busy = false, error = '', sh
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-bold text-on-surface">עמוד {conflict.pageNumber ?? '—'}</span>
           <Badge tone={status.tone}>{status.label}</Badge>
+          <span className="text-xs text-on-surface-variant">{conflictReasonLabel(conflict.reason)}</span>
           {showJob && conflict.jobId && (
             <span className="text-xs text-on-surface-variant">
               מעבודה <Ltr className="font-mono">{jobShortId(conflict.jobId)}</Ltr>

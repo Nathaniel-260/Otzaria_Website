@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { ALL_STATUSES } from '@/lib/ocr/localJobState'
 import { DEFAULT_LOCAL_OPTIONS, LOCAL_OPTION_VALUES } from '@/lib/ocr/localJobCreate.pure'
 import {
+  salvageLabel,
+  warningLabel,
+  WARNING_LABELS,
   LOCAL_DEFAULT_OPTIONS,
   LOCAL_LM_OPTIONS,
   LOCAL_SCRIPT_OPTIONS,
@@ -293,5 +296,26 @@ describe('isRequeued (עבודה שחזרה לתור במחשב המקומי)', 
     expect(isRequeued({ method: 'local', status: 'running', workerState: 'running' })).toBe(false)
     expect(isRequeued({ method: 'gemini', status: 'queued', workerState: 'queued' })).toBe(false)
     expect(isRequeued(null)).toBe(false)
+  })
+})
+
+describe('warningLabel / salvageLabel (נתוני פריסה ועזר מהעובד המקומי)', () => {
+  it('תווית עברית לכל קוד ברישום; קוד לא מוכר — חשוף', () => {
+    for (const code of [
+      'layout_alts_trimmed', 'layout_too_large', 'layout_dropped_result_size', 'layout_geometry_unknown', 'layout_build_failed',
+      'layout_invalid_shape', 'layout_invalid', 'layout_version_unsupported', 'layout_image_mismatch', 'metadata_too_large',
+      'warnings_invalid_shape', 'metadata_invalid_shape',
+    ]) {
+      expect(WARNING_LABELS[code]).toBeTruthy()
+      expect(warningLabel(code)).toBe(WARNING_LABELS[code])
+    }
+    expect(warningLabel('new_code')).toBe('אזהרה שאינה מוכרת לאתר (new_code)')
+    expect(warningLabel(undefined)).toBe('אזהרה שאינה מוכרת לאתר')
+  })
+  it('salvageLabel לפי resultMetadata.salvage', () => {
+    expect(salvageLabel({ resultMetadata: { salvage: { reason: 'cancelled', pages: 3 } } })).toBe('נשמרו 3 עמודים שזוהו לפני הביטול')
+    expect(salvageLabel({ resultMetadata: { salvage: { reason: 'failed', pages: 1 } } })).toBe('נשמר עמוד אחד שזוהה לפני הכשל')
+    expect(salvageLabel({ resultMetadata: {} })).toBe(null)
+    expect(salvageLabel({})).toBe(null)
   })
 })
