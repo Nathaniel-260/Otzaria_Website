@@ -7,7 +7,16 @@ import OcrStatusBadge from './OcrStatusBadge'
 import OcrProgressBar from './OcrProgressBar'
 import WorkerOfflineNotice from './WorkerOfflineNotice'
 import ResumePreparationNotice from './ResumePreparationNotice'
-import { canCancel, formatLastSeen, isWorkerUnavailable, progressCounts, progressPercent, resumeIssue } from './ocrJobView'
+import WorkerAttentionNotice from './WorkerAttentionNotice'
+import {
+  canCancel,
+  formatLastSeen,
+  isRequeued,
+  isWorkerUnavailable,
+  progressCounts,
+  progressPercent,
+  resumeIssue,
+} from './ocrJobView'
 
 // הסבר קצר לכל מצב פעיל של עבודת local (מתחת לתג המצב)
 const STATUS_HINTS = {
@@ -21,9 +30,12 @@ const STATUS_HINTS = {
   needs_attention: 'העיבוד נעצר וממתין לטיפול ידני במחשב המעבד.',
 }
 
+// queued שדווח מהעובד: העבודה כבר התחילה וחזרה לתור במחשב המקומי (isRequeued ב-ocrJobView.js)
+const REQUEUED_HINT = 'העבודה חזרה לתור במחשב המקומי (ניסיון חוזר אחרי תקלה, או החזרה ידנית לתור) ותמשיך מעצמה.'
+
 /**
  * תצוגת עבודת OCR מקומי פעילה: מצב, התקדמות, זמינות המחשב המעבד, הודעת העובד וביטול.
- * workerMessage מוצג כטקסט רגיל בלבד (React מבצע escape) — לעולם לא כ-HTML.
+ * הודעת העובד ב-needs_attention — WorkerAttentionNotice (תווית עברית + ההודעה המקורית, כטקסט רגיל בלבד).
  *
  * @param {{
  *   job: any,
@@ -54,7 +66,7 @@ export default function LocalOcrJobProgress({
   const percent = progressPercent(job)
   const cancellable = canCancel(job)
   const applying = job.status === 'applying' || job.decision === 'apply'
-  const message = typeof job.workerMessage === 'string' ? job.workerMessage.trim() : ''
+  const hint = isRequeued(job) ? REQUEUED_HINT : STATUS_HINTS[job.status]
   const resume = resumeIssue(job)
 
   const confirmCancel = async () => {
@@ -71,19 +83,11 @@ export default function LocalOcrJobProgress({
 
       {canResume && onResume ? (
         <ResumePreparationNotice onResume={onResume} resuming={resuming} note={resumeNote} />
-      ) : STATUS_HINTS[job.status] ? (
-        <p className="text-sm text-on-surface-variant">{STATUS_HINTS[job.status]}</p>
+      ) : hint ? (
+        <p className="text-sm text-on-surface-variant">{hint}</p>
       ) : null}
 
-      {job.status === 'needs_attention' && (
-        <div role="alert" className="flex items-start gap-2 rounded-control bg-error-container p-3 text-sm text-on-error-container">
-          <AppIcon name="warning" className="text-base" />
-          <div>
-            <p className="font-bold">דורש טיפול במחשב המעבד</p>
-            {message && <p className="mt-1 whitespace-pre-wrap break-words">{message}</p>}
-          </div>
-        </div>
-      )}
+      {job.status === 'needs_attention' && <WorkerAttentionNotice message={job.workerMessage} />}
 
       {resume && (
         <div role="alert" className="flex items-start gap-2 rounded-control bg-error-container p-3 text-sm text-on-error-container">

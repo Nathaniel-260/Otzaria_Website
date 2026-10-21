@@ -200,6 +200,67 @@ export function rejectionReasonLabel(reason) {
   return REJECTION_REASONS[reason] || 'התוצאה נדחתה'
 }
 
+// סיבות needs_attention של השירות (StatusReporter.AttentionText בריפו השירות): ההודעה מגיעה כ-
+// "<reason>: <טקסט קבוע באנגלית>" (או קוד חשוף / "unknown"). התווית העברית מוצגת למנהל, והטקסט המקורי
+// נשאר לצידה לבירור. action — רק כשיש למנהל האתר פעולה בדיאלוג עצמו או הפניה ברורה לשירות.
+const ATTENTION_REASONS = Object.freeze({
+  manifest_conflict: {
+    label: 'האתר שלח לעבודה נתונים שונים מהמקוריים (הגדרות, מפת עמודים או קובץ קלט); המחשב המעבד שומר את המקוריים',
+    action: 'עבודה שהשתנתה צריכה עבודה חדשה: בטלו אותה כאן והתחילו עבודה חדשה. אם כבר יש לה תוצאה במחשב המעבד, היא נשמרת שם ונשלחת שוב רק אחרי בדיקה (retry-delivery).',
+  },
+  jobid_case_conflict: {
+    label: 'האתר שלח את מזהה העבודה באותיות גדולות/קטנות שונות',
+    action: 'בטלו את העבודה כאן והתחילו עבודה חדשה.',
+  },
+  device_missing: { label: 'כרטיס המסך (AMD GPU) הנדרש אינו זמין במחשב המעבד' },
+  pipeline_misconfigured: { label: 'צנרת ה-OCR במחשב המעבד אינה מותקנת או מוגדרת כראוי' },
+  process_tree_alive: { label: 'תהליך OCR קודם במחשב המעבד לא הסתיים' },
+  crash_loop: { label: 'שירות העיבוד נקטע יותר מדי פעמים במהלך העבודה' },
+  input_hash_mismatch: { label: 'קובץ ה-PDF שהורד אינו תואם ל-hash הרשום בעבודה' },
+  input_unavailable: { label: 'האתר סירב להורדת קובץ ה-PDF' },
+  delivery_rejected: {
+    label: 'האתר דחה את התוצאה; היא שמורה במחשב המעבד',
+    action: 'אחרי תיקון הסיבה באתר, השליחה החוזרת נעשית במחשב המעבד (retry-delivery).',
+  },
+  result_conflict: { label: 'באתר כבר שמורה תוצאה אחרת לעבודה; התוצאה של המחשב המעבד שמורה אצלו' },
+  invalid_ack: { label: 'תשובת האתר לתוצאה לא הייתה אישור תקין; התוצאה שמורה במחשב המעבד' },
+  output_missing: { label: 'קובץ התוצאה הסופי חסר במחשב המעבד' },
+  output_corrupt: { label: 'קובץ התוצאה הסופי השתנה בדיסק של המחשב המעבד' },
+  output_unknown: { label: 'במחשב המעבד לא רשומה תוצאה סופית לעבודה' },
+  output_path_invalid: { label: 'נתיב קובץ התוצאה במחשב המעבד אינו תקין' },
+  unknown: { label: 'המחשב המעבד לא ציין סיבה מוכרת' },
+})
+
+const REASON_CODE_RE = /^[a-z0-9_]{1,64}$/
+
+/**
+ * הודעת needs_attention של העובד → { code, label, action, detail }: label — תווית עברית לפי קוד הסיבה
+ * (קוד שאינו מוכר לאתר: תווית כללית עם הקוד), detail — ההודעה המקורית כמו שהתקבלה. null להודעה ריקה.
+ */
+export function attentionReason(message) {
+  const detail = typeof message === 'string' ? message.trim() : ''
+  if (!detail) return null
+  const sep = detail.indexOf(': ')
+  const head = sep === -1 ? detail : detail.slice(0, sep)
+  const code = REASON_CODE_RE.test(head) ? head : null
+  const known = code && Object.hasOwn(ATTENTION_REASONS, code) ? ATTENTION_REASONS[code] : null
+  return {
+    code,
+    label: known ? known.label : code ? `סיבה שאינה מוכרת לאתר (${code})` : 'סיבה שאינה מוכרת לאתר',
+    action: known?.action ?? null,
+    detail,
+  }
+}
+
+/**
+ * עבודה שחזרה לתור במחשב המקומי אחרי שכבר התחילה (ניסיון חוזר אחרי תקלה זמנית, או requeue ידני בשירות):
+ * השירות מדווח queued רק לעבודה כזו (StatusReporter.IsReportable), ולכן workerState='queued' מבחין בינה
+ * לבין עבודה שעוד לא נאספה.
+ */
+export function isRequeued(job) {
+  return isLocalJob(job) && job?.status === 'queued' && job?.workerState === 'queued'
+}
+
 const RESUME_ERROR_LABELS = Object.freeze({
   result_unavailable: 'קובץ התוצאה השמור חסר באחסון',
   result_corrupt: 'קובץ התוצאה השמור פגום (ה-hash אינו תואם)',

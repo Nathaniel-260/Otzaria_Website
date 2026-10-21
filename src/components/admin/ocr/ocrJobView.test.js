@@ -5,6 +5,8 @@ import {
   LOCAL_DEFAULT_OPTIONS,
   LOCAL_LM_OPTIONS,
   LOCAL_SCRIPT_OPTIONS,
+  attentionReason,
+  isRequeued,
   canCancel,
   canResumePreparation,
   cancelReasonLabel,
@@ -221,5 +223,75 @@ describe('shortSha / jobShortId', () => {
     expect(jobShortId('64b7f0c2a1b2c3d4e5f6000a')).toBe('#f6000a')
     expect(jobShortId('')).toBe('')
     expect(jobShortId(null)).toBe('')
+  })
+})
+
+// קודי הסיבה ש-StatusReporter.AttentionText בשירות שולח ב-message של needs_attention (גרסה 1.0.142),
+// עם הטקסט הקבוע. כל אחד חייב לקבל תווית עברית משלו (לא את תווית "לא מוכרת").
+const SERVICE_ATTENTION = {
+  manifest_conflict: 'the site sent different immutable data (options, pageMap or input hash) for this job; the original is kept',
+  jobid_case_conflict: 'the site sent this jobId in another letter case',
+  device_missing: 'the required AMD GPU is not available to the worker',
+  pipeline_misconfigured: 'the OCR pipeline on the worker is not installed or configured correctly',
+  process_tree_alive: 'an earlier OCR process on the worker did not exit',
+  crash_loop: 'the worker service was interrupted too many times during this job',
+  input_hash_mismatch: 'the downloaded PDF does not match inputSha256',
+  input_unavailable: 'the site refused the PDF download',
+  delivery_rejected: 'the site rejected the result; it is kept on the worker',
+  result_conflict: "the site holds a different result for this job (409); the worker's result is kept",
+  invalid_ack: "the site's answer to the result was not a valid acknowledgement; the result is kept",
+  output_missing: "the worker's frozen result file is missing",
+  output_corrupt: "the worker's frozen result file changed on disk",
+  output_unknown: 'the worker has no frozen result recorded for this job',
+  output_path_invalid: "the worker's result path is invalid",
+}
+const HEBREW = /[֐-׿]/
+
+describe('attentionReason (הודעת needs_attention של העובד)', () => {
+  it('לכל סיבה שהשירות שולח — תווית עברית ייחודית, וההודעה המקורית נשמרת כ-detail', () => {
+    const labels = new Set()
+    for (const [code, text] of Object.entries(SERVICE_ATTENTION)) {
+      const message = `${code}: ${text}`
+      const r = attentionReason(message)
+      expect(r.code, code).toBe(code)
+      expect(r.label, code).toMatch(HEBREW)
+      expect(r.label, code).not.toContain('אינה מוכרת')
+      expect(r.detail).toBe(message)
+      labels.add(r.label)
+    }
+    expect(labels.size).toBe(Object.keys(SERVICE_ATTENTION).length)
+  })
+
+  it('manifest_conflict ו-delivery_rejected (HANDOVER 3.1 פריט 8) — עם פעולה מוצעת', () => {
+    const conflict = attentionReason(`manifest_conflict: ${SERVICE_ATTENTION.manifest_conflict}`)
+    expect(conflict.label).toContain('נתונים שונים')
+    expect(conflict.action).toMatch(HEBREW)
+    expect(attentionReason(`delivery_rejected: ${SERVICE_ATTENTION.delivery_rejected}`).action).toContain('retry-delivery')
+    expect(attentionReason(`device_missing: ${SERVICE_ATTENTION.device_missing}`).action).toBeNull()
+  })
+
+  it('קוד חשוף (בלי טקסט), unknown, קוד שאינו מוכר לאתר והודעה בפורמט אחר', () => {
+    expect(attentionReason('crash_loop')).toMatchObject({ code: 'crash_loop', detail: 'crash_loop' })
+    expect(attentionReason('crash_loop').label).toBe(attentionReason(`crash_loop: ${SERVICE_ATTENTION.crash_loop}`).label)
+    expect(attentionReason('unknown').label).toMatch(HEBREW)
+    expect(attentionReason('unknown').label).not.toContain('אינה מוכרת')
+    expect(attentionReason('some_new_code: new text')).toMatchObject({ code: 'some_new_code', label: 'סיבה שאינה מוכרת לאתר (some_new_code)', action: null })
+    expect(attentionReason('Recognizing pages')).toMatchObject({ code: null, label: 'סיבה שאינה מוכרת לאתר', detail: 'Recognizing pages' })
+    // שם של מאפיין מובנה של אובייקט אינו "סיבה מוכרת"
+    expect(attentionReason('constructor').label).toBe('סיבה שאינה מוכרת לאתר (constructor)')
+  })
+
+  it('הודעה ריקה / חסרה → null', () => {
+    for (const m of [undefined, null, '', '   ', 42]) expect(attentionReason(m)).toBeNull()
+  })
+})
+
+describe('isRequeued (עבודה שחזרה לתור במחשב המקומי)', () => {
+  it('רק עבודת local ב-queued שהעובד דיווח עליה queued', () => {
+    expect(isRequeued({ method: 'local', status: 'queued', workerState: 'queued' })).toBe(true)
+    expect(isRequeued({ method: 'local', status: 'queued', workerState: null })).toBe(false)
+    expect(isRequeued({ method: 'local', status: 'running', workerState: 'running' })).toBe(false)
+    expect(isRequeued({ method: 'gemini', status: 'queued', workerState: 'queued' })).toBe(false)
+    expect(isRequeued(null)).toBe(false)
   })
 })

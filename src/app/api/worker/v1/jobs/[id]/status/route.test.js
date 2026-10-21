@@ -165,6 +165,32 @@ describe('POST /api/worker/v1/jobs/{id}/status', () => {
     expect(await load(id)).toMatchObject({ status: 'running', workerMessage: '' })
   })
 
+  // HANDOVER 3.1 פריט 8 (שירות 1.0.142): עבודה מוחנית (delivery_rejected) שהנתונים שלה השתנו מדווחת שוב
+  // needs_attention עם message manifest_conflict; ביטול עם נתונים שהשתנו מוצג רגע כ-needs_attention ואחר כך
+  // delivery_pending; requeue מחזיר queued. כל המעברים מתקבלים ב-200 (4xx כאן היה נרשם כ-status_rejected).
+  it('needs_attention: delivery_rejected → manifest_conflict → delivery_pending → queued (requeue) — הכל 200', async () => {
+    const id = await makeJob({ status: 'running' })
+    const steps = [
+      { state: 'needs_attention', message: 'delivery_rejected: the site rejected the result; it is kept on the worker' },
+      { state: 'needs_attention', message: 'manifest_conflict: the site sent different immutable data (options, pageMap or input hash) for this job; the original is kept' },
+      { state: 'delivery_pending', message: undefined },
+      { state: 'needs_attention', message: 'manifest_conflict' },
+      { state: 'queued', message: undefined },
+    ]
+    let seq = 20
+    for (const step of steps) {
+      const { res, body } = await post(id, report({ reportSeq: seq++, ...step }))
+      expect(res.status, step.state).toBe(200)
+      expect(body).toEqual({ cancelRequested: false })
+      expect(await load(id), JSON.stringify(step)).toMatchObject({
+        status: step.state,
+        workerState: step.state,
+        workerMessage: step.message ?? '',
+        active: true,
+      })
+    }
+  })
+
   it('דיווח completed / failed / cancelled לא סוגר ולא משנה status (רק workerState)', async () => {
     const id = await makeJob({ status: 'running' })
     let seq = 1
