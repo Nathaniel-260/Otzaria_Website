@@ -1,22 +1,30 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   ackBody,
+  classLayout,
   closingStatusFields,
   failedOutcomeClasses,
   isValidAck,
   jobErrorText,
+  layoutSummaryOf,
+  MISSING_PAGE_CODE,
   MISSING_PAGE_MESSAGE,
   NON_TRIM_CHAR_PCRE,
   pageApplyFilter,
   pageApplySet,
+  pageErrorCode,
   pageErrorMessage,
+  pageResultQualifies,
+  pageResultRecord,
   RESUME_RETRY_MAX_MS,
   resumeFailureBacksOff,
   resumeFailureTransient,
   resumeRetryDelayMs,
   storedAckAnswer,
   storedPipelineVersion,
+  storedResultError,
   STORED_ERROR_CHARS,
   STORED_PIPELINE_VERSION_CHARS,
   summarizeApply,
@@ -136,10 +144,10 @@ const MAP = [1, 2, 3, 4].map((i) => ({ pdfPageIndex: i, pageNumber: i * 10, page
 
 test('summarizeApply: success/partial — מונים לפי הסיווג ו-pageErrors ממוינים (failed+missing)', () => {
   const classes = [
-    { entry: MAP[3], kind: 'missing', message: MISSING_PAGE_MESSAGE },
-    { entry: MAP[0], kind: 'applied' },
-    { entry: MAP[1], kind: 'failed', message: 'm' },
-    { entry: MAP[2], kind: 'conflict' },
+    { entry: MAP[3], kind: 'missing', code: MISSING_PAGE_CODE, message: MISSING_PAGE_MESSAGE },
+    { entry: MAP[0], kind: 'applied', layoutStatus: 'ok', workerDroppedLayout: false },
+    { entry: MAP[1], kind: 'failed', code: 'not_processed', message: 'm' },
+    { entry: MAP[2], kind: 'conflict', layoutStatus: 'absent', workerDroppedLayout: true },
   ];
   assert.deepEqual(summarizeApply({ outcome: 'partial' }, MAP, classes), {
     successPages: 1,
@@ -148,10 +156,11 @@ test('summarizeApply: success/partial — מונים לפי הסיווג ו-page
     missingPages: 1,
     processedPages: 4,
     pageErrors: [
-      { pageNumber: 20, message: 'm' },
-      { pageNumber: 40, message: MISSING_PAGE_MESSAGE },
+      { pageNumber: 20, code: 'not_processed', message: 'm' },
+      { pageNumber: 40, code: 'page_missing', message: MISSING_PAGE_MESSAGE },
     ],
     error: '',
+    layoutSummary: { ok: 1, absent: 0, dropped: 1 },
   });
 });
 
@@ -162,10 +171,12 @@ test('summarizeApply: failed — כל העמודים נכשלו, error; cancelle
   assert.equal(failed.failedPages, 4);
   assert.equal(failed.processedPages, 4);
   assert.equal(failed.error, 'gpu: no');
-  assert.deepEqual(failed.pageErrors, [{ pageNumber: 20, message: 'שגיאת OCR במחשב המקומי (e)' }]);
+  assert.deepEqual(failed.pageErrors, [{ pageNumber: 20, code: 'e', message: 'שגיאת OCR במחשב המקומי (e)' }]);
+  assert.deepEqual(failed.layoutSummary, { ok: 0, absent: 0, dropped: 0 });
   const cancelled = summarizeApply({ outcome: 'cancelled' }, MAP, []);
   assert.equal('processedPages' in cancelled, false);
   assert.equal(cancelled.successPages, 0);
+  assert.deepEqual(cancelled.layoutSummary, { ok: 0, absent: 0, dropped: 0 });
 });
 
 test('storedPipelineVersion: מקוצר ל-200 תווים ומנוקה (הסכמה לא מגבילה — לא 422, ולא 500 על ערך ענק)', () => {
@@ -237,4 +248,68 @@ test('resumeRetryDelayMs transient: 5 דקות ומוכפל עד יממה; resum
   for (const c of ['internal_error', 'EACCES', 'EISDIR', 'MongoNetworkError', 'error']) {
     assert.equal(resumeFailureTransient(c), true, c);
   }
+});
+
+// ---------- רשומת OcrPageResult (נתוני פריסה/עזר) — מול הפיקסצ'ר המשותף של החוזה ----------
+const FIX = JSON.parse(fs.readFileSync(new URL('./fixtures/localResultLayout.result.json', import.meta.url), 'utf8'));
+const ENV = JSON.parse(fs.readFileSync(new URL('./fixtures/localResultLayout.envelope.json', import.meta.url), 'utf8'));
+const FIX_JOB = { _id: ENV.jobId, book: 'book-1' };
+const fixEntry = (i) => {
+  const e = ENV.pageMap.find((x) => x.pdfPageIndex === i);
+  return { ...e, page: e.pageId };
+};
+const NOW = new Date('2026-10-21T09:00:00Z');
+
+test('pageResultQualifies: טקסט בלי error / layout / metadata; עמוד not_processed ריק — לא', () => {
+  assert.deepEqual(FIX.pages.map(pageResultQualifies), [true, true, true, false]);
+  assert.equal(pageResultQualifies({ pdfPageIndex: 1, text: '', error: { code: 'page_text_too_long' }, layout: {} }), true);
+  assert.equal(pageResultQualifies({ pdfPageIndex: 1, text: '' }), true);
+  assert.equal(pageResultQualifies(null), false);
+});
+
+test('pageResultRecord: עמודים 1–3 של הפיקסצ\'ר — ok/ok/absent עם אזהרת העובד; דטרמיניסטית', () => {
+  const recs = [1, 2, 3].map((i) => pageResultRecord(FIX_JOB, fixEntry(i), FIX.pages[i - 1], C, FIX, NOW));
+  assert.deepEqual(recs.map((r) => r.layoutStatus), ['ok', 'ok', 'absent']);
+  assert.deepEqual(JSON.parse(recs[0].layoutJson), FIX.pages[0].layout);
+  assert.deepEqual(JSON.parse(recs[1].metadataJson), FIX.pages[1].metadata);
+  assert.equal(recs[0].imageSha256, ENV.pageMap[0].imageSha256);
+  assert.equal(recs[0].pipelineVersion, FIX.pipelineVersion);
+  assert.equal(recs[0].outcome, 'partial');
+  assert.equal(recs[0].resultSha256, C);
+  assert.equal(recs[0].pageNumber, 11);
+  assert.equal(recs[0].pdfPageIndex, 1);
+  assert.equal(recs[0].book, 'book-1');
+  assert.equal(recs[0].hasText, true);
+  assert.equal(recs[0].receivedAt, NOW);
+  assert.match(recs[0].textSha256, /^[0-9a-f]{64}$/);
+  assert.deepEqual(recs[2].warnings, [{ code: 'layout_too_large', message: FIX.pages[2].warnings[0].message, source: 'worker' }]);
+  assert.equal(recs[2].layoutJson, null);
+  assert.deepEqual(recs, [1, 2, 3].map((i) => pageResultRecord(FIX_JOB, fixEntry(i), FIX.pages[i - 1], C, FIX, NOW)));
+  assert.equal(pageResultRecord(FIX_JOB, fixEntry(4), FIX.pages[3], C, FIX, NOW), null);
+  assert.deepEqual(recs.map(classLayout).map((c) => [c.layoutStatus, c.workerDroppedLayout]), [['ok', false], ['ok', false], ['absent', true]]);
+  assert.deepEqual(layoutSummaryOf(recs.map(classLayout)), { ok: 2, absent: 0, dropped: 1 });
+});
+
+test('pageResultRecord: עמוד עם error שומר layout (textSha256 null); layout זבל → invalid + אזהרת site; metadata גדול → אזהרה', () => {
+  const p = { pdfPageIndex: 1, text: '', error: { code: 'page_text_too_long', message: 'x' }, layout: FIX.pages[0].layout };
+  const r = pageResultRecord(FIX_JOB, fixEntry(1), p, C, FIX, NOW);
+  assert.equal(r.layoutStatus, 'ok');
+  assert.equal(r.textSha256, null);
+  assert.equal(r.hasText, false);
+  const junk = pageResultRecord(FIX_JOB, fixEntry(1), { pdfPageIndex: 1, text: 'א', layout: 'x', warnings: 5, metadata: { big: 'a'.repeat(70000) } }, C, FIX, NOW);
+  assert.equal(junk.layoutStatus, 'invalid');
+  assert.equal(junk.layoutRejectedJson, '"x"');
+  assert.equal(junk.metadataJson, null);
+  assert.deepEqual(junk.warnings.map((w) => [w.code, w.source]), [['layout_invalid', 'site'], ['metadata_too_large', 'site']]);
+  assert.deepEqual(layoutSummaryOf([classLayout(junk), { layoutStatus: 'absent', workerDroppedLayout: false }, { kind: 'failed' }]), { ok: 0, absent: 1, dropped: 1 });
+});
+
+test('pageErrorCode / storedResultError: מנוקים; error עליון בכל outcome', () => {
+  assert.equal(pageErrorCode({ code: 'not_processed' }), 'not_processed');
+  assert.equal(pageErrorCode({ code: ' a\u202eb ' }), 'ab');
+  assert.equal(pageErrorCode(null), 'unknown');
+  assert.deepEqual(storedResultError({ outcome: 'partial', error: { code: 'gpu_lost', message: 'failed after 3 attempts' } }), { code: 'gpu_lost', message: 'failed after 3 attempts' });
+  assert.equal(storedResultError({ outcome: 'partial' }), null);
+  assert.equal(storedResultError({ error: { code: ' ' } }), null);
+  assert.equal(storedResultError({ error: { code: 'x', message: 'm'.repeat(900) } }).message.length, STORED_ERROR_CHARS);
 });

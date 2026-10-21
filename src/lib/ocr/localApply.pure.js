@@ -3,6 +3,12 @@
 import { buildPageUpdate } from './runOcrJob.pure.js';
 import { stripUnsafe } from './localStatusReport.js';
 import { terminalStatusForOutcome } from './localJobState.js';
+import {
+  normalizePageLayout,
+  normalizeWarnings,
+  pageMetadataJson,
+  textSha256Hex,
+} from './localResultLayout.pure.js';
 
 export const ACK_KINDS = Object.freeze(['accepted', 'already_received', 'cancelled']);
 export const ACK_OUTCOMES = Object.freeze(['success', 'partial', 'failed', 'cancelled']);
@@ -112,6 +118,103 @@ export function pageErrorMessage(err) {
 }
 
 export const MISSING_PAGE_MESSAGE = 'העמוד לא נמצא בספר (נמחק אחרי יצירת העבודה)';
+export const MISSING_PAGE_CODE = 'page_missing';
+
+// קוד שגיאת העמוד כשדה נפרד (pageErrors[].code) — מנוקה ומקוצר כמו ההודעה
+export function pageErrorCode(err) {
+  return clean(err?.code) || 'unknown';
+}
+
+/**
+ * error העליון של התוצאה (לכל outcome, גם partial/cancelled) → {code, message} לשמירה ב-
+ * OcrJob.resultError, מנוקה ומקוצר ל-500. null אם אין error עם code.
+ */
+export function storedResultError(doc) {
+  const e = doc?.error;
+  if (e == null || typeof e !== 'object' || typeof e.code !== 'string' || !e.code.trim()) return null;
+  return { code: clean(e.code), message: clean(e.message) };
+}
+
+// ---------- רשומת OcrPageResult לעמוד (נתוני פריסה, עזר ואזהרות) ----------
+
+const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * האם לעמוד בתוצאה נכתבת רשומת OcrPageResult: יש לו טקסט (בלי error), או layout, או metadata.
+ * עמוד שאין בו אף אחד מהם (למשל not_processed בלי metadata) — אין מה לשמור.
+ */
+export function pageResultQualifies(p) {
+  if (!isPlainObject(p)) return false;
+  return (p.error == null && typeof p.text === 'string') || p.layout != null || p.metadata != null;
+}
+
+/**
+ * הרשומה לעמוד אחד (ל-$setOnInsert; בלי job/page, שהם מפתח ה-upsert). דטרמיניסטית לחלוטין
+ * מאותה תוצאה (השלמה מהקובץ השמור נותנת בדיוק אותה רשומה). null אם העמוד לא עומד בתנאי.
+ * @param {any} job lean: _id, book
+ * @param {any} entry איבר ה-pageMap: page, pageNumber, pdfPageIndex, imageSha256
+ * @param {any} page pages[i] מהתוצאה
+ * @param {string} sha resultSha256
+ * @param {any} doc התוצאה (outcome, pipelineVersion)
+ * @param {Date} now
+ */
+export function pageResultRecord(job, entry, page, sha, doc, now) {
+  if (!pageResultQualifies(page)) return null;
+  const hasTextField = page.error == null && typeof page.text === 'string';
+  const layout = normalizePageLayout(page.layout, entry);
+  const metadata = pageMetadataJson(page.metadata);
+  const warnings = [
+    ...normalizeWarnings(page.warnings),
+    ...layout.warnings,
+    ...(metadata.warning ? [metadata.warning] : []),
+  ];
+  return {
+    book: job.book,
+    pageNumber: entry.pageNumber,
+    pdfPageIndex: entry.pdfPageIndex,
+    resultSha256: sha,
+    outcome: doc.outcome,
+    pipelineVersion: storedPipelineVersion(doc.pipelineVersion),
+    imageSha256: typeof entry.imageSha256 === 'string' ? entry.imageSha256 : null,
+    textSha256: hasTextField ? textSha256Hex(page.text) : null,
+    hasText: hasTextField && page.text.trim() !== '',
+    receivedAt: now,
+    metadataJson: metadata.json,
+    warnings,
+    layoutStatus: layout.status,
+    layoutVersion: layout.version,
+    layoutJson: layout.layoutJson,
+    layoutBytes: layout.bytes,
+    layoutErrors: layout.errors,
+    layoutRejectedJson: layout.rejectedJson,
+  };
+}
+
+/** מה שמחלקת הסיווג נושאת על ה-layout של העמוד (ל-layoutSummary) — מתוך הרשומה, או null */
+export function classLayout(record) {
+  if (!record) return null;
+  return {
+    layoutStatus: record.layoutStatus,
+    // העובד השמיט את ה-layout עם אזהרה (layout_too_large, layout_geometry_unknown וכו')
+    workerDroppedLayout: (record.warnings || []).some((w) => w.source === 'worker' && w.code.startsWith('layout_')),
+  };
+}
+
+/**
+ * layoutSummary בסגירה, מהמחלקות שנושאות layoutStatus (עמודים שנכתבה להם רשומה): ok — נשמר layout;
+ * dropped — נפסל באתר (כל מה שאינו ok/absent) או שהעובד השמיט אותו (absent עם אזהרת layout_*);
+ * absent — אין layout ואין אזהרה.
+ */
+export function layoutSummaryOf(classes) {
+  const out = { ok: 0, absent: 0, dropped: 0 };
+  for (const c of classes || []) {
+    if (!c?.layoutStatus) continue;
+    if (c.layoutStatus === 'ok') out.ok++;
+    else if (c.layoutStatus === 'absent' && !c.workerDroppedLayout) out.absent++;
+    else out.dropped++;
+  }
+  return out;
+}
 
 // שגיאה כללית של העבודה לפי התוצאה: failed → "<code>: <message>" (או הודעה כשכל העמודים נכשלו)
 export function jobErrorText(doc) {
@@ -128,17 +231,24 @@ export function jobErrorText(doc) {
  * סיכום ההחלה → שדות המונים לשמירה ב-$set (לא $inc — שליחה חוזרת מחשבת מחדש ולא מגדילה).
  * @param {any} doc — התוצאה
  * @param {any[]} pageMap
- * @param {{entry:any, kind:'applied'|'failed'|'missing'|'conflict', message?:string}[]} classes
+ * @param {{entry:any, kind:'applied'|'failed'|'missing'|'conflict'|'recorded', message?:string, code?:string,
+ *          layoutStatus?:string, workerDroppedLayout?:boolean}[]} classes
+ *   recorded — עמוד שנשמרה לו רשומת OcrPageResult בלי החלה (בתוצאת failed); נספר רק ב-layoutSummary.
  */
 export function summarizeApply(doc, pageMap, classes) {
   const count = (kind) => classes.filter((c) => c.kind === kind).length;
   const pageErrors = classes
     .filter((c) => c.kind === 'failed' || c.kind === 'missing')
-    .map((c) => ({ pageNumber: c.entry.pageNumber, message: c.message || '' }))
+    .map((c) => ({
+      pageNumber: c.entry.pageNumber,
+      code: c.code || (c.kind === 'missing' ? MISSING_PAGE_CODE : 'unknown'),
+      message: c.message || '',
+    }))
     .sort((a, b) => a.pageNumber - b.pageNumber);
   const total = (pageMap || []).length;
+  const layoutSummary = layoutSummaryOf(classes);
   if (doc.outcome === 'cancelled') {
-    return { successPages: 0, failedPages: 0, conflictPages: 0, missingPages: 0, pageErrors: [], error: '' };
+    return { successPages: 0, failedPages: 0, conflictPages: 0, missingPages: 0, pageErrors: [], error: '', layoutSummary };
   }
   if (doc.outcome === 'failed') {
     return {
@@ -149,6 +259,7 @@ export function summarizeApply(doc, pageMap, classes) {
       processedPages: total,
       pageErrors,
       error: jobErrorText(doc),
+      layoutSummary,
     };
   }
   return {
@@ -159,6 +270,7 @@ export function summarizeApply(doc, pageMap, classes) {
     processedPages: total,
     pageErrors,
     error: '',
+    layoutSummary,
   };
 }
 
@@ -167,7 +279,10 @@ export function failedOutcomeClasses(doc, pageMap) {
   const byIndex = new Map((doc.pages || []).map((p) => [p.pdfPageIndex, p]));
   return (pageMap || [])
     .filter((entry) => byIndex.get(entry.pdfPageIndex)?.error)
-    .map((entry) => ({ entry, kind: 'failed', message: pageErrorMessage(byIndex.get(entry.pdfPageIndex).error) }));
+    .map((entry) => {
+      const err = byIndex.get(entry.pdfPageIndex).error;
+      return { entry, kind: 'failed', code: pageErrorCode(err), message: pageErrorMessage(err) };
+    });
 }
 
 // השלמת קליטה תקועה מהקובץ השמור (resumeStalledApplies) שנכשלה — למשל קובץ התוצאה חסר/פגום

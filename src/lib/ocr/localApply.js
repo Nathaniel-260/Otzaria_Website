@@ -12,6 +12,12 @@
 //      ב-OcrConflict עם טקסט ה-OCR ולא נדרס.
 //   ג. סגירה: מונים מחושבים מחדש ($set, לא $inc), ack נשמר, active:false — בעדכון מותנה אחד (j:true).
 //
+// נתוני פריסה/עזר (layout, metadata, warnings): לכל עמוד שיש לו טקסט, layout או metadata נכתבת
+// רשומת OcrPageResult (upsert עם $setOnInsert) — **לפני** כתיבת העמוד או ההתנגשות שלו, בכל outcome.
+// בעיה ב-layout לעולם לא דוחה את התוצאה (localResultLayout.pure.js). ביטול (באתר, או outcome
+// cancelled מהעובד) לא כותב לעמודים; העמודים שזוהו לפני הביטול נשמרים כ-OcrConflict עם
+// reason:'job_cancelled' (salvageCancelled), כדי שמנהל יוכל לאמץ אותם.
+//
 // קריסה בכל נקודה → שליחה חוזרת של אותה תוצאה ממשיכה מאותה נקודה (ה-hash נעול, ההחלטה נעולה,
 // עמודים שהוחלו מזוהים לפי lastOcrJobId). עבודה שנתקעה ב-applying כשהמחשב המקומי כבוי —
 // resumeStalledApply משלים מהקובץ השמור (ל-cron בשלב 9), כך שמחיקה/מיזוג של הספר לא נחסמים לנצח.
@@ -24,13 +30,18 @@ import path from 'node:path';
 import OcrJob from '../../models/OcrJob.js';
 import Page from '../../models/Page.js';
 import OcrConflict from '../../models/OcrConflict.js';
+import OcrPageResult from '../../models/OcrPageResult.js';
 import { jobDir, jobFileName, relToAbs, absToRel } from './localStorage.js';
 import { parseResultBytes, validateResult } from './localResultValidate.js';
 import {
   ackBody,
+  classLayout,
   closingStatusFields,
   failedOutcomeClasses,
+  MISSING_PAGE_CODE,
   MISSING_PAGE_MESSAGE,
+  pageErrorCode,
+  pageResultRecord,
   pageApplyFilter,
   pageApplySet,
   pageErrorMessage,
@@ -39,8 +50,10 @@ import {
   resumeRetryDelayMs,
   storedAckAnswer,
   storedPipelineVersion,
+  storedResultError,
   summarizeApply,
 } from './localApply.pure.js';
+import { bookMetadataJson } from './localResultLayout.pure.js';
 
 const DURABLE = { writeConcern: { w: 1, j: true } };
 
@@ -176,7 +189,7 @@ async function runPool(items, limit, fn) {
   return results;
 }
 
-async function recordConflict(job, entry, text, sha, page) {
+async function recordConflict(job, entry, text, sha, page, reason = 'page_changed') {
   try {
     await OcrConflict.updateOne(
       { job: job._id, page: entry.page },
@@ -185,11 +198,11 @@ async function recordConflict(job, entry, text, sha, page) {
           book: job.book,
           pageNumber: entry.pageNumber,
           pdfPageIndex: entry.pdfPageIndex,
-          reason: 'page_changed',
+          reason,
           ocrText: text,
           resultSha256: sha,
           expectedUpdatedAt: entry.expectedUpdatedAt ?? null,
-          foundUpdatedAt: page.updatedAt ?? null,
+          foundUpdatedAt: page?.updatedAt ?? null,
           status: 'open',
         },
       },
@@ -198,6 +211,23 @@ async function recordConflict(job, entry, text, sha, page) {
   } catch (e) {
     if (e?.code !== 11000) throw e; // upsert מקביל של אותה התנגשות — כבר נשמרה
   }
+}
+
+/**
+ * רשומת OcrPageResult לעמוד (אם הוא עומד בתנאי — pageResultQualifies). פעם אחת בלבד לכל
+ * (עבודה, עמוד): upsert עם $setOnInsert — שליחה חוזרת / השלמה מהקובץ לא משנות רשומה קיימת.
+ * @returns {Promise<{layoutStatus:string, workerDroppedLayout:boolean}|null>}
+ */
+async function recordPageResult(job, entry, p, sha, doc, now, hooks) {
+  const record = pageResultRecord(job, entry, p, sha, doc, now);
+  if (!record) return null;
+  try {
+    await OcrPageResult.updateOne({ job: job._id, page: entry.page }, { $setOnInsert: record }, { upsert: true });
+  } catch (e) {
+    if (e?.code !== 11000) throw e; // upsert מקביל של אותה רשומה — כבר נשמרה
+  }
+  await hooks?.afterPageRecord?.(entry);
+  return classLayout(record);
 }
 
 // עמוד אחד: עדכון מותנה יחיד; אם לא תפס — סיווג (כבר הוחל / חסר / התנגשות)
@@ -209,7 +239,7 @@ async function applyOne(job, entry, text, sha, now, hooks) {
   }
   const page = await Page.findById(entry.page).select('book updatedAt lastOcrJobId lastOcrResultSha256').lean();
   if (!page || String(page.book) !== String(job.book)) {
-    return { entry, kind: 'missing', message: MISSING_PAGE_MESSAGE };
+    return { entry, kind: 'missing', code: MISSING_PAGE_CODE, message: MISSING_PAGE_MESSAGE };
   }
   if (String(page.lastOcrJobId) === String(job._id) && page.lastOcrResultSha256 === sha) {
     return { entry, kind: 'applied' }; // שליחה חוזרת / המשך אחרי קריסה — בלי כתיבה כפולה
@@ -218,17 +248,67 @@ async function applyOne(job, entry, text, sha, now, hooks) {
   return { entry, kind: 'conflict' };
 }
 
-// סיווג כל העמודים המבוקשים. רק success/partial כותבים לעמודים; failed/cancelled — לא נוגעים.
+const sortedPageMap = (job) => [...(job.pageMap || [])].sort((a, b) => a.pdfPageIndex - b.pdfPageIndex);
+const pagesByIndex = (doc) => new Map((doc.pages || []).map((p) => [p.pdfPageIndex, p]));
+
+/**
+ * עבודה שבוטלה (באתר — isCancelled — בכל outcome, או outcome cancelled מהעובד): שום עמוד לא נכתב
+ * (סמנטיקת הביטול נשמרת). לכל עמוד שעומד בתנאי נכתבת רשומת OcrPageResult, ועמוד עם טקסט לא ריק
+ * (בלי error) נשמר גם כהתנגשות reason:'job_cancelled' — מנהל יכול לאמץ אותו. עמוד שנמחק מהספר
+ * (או הועבר לספר אחר) מדולג. אידמפוטנטית (upsert עם $setOnInsert) — שליחה חוזרת לא יוצרת כפילויות.
+ */
+async function salvageCancelled(job, sha, doc, now, hooks) {
+  const byIndex = pagesByIndex(doc);
+  await runPool(sortedPageMap(job), APPLY_CONCURRENCY, async (entry) => {
+    const p = byIndex.get(entry.pdfPageIndex);
+    if (!p) return;
+    const page = await Page.findById(entry.page).select('book updatedAt').lean();
+    if (!page || String(page.book) !== String(job.book)) return;
+    await recordPageResult(job, entry, p, sha, doc, now, hooks);
+    if (p.error == null && typeof p.text === 'string' && p.text.trim() !== '') {
+      await recordConflict(job, entry, p.text, sha, page, 'job_cancelled');
+    }
+  });
+}
+
+// ביטול גובר: קודם הצלת העמודים (התנגשויות job_cancelled), אחר כך ack=cancelled
+async function cancelWithSalvage(job, sha, doc, now, hooks) {
+  await salvageCancelled(job, sha, doc, now, hooks);
+  return storeCancelAck(job, sha, now);
+}
+
+// סיווג כל העמודים המבוקשים. רק success/partial כותבים לעמודים; failed — רק רשומות OcrPageResult;
+// cancelled (מהעובד, בלי ביטול באתר) — הצלה כהתנגשויות job_cancelled, בלי מחלקות.
+// לכל עמוד: רשומת OcrPageResult **לפני** כתיבת העמוד/ההתנגשות שלו.
 async function applyPages(job, doc, sha, now, hooks) {
-  const pageMap = [...(job.pageMap || [])].sort((a, b) => a.pdfPageIndex - b.pdfPageIndex);
-  if (doc.outcome === 'failed') return failedOutcomeClasses(doc, pageMap);
+  const pageMap = sortedPageMap(job);
+  const byIndex = pagesByIndex(doc);
+  if (doc.outcome === 'cancelled') {
+    await salvageCancelled(job, sha, doc, now, hooks);
+    return [];
+  }
+  if (doc.outcome === 'failed') {
+    const layouts = await runPool(pageMap, APPLY_CONCURRENCY, async (entry) => {
+      const p = byIndex.get(entry.pdfPageIndex);
+      return p ? recordPageResult(job, entry, p, sha, doc, now, hooks) : null;
+    });
+    const failedByIndex = new Map(failedOutcomeClasses(doc, pageMap).map((c) => [c.entry.pdfPageIndex, c]));
+    return pageMap
+      .map((entry, i) => {
+        const base = failedByIndex.get(entry.pdfPageIndex) || (layouts[i] ? { entry, kind: 'recorded' } : null);
+        return base ? { ...base, ...(layouts[i] || {}) } : null;
+      })
+      .filter(Boolean);
+  }
   if (doc.outcome !== 'success' && doc.outcome !== 'partial') return [];
-  const byIndex = new Map(doc.pages.map((p) => [p.pdfPageIndex, p]));
   return runPool(pageMap, APPLY_CONCURRENCY, async (entry) => {
     const p = byIndex.get(entry.pdfPageIndex);
-    if (!p) return { entry, kind: 'missing', message: MISSING_PAGE_MESSAGE }; // לא אמור לקרות אחרי ולידציה
-    if (p.error != null) return { entry, kind: 'failed', message: pageErrorMessage(p.error) };
-    return applyOne(job, entry, p.text, sha, now, hooks);
+    if (!p) return { entry, kind: 'missing', code: MISSING_PAGE_CODE, message: MISSING_PAGE_MESSAGE }; // לא אמור לקרות אחרי ולידציה
+    const layout = await recordPageResult(job, entry, p, sha, doc, now, hooks);
+    const cls = p.error != null
+      ? { entry, kind: 'failed', code: pageErrorCode(p.error), message: pageErrorMessage(p.error) }
+      : await applyOne(job, entry, p.text, sha, now, hooks);
+    return layout ? { ...cls, ...layout } : cls;
   });
 }
 
@@ -290,7 +370,7 @@ async function runApply(job, sha, doc, now, hooks) {
 async function continueReceive(job, sha, doc, now, hooks) {
   const stored = storedAckAnswer(job.ack);
   if (stored) return ok(stored);
-  if (isCancelled(job)) return storeCancelAck(job, sha, now);
+  if (isCancelled(job)) return cancelWithSalvage(job, sha, doc, now, hooks);
 
   let current = job;
   if (current.decision !== 'apply') {
@@ -303,18 +383,29 @@ async function continueReceive(job, sha, doc, now, hooks) {
     if (res.matchedCount === 0) {
       const again = storedAckAnswer(current?.ack);
       if (again) return ok(again);
-      if (isCancelled(current)) return storeCancelAck(current, sha, now);
+      if (isCancelled(current)) return cancelWithSalvage(current, sha, doc, now, hooks);
       if (current?.decision !== 'apply') return err(410, 'job_closed');
     }
   }
   return runApply(current, sha, doc, now, hooks);
 }
 
+// שדות נוספים שנשמרים בנעילת ה-hash (לכל outcome): metadata הספר ו-error העליון של התוצאה
+function lockedResultFields(doc) {
+  const meta = bookMetadataJson(doc.metadata);
+  const resultError = storedResultError(doc);
+  return {
+    resultMetadataJson: meta.json,
+    resultMetadataTruncated: meta.truncated,
+    ...(resultError ? { resultError } : {}),
+  };
+}
+
 /**
  * קליטת תוצאה שכבר אומתה ונשמרה עמידה (localResultIntake.js).
  * @param {{jobId:any, sha:string, doc:any, file?:{relPath:string, absPath:string, bytes:number}|null,
- *          now?:Date, env?:any, hooks?:{afterPageWrite?:(entry:any)=>any}}} args
- *   hooks — לטסטים בלבד (סימולציית קריסה אחרי k עדכוני עמוד).
+ *          now?:Date, env?:any, hooks?:{afterPageWrite?:(entry:any)=>any, afterPageRecord?:(entry:any)=>any}}} args
+ *   hooks — לטסטים בלבד (סימולציית קריסה אחרי k עדכוני עמוד / אחרי רשומת OcrPageResult ולפני העמוד).
  * @returns {Promise<{status:number, body:any, headers?:Record<string,string>}>}
  */
 export async function receiveResult({ jobId, sha, doc, file = null, now = new Date(), env = process.env, hooks }) {
@@ -335,6 +426,7 @@ export async function receiveResult({ jobId, sha, doc, file = null, now = new Da
           resultBytes: file?.bytes ?? null,
           resultReceivedAt: now,
           pipelineVersion: storedPipelineVersion(doc.pipelineVersion),
+          ...lockedResultFields(doc),
         },
       },
       DURABLE
@@ -397,7 +489,20 @@ export async function resumeStalledApply(jobId, { now = new Date(), env = proces
 
   let r;
   if (isCancelled(job)) {
-    r = await storeCancelAck(job, job.resultSha256, now);
+    // הביטול גובר ואסור לחסום את הסגירה: אם הקובץ השמור קריא — קודם מצילים ממנו את העמודים
+    // (התנגשויות job_cancelled); אם לא (חסר/פגום/שגיאת קריאה) — ack בלבד, עם רישום.
+    let read;
+    try {
+      read = await readStoredResult(job, env);
+    } catch (e) {
+      read = { ok: false, code: String(e?.code ?? e?.name ?? 'error') };
+    }
+    if (read.ok) {
+      r = await cancelWithSalvage(job, job.resultSha256, read.doc, now);
+    } else {
+      console.warn(`[ocr-local-resume] cancelled job=${String(job._id)}: stored result not salvaged (${read.code})`);
+      r = await storeCancelAck(job, job.resultSha256, now);
+    }
   } else {
     const read = await readStoredResult(job, env);
     if (!read.ok) return { ok: false, code: read.code };

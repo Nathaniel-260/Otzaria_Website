@@ -10,8 +10,10 @@
 //   2. backfillActive — active נקבע לרשומות שאין להן את השדה: true אם status='running'.
 //   3. swapActiveIndex — מחיקת { book:1 } partial { status:'running' } (לפי מפתח ו-filter,
 //      לא לפי שם) ויצירת האינדקסים החדשים (createIndex אידמפוטנטי).
+//   4. ensurePageResultIndexes — אינדקסי האוסף OcrPageResult (נתוני פריסה/עזר לכל עמוד).
 import mongoose from 'mongoose';
 import OcrJob from '../../models/OcrJob.js';
+import OcrPageResult from '../../models/OcrPageResult.js';
 import { activeFilter } from './localJobState.js';
 
 export const LEGACY_INDEX_FILTER = Object.freeze({ status: 'running' });
@@ -35,6 +37,14 @@ export const TARGET_INDEXES = Object.freeze([
   { key: { method: 1, active: 1, ackAt: 1 }, options: {} },
 ]);
 
+// אינדקסי OcrPageResult (תואמים ל-src/models/OcrPageResult.js — נבדק בטסט). אוסף חדש, ולכן אין
+// אינדקס ישן להחליף: רק יצירה אידמפוטנטית (autoIndex של האפליקציה יוצר אותם ממילא).
+export const PAGE_RESULT_INDEXES = Object.freeze([
+  { key: { job: 1, page: 1 }, options: { unique: true } },
+  { key: { page: 1, createdAt: -1 }, options: {} },
+  { key: { book: 1 }, options: {} },
+]);
+
 const DUPLICATE_FAIL_ERROR = 'סומנה ככשל במיגרציה: עבודה פעילה נוספת לאותו ספר (נשמרה החדשה ביותר)';
 
 // שם ברירת המחדל של MongoDB לאינדקס בלי name (למשל method_1_workerId_1_active_1__id_1)
@@ -56,9 +66,9 @@ export function isLegacyBookIndex(index) {
   );
 }
 
-async function listIndexes() {
+async function listIndexes(model = OcrJob) {
   try {
-    return await OcrJob.collection.indexes();
+    return await model.collection.indexes();
   } catch (err) {
     // האוסף עוד לא קיים (DB ריק) — אין אינדקסים
     if (err?.code === 26 || err?.codeName === 'NamespaceNotFound') return [];
@@ -161,6 +171,22 @@ export async function swapActiveIndex({ apply }) {
   return { ok: true, ...plan, dropped, created, applied: true };
 }
 
+// יצירת אינדקסי OcrPageResult שחסרים (createIndex אידמפוטנטי). dry-run — דוח בלבד.
+export async function ensurePageResultIndexes({ apply }) {
+  const names = new Set((await listIndexes(OcrPageResult)).map((i) => i.name));
+  const toCreate = PAGE_RESULT_INDEXES.map(({ key, options }) => options.name || defaultIndexName(key)).filter(
+    (name) => !names.has(name)
+  );
+  if (!apply) return { toCreate, created: [], applied: false };
+  const created = [];
+  for (const { key, options } of PAGE_RESULT_INDEXES) {
+    const name = options.name || defaultIndexName(key);
+    await OcrPageResult.collection.createIndex(key, { ...options, name });
+    if (toCreate.includes(name)) created.push(name);
+  }
+  return { toCreate, created, applied: true };
+}
+
 // הזרימה המלאה של הסקריפט. מחזירה דוח JSON; changes=false אם אין מה לעשות.
 export async function migrateOcrLocal({ apply = false, failOlder = false, now = new Date() } = {}) {
   const duplicates = await findDuplicateActive();
@@ -186,12 +212,17 @@ export async function migrateOcrLocal({ apply = false, failOlder = false, now = 
   } else {
     index = await swapActiveIndex({ apply });
   }
+  // אינדקסי OcrPageResult — רק אם האינדקסים של OcrJob לא נעצרו (כפילויות)
+  const pageResultIndex = index.ok
+    ? await ensurePageResultIndexes({ apply })
+    : { toCreate: [], created: [], applied: false };
 
   const changes =
     duplicateFix.jobIds.length > 0 ||
     backfill.missing > 0 ||
     index.toDrop.length > 0 ||
-    index.toCreate.length > 0;
+    index.toCreate.length > 0 ||
+    pageResultIndex.toCreate.length > 0;
 
   return {
     ok: index.ok,
@@ -201,5 +232,6 @@ export async function migrateOcrLocal({ apply = false, failOlder = false, now = 
     duplicateFix,
     backfill,
     index,
+    pageResultIndex,
   };
 }

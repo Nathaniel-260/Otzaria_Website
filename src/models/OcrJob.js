@@ -88,7 +88,8 @@ const OcrJobSchema = new mongoose.Schema({
   // קוד מכונה לשגיאה (local: כשל קבוע בהכנת הקלט, למשל missing_image / prep_abandoned) —
   // ניסיון חוזר עם אותו requestId מחזיר את אותה תשובה בדיוק (localJobCreate)
   errorCode: { type: String },
-  pageErrors: [{ pageNumber: Number, message: String }], // שגיאות נקודתיות לעמודים
+  // שגיאות נקודתיות לעמודים. code — קוד השגיאה מהעובד (מנוקה), או 'page_missing' לעמוד שנמחק
+  pageErrors: [{ pageNumber: Number, code: String, message: String }],
 
   startedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   startedByName: { type: String, default: '' },
@@ -132,6 +133,15 @@ const OcrJobSchema = new mongoose.Schema({
   resultBytes: { type: Number },
   resultReceivedAt: { type: Date },
   pipelineVersion: { type: String },
+  // metadata הספר מהתוצאה כ-JSON (localResultLayout.pure.js → bookMetadataJson): המלא, או תת-קבוצה
+  // קבועה כשהמלא מעל 512KiB (resultMetadataTruncated). נשמר בנעילת ה-hash, לכל outcome.
+  resultMetadataJson: { type: String },
+  resultMetadataTruncated: { type: Boolean },
+  // error העליון של התוצאה (לכל outcome — גם partial אחרי מיצוי ניסיונות), מנוקה ומקוצר ל-500
+  resultError: { type: new mongoose.Schema({ code: String, message: String }, { _id: false }), default: undefined },
+  // סיכום נתוני הפריסה בסגירה: ok — נשמר layout; absent — אין layout בלי סיבה; dropped — layout שנפסל
+  // באתר או שהעובד השמיט (אזהרת layout_*)
+  layoutSummary: { type: new mongoose.Schema({ ok: Number, absent: Number, dropped: Number }, { _id: false }), default: undefined },
   applyStartedAt: { type: Date },
   applyLeaseUntil: { type: Date },
   ack: { type: AckSchema, default: null },

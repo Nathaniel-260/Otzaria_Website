@@ -4,7 +4,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import OcrJob from '../../models/OcrJob.js';
-import { TARGET_INDEXES, defaultIndexName, planIndexChanges } from './ocrJobMigration.js';
+import OcrPageResult from '../../models/OcrPageResult.js';
+import { PAGE_RESULT_INDEXES, TARGET_INDEXES, defaultIndexName, planIndexChanges } from './ocrJobMigration.js';
 
 // אינדקסים שקדמו לספק local ונוצרים ע"י Mongoose כרגיל — המיגרציה לא אחראית עליהם
 const PRE_EXISTING = new Set(['status_1', 'book_1_createdAt_-1']);
@@ -36,4 +37,10 @@ test('האינדקסים הוותיקים עדיין בסכמה (אחרת יש �
 test('planIndexChanges: אחרי יצירת כל TARGET_INDEXES אין מה ליצור', () => {
   const existing = TARGET_INDEXES.map(({ key, options }) => ({ key, name: options.name || defaultIndexName(key) }));
   assert.deepEqual(planIndexChanges(existing), { toDrop: [], toCreate: [] });
+});
+
+test('PAGE_RESULT_INDEXES זהה בדיוק לאינדקסי הסכמה של OcrPageResult', () => {
+  const fromSchema = OcrPageResult.schema.indexes().map(([key, options]) => normalize(key, options)).sort(byName);
+  const fromMigration = PAGE_RESULT_INDEXES.map(({ key, options }) => normalize(key, options)).sort(byName);
+  assert.deepEqual(fromMigration, fromSchema);
 });

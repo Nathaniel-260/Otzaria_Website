@@ -2,7 +2,8 @@
 /**
  * מיגרציה לספק OCR המקומי (method=local): שדה active ב-OcrJob והחלפת האינדקס הייחודי
  * החלקי { book:1 } partial { status:'running' } ב-book_active_unique (partial { active:true }),
- * ויצירת requestId_unique ואינדקסי הרשימה/הניקוי. אידמפוטנטית ולא הרסנית.
+ * ויצירת requestId_unique ואינדקסי הרשימה/הניקוי, וגם אינדקסי OcrPageResult (נתוני פריסה/עזר לכל
+ * עמוד). אידמפוטנטית ולא הרסנית.
  *
  * הרצה: node scripts/migrate-ocr-local.mjs [--apply] [--fail-older-duplicates]   (MONGODB_URI מ-.env)
  *   ברירת מחדל: dry-run — מדפיס JSON של מה ייעשה ולא משנה דבר.
