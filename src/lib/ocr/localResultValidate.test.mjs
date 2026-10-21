@@ -224,7 +224,7 @@ test('metadata של הספר/העמוד עם ערכי null בתוכו מתקבל
   assert.deepEqual(check(doc), { ok: true, errors: [] });
 });
 
-// הקלה מכוונת (CONTRACT.md, סעיף "מגבלות וקבלה סלחנית"): השירות 1.0.141+ לא מקפיא error עליון בלי code
+// הקלה מכוונת (CONTRACT.md, סעיף "מגבלות וקבלה סלחנית"): השירות 1.0.138+ (adb0c97) לא מקפיא error עליון בלי code
 // (Validators.cs:154, HANDOVER 3.1 פריט 11), אבל DeliverySender לא מאמת מחדש קובץ שהוקפא בגרסה ישנה —
 // ולכן partial/cancelled כזה עדיין מתקבל (ב-failed נדחה, כמו בשירות)
 test('error עליון עם code ריק: ב-partial/cancelled מתקבל (הקלה), ב-failed נדחה', () => {
