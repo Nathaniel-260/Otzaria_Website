@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Book from '@/models/Book';
 import Page from '@/models/Page';
+import OcrPageResult from '@/models/OcrPageResult';
 import fs from 'fs-extra';
 import path from 'path';
 import { getServerSession } from 'next-auth';
@@ -68,6 +69,8 @@ export async function DELETE(request) {
 
         // 3. מחיקת כל העמודים המשויכים לספר מה-DB (קורה תמיד!)
         await Page.deleteMany({ book: bookId });
+        // נתוני OCR מקומי לעמודים (layout/metadata — נשמרים לצמיתות, נמחקים רק עם הספר)
+        await OcrPageResult.deleteMany({ book: bookId });
 
         // 4. מחיקת רשומת הספר עצמה מה-DB (קורה תמיד!)
         await Book.findByIdAndDelete(bookId);

@@ -6,6 +6,7 @@ import slugify from 'slugify';
 import connectDB from '@/lib/db';
 import Book from '@/models/Book';
 import Page from '@/models/Page';
+import OcrPageResult from '@/models/OcrPageResult';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { hasBookLibraryAccess } from '@/lib/roles';
@@ -179,6 +180,9 @@ export async function POST(request) {
         for (const oldBook of sortedOldBooks) {
             // 1. מחיקת רשומות מה-DB
             await Page.deleteMany({ $or: [{ bookId: oldBook._id }, { book: oldBook._id }] });
+            // נתוני OCR מקומי (OcrPageResult) של העמודים הישנים — כמו במחיקת ספר. המיזוג יוצר עמודים
+            // חדשים (מזהים חדשים, בלי טקסט ובלי lastOcrJobId), ולכן אין למה להעביר את הרשומות.
+            await OcrPageResult.deleteMany({ book: oldBook._id });
             await Book.findByIdAndDelete(oldBook._id);
 
             // 2. טיפול במחיקת הקבצים הפיזיים

@@ -5,6 +5,7 @@ const {
   findByIdMock,
   findByIdAndDeleteMock,
   pageDeleteManyMock,
+  pageResultDeleteManyMock,
   pathExistsMock,
   cancelActiveOcrForBookMock,
   cancelLateOcrJobsQuietMock,
@@ -14,6 +15,7 @@ const {
   findByIdMock: vi.fn(),
   findByIdAndDeleteMock: vi.fn(),
   pageDeleteManyMock: vi.fn().mockResolvedValue(undefined),
+  pageResultDeleteManyMock: vi.fn().mockResolvedValue(undefined),
   pathExistsMock: vi.fn().mockResolvedValue(false),
   cancelActiveOcrForBookMock: vi.fn().mockResolvedValue({ cancelled: [] }),
   cancelLateOcrJobsQuietMock: vi.fn().mockResolvedValue({ cancelled: [] }),
@@ -53,6 +55,10 @@ vi.mock("@/models/Page", () => ({
   default: { deleteMany: pageDeleteManyMock },
 }));
 
+vi.mock("@/models/OcrPageResult", () => ({
+  default: { deleteMany: pageResultDeleteManyMock },
+}));
+
 vi.mock("@/lib/ocr/localCancel", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ocr/localCancel")>();
   return {
@@ -76,6 +82,7 @@ describe("DELETE /api/admin/books/delete", () => {
     findByIdMock.mockReset();
     findByIdAndDeleteMock.mockReset();
     pageDeleteManyMock.mockClear();
+    pageResultDeleteManyMock.mockClear();
     pathExistsMock.mockReset();
     pathExistsMock.mockResolvedValue(false);
     removeMock.mockClear();
@@ -143,6 +150,8 @@ describe("DELETE /api/admin/books/delete", () => {
     const cancelOrder = cancelActiveOcrForBookMock.mock.invocationCallOrder[0];
     expect(cancelOrder).toBeLessThan(removeMock.mock.invocationCallOrder[0]);
     expect(cancelOrder).toBeLessThan(pageDeleteManyMock.mock.invocationCallOrder[0]);
+    // נתוני OCR מקומי לעמודים (OcrPageResult) נמחקים יחד עם העמודים
+    expect(pageResultDeleteManyMock).toHaveBeenCalledWith({ book: "b1" });
     expect(cancelOrder).toBeLessThan(findByIdAndDeleteMock.mock.invocationCallOrder[0]);
     expect(cancelLateOcrJobsQuietMock).toHaveBeenCalledWith(["b1"], { reason: "book_deleted", byName: "" });
     expect(cancelLateOcrJobsQuietMock.mock.invocationCallOrder[0]).toBeGreaterThan(
@@ -176,6 +185,7 @@ describe("DELETE /api/admin/books/delete", () => {
     });
     expect(removeMock).not.toHaveBeenCalled();
     expect(pageDeleteManyMock).not.toHaveBeenCalled();
+    expect(pageResultDeleteManyMock).not.toHaveBeenCalled();
     expect(findByIdAndDeleteMock).not.toHaveBeenCalled();
     expect(revalidateTagMock).not.toHaveBeenCalled();
   });
@@ -189,6 +199,7 @@ describe("DELETE /api/admin/books/delete", () => {
 
     expect(res.status).toBe(500);
     expect(pageDeleteManyMock).not.toHaveBeenCalled();
+    expect(pageResultDeleteManyMock).not.toHaveBeenCalled();
     expect(findByIdAndDeleteMock).not.toHaveBeenCalled();
     errSpy.mockRestore();
   });

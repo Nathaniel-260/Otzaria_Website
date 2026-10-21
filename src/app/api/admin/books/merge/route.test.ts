@@ -8,6 +8,7 @@ const m = vi.hoisted(() => ({
   pageFind: vi.fn(),
   pageInsertMany: vi.fn(),
   pageDeleteMany: vi.fn(),
+  pageResultDeleteMany: vi.fn(),
   ensureDir: vi.fn(),
   cancelBooks: vi.fn(),
   cancelLate: vi.fn(),
@@ -41,6 +42,9 @@ vi.mock("@/models/Book", () => ({
 }));
 vi.mock("@/models/Page", () => ({
   default: { find: m.pageFind, insertMany: m.pageInsertMany, deleteMany: m.pageDeleteMany },
+}));
+vi.mock("@/models/OcrPageResult", () => ({
+  default: { deleteMany: m.pageResultDeleteMany },
 }));
 vi.mock("@/lib/ocr/localCancel", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ocr/localCancel")>();
@@ -90,6 +94,19 @@ describe("POST /api/admin/books/merge - ביטול OCR מתועד", () => {
     expect(m.cancelLate.mock.invocationCallOrder[0]).toBeGreaterThan(lastDelete);
   });
 
+  it("נתוני OCR מקומי (OcrPageResult) של הספרים הישנים נמחקים יחד עם העמודים שלהם", async () => {
+    const res = await POST(makeRequest({ bookIds: ["a1", "a2"], newName: "מאוחד" }));
+
+    expect(res.status).toBe(200);
+    expect(m.pageResultDeleteMany.mock.calls).toEqual([[{ book: "a1" }], [{ book: "a2" }]]);
+    // אחרי מחיקת העמודים של אותו ספר ולפני מחיקת רשומת הספר
+    for (const i of [0, 1]) {
+      const at = m.pageResultDeleteMany.mock.invocationCallOrder[i];
+      expect(at).toBeGreaterThan(m.pageDeleteMany.mock.invocationCallOrder[i]);
+      expect(at).toBeLessThan(m.bookFindByIdAndDelete.mock.invocationCallOrder[i]);
+    }
+  });
+
   it("קליטת תוצאות OCR בעיצומה באחד הספרים → 409 ושום דבר לא נוצר או נמחק", async () => {
     m.cancelBooks.mockRejectedValue(new OcrApplyInProgressError("j1"));
 
@@ -103,6 +120,7 @@ describe("POST /api/admin/books/merge - ביטול OCR מתועד", () => {
     expect(m.ensureDir).not.toHaveBeenCalled();
     expect(m.bookCreate).not.toHaveBeenCalled();
     expect(m.pageDeleteMany).not.toHaveBeenCalled();
+    expect(m.pageResultDeleteMany).not.toHaveBeenCalled();
     expect(m.bookFindByIdAndDelete).not.toHaveBeenCalled();
     expect(m.revalidateTag).not.toHaveBeenCalled();
   });
