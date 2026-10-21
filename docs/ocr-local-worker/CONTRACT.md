@@ -72,10 +72,26 @@
 
 - גוף לפי `status.schema.json`. `message` נשלח רק ב-`needs_attention`, בפורמט `"<reason>: <טקסט קבוע>"`.
   מחרוזת ריקה או פורמט אחר נדחים ב-`422 invalid_report` (`field: "message"`).
+- מה השירות שולח בפועל (`Sync/StatusReporter.cs`, גרסה 1.0.142): `running`/`pausing`/`paused_runner`/
+  `delivery_pending` בכל סבב (כל `Scheduling:StatusSeconds`, ומיד אחרי מעבר השהיה). `needs_attention` ו-`queued`
+  ("עבודה מוחנית") נשלחים כשהמצב או ה-`message` משתנים, ואחר כך כל 5 דקות. `queued` נשלח רק לעבודה שחזרה לתור אחרי
+  שכבר התחילה (ניסיון חוזר, או `requeue` ידני בשירות); עבודה שטרם התחילה לא מדווחת.
+- קודי ה-`reason` ב-`message` (`StatusReporter.AttentionText`): `manifest_conflict`, `jobid_case_conflict`,
+  `device_missing`, `pipeline_misconfigured`, `process_tree_alive`, `crash_loop`, `input_hash_mismatch`,
+  `input_unavailable`, `delivery_rejected`, `result_conflict`, `invalid_ack`, `output_missing`, `output_corrupt`,
+  `output_unknown`, `output_path_invalid`. קוד לא מוכר נשלח כקוד חשוף, וקוד לא תקין נשלח כ-`unknown`. כולם
+  מתקבלים, והממשק מציג לכל קוד מוכר תווית בעברית (`attentionReason` ב-`src/components/admin/ocr/ocrJobView.js`).
+- **HANDOVER 3.1 פריט 8:** אם העבודה כבר מוחנית מסיבה אחרת (למשל `delivery_rejected`) והנתונים הקבועים שלה
+  משתנים, השירות מדווח שוב `needs_attention`, והפעם עם `message` של `manifest_conflict`. ביטול שמגיע יחד עם
+  נתונים שהשתנו עשוי להופיע רגע כ-`needs_attention` (`manifest_conflict`) ואחר כך כ-`delivery_pending`, עד
+  שתוצאת ה-`cancelled` נמסרת. האתר מקבל את כל המעברים האלה (מצב, `message`, ניקוי ה-`message` ביציאה).
 - `workerId` בגוף שונה מ-`OCR_WORKER_ID` → `403 wrong_worker` (בעיית תצורה).
 - הדיווח מתקבל רק אם `reportSeq` גדול מהשמור, העבודה פעילה, לא הוחלט עליה (`decision:null`), והיא לא
   ב-`preparing` או `applying`. דיווח ישן או כפול לא דורס חדש ולא פותח עבודה סגורה; התשובה עדיין 200.
+  `reportSeq` עולה ונשמר אצל השירות לפני כל שליחה, גם כשהשליחה נכשלת.
 - המצבים `completed`/`failed`/`cancelled` בדיווח לא סוגרים עבודה. רק תוצאה סוגרת.
+- דיווח שנדחה ב-4xx (שאינו 401/403) **לא** עוצר את העבודה אצל השירות: הוא נרשם כאירוע `status_rejected` (פעם
+  אחת לכל קוד סטטוס לעבודה), והעיבוד והמסירה ממשיכים. בכל זאת, דחייה של דיווח תקין היא באג באתר.
 
 ### קליטת תוצאה
 
@@ -125,12 +141,43 @@
 | `403 wrong_worker` | `/status` | `workerId` בגוף שונה מהמוגדר. |
 | `503 shabbat` | כל הנתיבים | שער השבת (`src/proxy.js`) בשבת ויו"ט, עם `Retry-After: 3600`. ראו OPERATIONS סעיף 6. |
 
-## סיווג אצל השירות (לפי HANDOVER סעיף 3)
+## סיווג אצל השירות (HANDOVER סעיף 3 ו-3.1 פריט 9; `Site/ErrorClassifier.cs`, גרסה 1.0.142)
 
-- **401/403, גוף HTML או 3xx** → בעיית תצורה/אימות: העבודה מוחזקת, התראה, ניסיון חוזר.
-- **408/429/5xx/רשת** → זמני: backoff של 10/30/60/300/900 שניות עם jitter, מכבד `Retry-After`.
-- **שאר 4xx** (400/404/409/413/422) → דחייה: העבודה נעצרת ב-`needs_attention` למפעיל, והקובץ נשמר.
+- **401/403, גוף HTML (גם ב-2xx או ב-4xx) או 3xx** → בעיית תצורה/אימות (התראה `site_auth`): כלום לא נמחק.
+  סבב הדיווחים נעצר (אותו סוד לכל העבודות), והמסירות מוחזקות (`delivery_auth`, ניסיון כל 15 דקות או מיד כשקובץ
+  הסוד משתנה).
+- **408/429/5xx/רשת** → זמני: למסירה, backoff של 10/30/60/300/900 שניות עם jitter, בלי הגבלת ניסיונות.
+- **שאר 4xx** → דחייה, וההשלכה תלויה בנתיב:
+  - `POST /result` → העבודה מוחנית ב-`needs_attention` (`delivery_rejected`; ב-409 `result_conflict`), והקובץ
+    נשמר אצל השירות.
+  - `GET /input` → `needs_attention` (`input_unavailable`).
+  - `POST /status` → העבודה **לא** נעצרת: אירוע `status_rejected` בלבד (ראו "דיווח מצב").
+  - `GET /jobs/{id}` → ב-404 אירוע `site_missing` והעבודה נשמרת אצל השירות; 4xx אחר נחשב כשל, ואחרי 3 כשלים
+    רצופים עולה התראה `sync_get_<jobId>`.
+  - `GET /jobs` → 4xx לא צפוי נספר לחוסר מענה, ואחרי 5 דקות עולה התראה `site_unreachable`.
 - תשובה שאינה ack תקין (שדה חסר, `outcome` שונה מזה שנשלח) → `invalid_ack`, העבודה לא נסגרת.
+
+### `Retry-After`
+
+השירות מפענח שניות שלמות או תאריך HTTP, וחותך כל ערך לשעה לכל היותר (`ErrorClassifier.MaxRetryAfter`). האתר
+שולח תמיד מספר שניות שלם. **ההיקף של ההמתנה שונה לפי הנתיב:**
+
+| נתיב | מה נעצר |
+|---|---|
+| `POST /status` | סבב הדיווחים מסתיים, ואף דיווח (של אף עבודה) לא נשלח עד שההמתנה עוברת. בסבב הבא העבודה שעוררה את ההמתנה מדווחת אחרונה. ההמתנה נשמרת בזיכרון בלבד. |
+| `POST /result` (429/503) | סבב המסירה מסתיים, ו**כל** המסירות (לא רק של העבודה הזו) מוחזקות עד שההמתנה עוברת. ההמתנה נשמרת בהגדרות השירות ושורדת הפעלה מחדש (בטעינה היא נחתכת לשעה מהרגע), ו-`retry-delivery` אינו עוקף אותה. |
+| `GET /input` | רק ההורדה של אותה עבודה נדחית. ההורדה של העבודה הבאה בתור יכולה להתחיל מיד. |
+| `GET /jobs`, `GET /jobs/{id}` | קריאת הרשימה הבאה נדחית. בבדיקת עבודות שנעלמו מהרשימה, הסבב נעצר. |
+
+הערכים שהאתר שולח:
+
+| תשובה | נתיבים | `Retry-After` | השלכה אצל השירות |
+|---|---|---|---|
+| `503 apply_in_progress` | `/result` | 30 | כל המסירות מחכות 30 שניות. |
+| `503 storage_unavailable` | `/input`, `/result` | 300 | ב-`/result` כל המסירות מחכות 5 דקות. ב-`/input` רק אותה עבודה מחכה. |
+| `503 shabbat` | כל הנתיבים | 3600 | שווה לתקרה של השירות. ראו OPERATIONS סעיף 6. |
+
+שום נתיב אחר בקוד האתר לא שולח `Retry-After` ולא מחזיר 429, ו-4xx לעולם לא נשלח עם `Retry-After`.
 
 ## זמני תגובה
 
