@@ -268,12 +268,13 @@ test('קריסה בין רישום ההתנגשות להעברה ל-rejected: re
 
   const later = new Date(t0.getTime() + 31 * DAY);
   await purgeJobFiles(await load(job._id), { now: later, env });
-  assert.deepEqual(await filesOf(job), [`rejected-${stray}.json`, `result-${otherSha}.json`]);
+  assert.deepEqual(await filesOf(job), [`rejected-${stray}.json`, `result-${otherSha}.json`].sort());
 
   // שליחה חוזרת של אותה תוצאה מתנגשת: 409, הקובץ עובר ל-rejected, בלי רשומה כפולה
   const r = await send(job._id, other, { now: later });
   assert.equal(r.status, 409);
-  assert.deepEqual(await filesOf(job), [`rejected-${otherSha}.json`, `rejected-${stray}.json`]);
+  // filesOf ממוין, ו-otherSha תלוי ב-jobId האקראי — גם הצפוי ממוין (אחרת נכשל כשה-hash גדול מ-eee…)
+  assert.deepEqual(await filesOf(job), [`rejected-${otherSha}.json`, `rejected-${stray}.json`].sort());
   assert.equal((await load(job._id)).resultConflicts.length, 1);
 });
 
