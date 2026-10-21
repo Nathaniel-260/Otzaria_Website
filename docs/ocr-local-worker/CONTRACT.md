@@ -100,7 +100,8 @@
 - **hash אחר** אחרי נעילה → `409 result_conflict`. הקובץ נשמר לבירור (`resultConflicts`), אלא אם יש כבר
   20 התנגשויות שלא סומנו כנבדקו (אז התשובה זהה, אבל הקובץ לא נשמר).
 - **תוצאה אחרי ביטול מפורש** → `200 {"ack":"cancelled", …, "outcome":"cancelled"}` בלי קשר ל-outcome שנשלח.
-  הטקסט לא מוחל; שליחה חוזרת מקבלת את אותה תשובה.
+  הטקסט לא מוחל; שליחה חוזרת מקבלת את אותה תשובה. מגרסת השירות שמצילה עמודים (≥1.0.144), תוצאה כזו עשויה
+  לשאת עמודים: הם נשמרים כהתנגשויות `job_cancelled` ולא נכתבים לעמודים (ראו "נתוני פריסה, אזהרות ונתוני עזר").
 - כל עמוד מוחל בעדכון מותנה ב-`expectedUpdatedAt`. עמוד שהשתנה נרשם כהתנגשות ולא נדרס.
 
 | קוד | `error` | מתי | `Retry-After` |
@@ -123,9 +124,85 @@
 - **אורך טקסט עמוד: עד 2,000,000 יחידות UTF-16** (`MAX_PAGE_TEXT_CHARS` ב-`src/lib/ocr/localResultValidate.js`, נמדד ב-`String.length`; בדיוק 2,000,000 מתקבל). זה אותו גבול ואותה יחידה שהשירות אוכף **מגרסה 1.0.141** (commit `247aed3` בריפו השירות): `ResultValidator.MaxPageTextUnits = 2_000_000` ב-`Validation/Validators.cs` (`.NET string.Length`, אותה ספירה כמו `String.length`), ו-`result.schema.json` מתעד אותה ב-`$comment` של `pages[].text` (בלי `maxLength`, שסופר נקודות קוד ולא יחידות UTF-16).
 - **עמוד חורג מהשירות מגיע כשגיאת עמוד, לא כ-422:** `ResultFinalizer.Load` בשירות (`Execution/ResultFinalizer.cs`) הופך כל עמוד מעל הגבול, לפני האימות וההקפאה, לעמוד **בלי `text`** עם ה-`metadata` שלו ו-`error {code: "page_text_too_long"}`, שומר את שאר העמודים, וממיר `success` ל-`partial`. האתר מקבל אותו ככל שגיאת עמוד: העמוד לא נכתב, נרשם ב-`pageErrors` עם הקוד, וה-ack הוא `accepted` עם ה-`outcome` שנשלח (`partial` שבו אף עמוד לא נקלט נסגר באתר כ-`failed`/`no_pages_succeeded`, וה-ack נשאר `partial`). קודי שגיאת העמוד שהשירות שולח: `layout_failed`, `not_processed` (bridge, עם `text: ""`) ו-`page_text_too_long`; האתר אינו מסנן לפי קוד ומציג אותו כפי שהוא.
 - **חריגה שבכל זאת מגיעה** (קובץ שהוקפא בגרסת שירות קודמת ל-1.0.141 — `DeliverySender` אינו מאמת מחדש קובץ שכבר הוקפא) דוחה את **כל** התוצאה: `422 validation_failed` עם `page <idx> text too long` ב-`details` (עד 5 שגיאות ראשונות), ולא נכתב אף עמוד. השירות מסווג 422 כקבוע ומחנה את העבודה (`needs_attention`) למפעיל.
-- **null בשדות אופציונליים** (`metadata`, `pages[].metadata`, `error`, `pages[].text` כשיש `error`): לפי HANDOVER סעיף 3.1 פריט 11 ו-`pipeline-contract.md`, תוצאה של השירות **אינה מכילה** חבר אופציונלי שערכו `null` — הוא מושמט. השירות עצמו עדיין סובל `null` כזה בקובץ של ה-handler ומשמיט אותו בהקפאה (קובץ ה-outbox נכתב מחדש מהמסמך המאומת), כך שרק הקובץ המוקפא נשלח לאתר. האתר מקבל `null` כזה כאילו חסר (הקלה מכוונת, עקרון Postel; קבלתו אינה כותבת עמוד שגוי). ערכים **בתוך** `metadata` (של הספר או של עמוד) עשויים להיות `null` גם בשירות הנוכחי (למשל `gpu.name`) — האתר אינו בודק את תוכן ה-`metadata` כלל. כך גם `pages[].pageId` — שדה שאינו בסכמה ובשירות כלל; האתר בודק אותו רק אם נשלח כמחרוזת, וכותב תמיד לעמוד לפי ה-`pageMap` של העבודה. אין להקשיח בלי תיאום עם השירות.
+- **null בשדות אופציונליים** (`metadata`, `pages[].metadata`, `pages[].layout`, `pages[].warnings`, `error`, `pages[].text` כשיש `error`): לפי HANDOVER סעיף 3.1 פריט 11 ו-`pipeline-contract.md`, תוצאה של השירות **אינה מכילה** חבר אופציונלי שערכו `null` — הוא מושמט. השירות עצמו עדיין סובל `null` כזה בקובץ של ה-handler ומשמיט אותו בהקפאה (קובץ ה-outbox נכתב מחדש מהמסמך המאומת), כך שרק הקובץ המוקפא נשלח לאתר. האתר מקבל `null` כזה כאילו חסר (הקלה מכוונת, עקרון Postel; קבלתו אינה כותבת עמוד שגוי). ערכים **בתוך** `metadata` (של הספר או של עמוד) עשויים להיות `null` גם בשירות הנוכחי (למשל `gpu.name`) — האתר אינו בודק את תוכן ה-`metadata` כלל. כך גם `pages[].pageId` — שדה שאינו בסכמה ובשירות כלל; האתר בודק אותו רק אם נשלח כמחרוזת, וכותב תמיד לעמוד לפי ה-`pageMap` של העבודה. אין להקשיח בלי תיאום עם השירות.
 - **`error.code` ריק ברמת התוצאה ב-`partial`/`cancelled`:** האתר דורש `code` לא ריק רק ב-`failed` (ובכל `error` ברמת עמוד); ב-`partial`/`cancelled` אובייקט `error` עם `code` ריק מתקבל. לפי HANDOVER סעיף 3.1 פריט 11 לכל `error` בתוצאה יש `code` לא ריק בכל `outcome`, והשירות (`top-level error without code` ב-`Validators.cs`) מסרב להקפיא תוצאה שמפרה זאת מגרסה 1.0.138 (commit `adb0c97`, recheck N05; לפני כן הכלל חל רק ב-`failed`) — אבל קובץ שהוקפא בגרסה ישנה יותר (למשל 1.0.125 שהותקנה קודם על המכונה) עדיין עשוי להישלח כמו שהוא. האתר סלחני בכוונה ולא כותב דבר שגוי; לא להקשיח.
 - **`Retry-After` על `/result`** (`503 apply_in_progress` — 30, `storage_unavailable` — 300, שער השבת — 3600): השירות הנוכחי (1.0.142) עוצר בעקבותיו את **כל** מסירות התוצאות, לא רק של אותה עבודה, ושומר את ההמתנה גם לאחר אתחול (מ-1.0.141; תקרה של שעה; HANDOVER סעיף 3.1 פריט 9, `DeliverySender.cs`). לכן הערכים כאן קצרים בכוונה.
+
+### נתוני פריסה, אזהרות ונתוני עזר (שירות ≥1.0.144, גשר 2)
+
+מקור האמת למבנה: מפרט החוזה המשותף (סעיף A — `layout` v1, `warnings`, תוספות ה-`metadata`), ובריפו השירות
+`contracts/layout-v1.schema.json` ו-`contracts/result.schema.json`. פיקסצ'ר משותף (מועתק בלי עריכה):
+`src/lib/ocr/fixtures/localResultLayout.result.json` + `.envelope.json`. המעטפה לא משתנה.
+
+**השדות (כולם אופציונליים; חבר בלי ערך מושמט, ו-`null` נחשב כחסר):**
+- `pages[].layout` — נתוני פריסה v1 לעמוד: שורות (תיבה, סדר קריאה, ביטחון, כתב, זרם, מילים, חלופות), מסגרות,
+  ו-`toSource` — מטריצה אפינית מהמרחב המיושר (`coordSpace:"aligned"`) לפיקסלי תמונת העמוד באתר (`Page.imagePath`,
+  בכיוון האחסון לפני EXIF). כל מטריצה סופית והפיכה עם `|det|` בין 0.25 ל-4 מתקבלת (לא רק זהות או סיבוב טהור).
+  `layout.image.imageSha256` מועתק מה-`pageMap`. מיפוי לנקודות/מרובעים: `src/lib/ocr/ocrLayoutGeometry.js`.
+  **דיוק מובטח: ±1px** במרחב תמונת המקור. pdfium מותח את הרינדור בפיקסל אחד בגדלים מסוימים, וזה לא ניתן לשחזור.
+  הממשק לא יניח דיוק תת-פיקסלי (חפיפה, בדיקת פגיעה בגבול בין מילים). בעמוד שהושטח (`dewarped:true`, `geometry:"approx"`)
+  התיבות הן מעטפות, ולכן ה-y שלהן מקורב עוד יותר.
+- `pages[].warnings` — `[{code, message}]`, עד 20. `code` בתבנית `^[a-z0-9_]{1,64}$`; `message` עד 500 תווים, באנגלית.
+  התווית בעברית נקבעת באתר לפי הקוד (`src/lib/ocr/ocrWarningLabels.js`); קוד לא מוכר מוצג כקוד חשוף.
+- `pages[].metadata` — נוספו `suspectLines`, `prep`, `issueCount`, `issues`. `metadata` הספר — נוספו `bridge_version: 2`,
+  `otzaria_issue_list`, `layout`, `salvage`, `service_version`.
+
+**שום שדה חדש לא גורם ל-422.** `validateResult` לא בודק את `layout`, `warnings` או את תוכן ה-`metadata` (רק ש-`metadata` הוא
+אובייקט, כמו תמיד). הנרמול נעשה לכל עמוד בנפרד בזמן ההחלה (`src/lib/ocr/localResultLayout.pure.js`): layout פגום, גדול מדי,
+בגרסה לא נתמכת או של תמונה אחרת מושמט **רק מאותו עמוד**, עם אזהרה שנשמרת. הטקסט נקלט כרגיל. אין קודי HTTP חדשים
+ואין שינוי בתשובות `/api/worker/v1`. תוצאה בלי `layout` (שירות ישן) מתקבלת בדיוק כמו קודם.
+
+**גבולות באתר:**
+
+| גבול | ערך | בחריגה |
+|---|---|---|
+| layout לעמוד (UTF-8 של `JSON.stringify`) | 1,179,648 (1.125MiB) | `layoutStatus:"too_large"`, אזהרה `layout_too_large`, נשמר בלי ה-layout |
+| `pages[].metadata` | 65,536 | `metadataJson:null` + `metadata_too_large` |
+| `metadata` הספר | 524,288 | נשמרת תת-קבוצה (`hardware, models, gpu, seconds, run_seconds, resumed, bridge_version, service_version, otzaria_issues, layout, salvage`) + `resultMetadataTruncated:true` |
+| מגבלות המבנה של v1 (≤5000 שורות, ≤2000 מילים לשורה, ≤1000 מסגרות וכו') | — | `layoutStatus:"invalid"` + `layout_invalid` לאותו עמוד בלבד |
+| התוצאה כולה | 100MiB (ללא שינוי) | 413 (ללא שינוי) |
+
+הגשר מגביל layout לעמוד ל-1MiB (הסרת חלופות ואז השמטה) ואת התוצאה ל-96MiB; השירות משמיט layouts מהגדול לקטן כדי לעמוד
+ב-100MiB. בכל המקרים העמוד מגיע עם אזהרה מתאימה (`layout_alts_trimmed`, `layout_too_large`, `layout_dropped_result_size`,
+`layout_geometry_unknown`, `layout_build_failed`, `layout_invalid_shape`), והאתר שומר אותה. בנוסף, השירות מסיר מעמוד
+`warnings` או `metadata` פגומים (לא מערך/אובייקט, פריט בלי `code`/`message` מחרוזת, ערך שאי אפשר לכתוב) ומוסיף לו
+`warnings_invalid_shape` / `metadata_invalid_shape`; הטקסט וה-layout של העמוד נשמרים. כל קוד שתואם `^[a-z0-9_]{1,64}$` נשמר
+(אין רשימה סגורה), וקוד שאין לו תווית מוצג כ"אזהרה שאינה מוכרת לאתר (<code>)" (`src/lib/ocr/ocrWarningLabels.js`).
+כשהשירות משמיט layouts, הוא גם מחשב מחדש את סיכום הגשר `metadata.layout` (`pages`/`trimmed`/`dropped`/`bytes`) לפי מה
+שנשלח בפועל (`ResultFinalizer.LayoutSummary`). מקור האמת לספירה באתר הוא בכל זאת `layoutSummary` של הקליטה, ולא הסיכום הזה.
+
+**אזהרות שהאתר מוסיף** (`source:"site"`): `layout_invalid`, `layout_version_unsupported`, `layout_image_mismatch`,
+`layout_too_large`, `metadata_too_large`.
+
+**מה השירות שולח בכל מקרה:**
+
+| מקרה | לפני | מעכשיו |
+|---|---|---|
+| ריצה רגילה הסתיימה | success/partial/failed | אותו דבר, ועוד `layout`, `warnings` ותוספות ה-metadata |
+| ביטול אחרי ש-`result.json` תקין כבר נכתב | `cancelled`, `pages: []` | `cancelled` עם כל העמודים של אותו result |
+| ביטול באמצע ריצה, יש checkpoint, ההצלה הצליחה | `cancelled`, `pages: []` | `cancelled` עם כל עמודי ה-pageMap (שלא זוהו: `error {code:"not_processed"}`), `metadata.salvage` |
+| ביטול בזמן `queued` / `paused_runner` / `needs_attention` | `cancelled`, `pages: []` | ללא שינוי |
+| מיצוי ניסיונות, ההצלה החזירה ≥1 עמוד | `failed`, `pages: []` | `partial` עם כל עמודי ה-pageMap ו-`error` עליון `{code:<הקוד המקורי>, message:"failed after N attempts: …; M pages salvaged from the checkpoint"}` |
+| ההצלה נכשלה / כבויה / אין checkpoint | — | כמו קודם |
+| עמוד מעל 2M יחידות UTF-16 | `page_text_too_long` | אותו דבר, וה-`layout` וה-`warnings` של העמוד נשמרים |
+
+**מה האתר שומר** (אוסף `OcrPageResult`, רשומה לכל עבודה ועמוד, לצמיתות): לכל עמוד שיש לו טקסט (בלי `error`), `layout`
+או `metadata` — `layoutStatus` (`ok`/`absent`/`invalid`/`unsupported_version`/`too_large`), ה-layout כמות שהוא (`ok`),
+או ה-JSON שנדחה לבירור (`invalid`/`unsupported_version`, עד 1.125MiB), `metadataJson`, האזהרות (`source` worker/site),
+`imageSha256` מה-`pageMap`, `textSha256`, `pipelineVersion` ו-`outcome`. הרשומה נכתבת פעם אחת (upsert, `$setOnInsert`)
+**לפני** כתיבת העמוד או ההתנגשות שלו, גם ב-`failed` וגם בביטול. ב-`OcrJob`: `resultMetadataJson`, `resultMetadataTruncated`,
+`resultError` (ה-`error` העליון בכל outcome), `layoutSummary {ok, absent, dropped}` ו-`pageErrors[].code`.
+הרשומה "הנוכחית" של עמוד היא זו שה-job וה-`resultSha256` שלה שווים ל-`Page.lastOcrJobId`/`lastOcrResultSha256`
+(נכתבים יחד עם הטקסט — גם באימוץ התנגשות, ולכן אימוץ הופך את ה-layout שלה לנוכחי).
+
+**ביטול עם עמודים:** תוצאה שמגיעה לעבודה שבוטלה באתר (בכל outcome), או `outcome:"cancelled"` מהעובד, **לא כותבת אף עמוד**.
+ה-ack נשאר כמו קודם (`cancelled` לעבודה שבוטלה באתר; `accepted` עם `outcome:"cancelled"` לביטול מצד העובד). כל עמוד
+עם טקסט לא ריק (בלי `error`) נשמר כ-`OcrConflict` עם `reason:"job_cancelled"` (ממתין לאימוץ או דחייה במסך ההתנגשויות),
+ולכל עמוד שעומד בתנאי נשמרת רשומת `OcrPageResult`. עמוד שנמחק מהספר מדולג. שליחה חוזרת לא יוצרת כפילויות. השלמה מהקובץ
+השמור (`resumeStalledApply`) לעבודה מבוטלת מצילה ממנו את העמודים; אם הקובץ חסר או פגום — ack בלבד (הביטול גובר).
+
+**`partial` אחרי מיצוי ניסיונות:** מוחל כרגיל (העמודים שזוהו נכתבים), ה-`error` העליון נשמר ב-`OcrJob.resultError`,
+והסטטוס `completed` (או `failed`/`no_pages_succeeded` כשאף עמוד לא נקלט, כמו תמיד).
 
 ## קודים שהאתר הוסיף או שינה ביחס לטבלת HANDOVER
 
