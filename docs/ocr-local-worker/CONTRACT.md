@@ -40,6 +40,25 @@
 `{pdfPageIndex (1..N), pageId (מזהה ה-Page), pageNumber, expectedUpdatedAt, imageSha256}`. ה-PDF מכיל רק את
 העמודים לעיבוד, לפי סדר `pageNumber`. המעטפה אינה משתנה לאורך חיי העבודה.
 
+השירות שומר את המעטפה בקבלה הראשונה ומשווה אליה בכל סבב (hash על כל המעטפה, `JobRepository.Manifest`
+בשירות). כל שינוי בה, כולל **צורת** `options`, מחנה את העבודה אצלו כ-`manifest_conflict` (HANDOVER 3.1
+פריט 10). לכן האתר שולח לכל עבודה תמיד את אותה צורה:
+
+- `options` הוא תמיד אובייקט, אף פעם לא חסר ולא `null`. הוא נבנה רק ממה שנשמר ברשומה בעת היצירה, בסדר
+  מפתחות קבוע (`lm`, `defaultScript`). עבודה חדשה נשמרת עם שני המפתחות מפורשים (ברירות המחדל ממולאות
+  ב-`normalizeLocalRequest`). רשומה בלי `options` תישלח תמיד כ-`{}`. אין ל-`OptionsSchema` ברירות מחדל
+  של Mongoose, ואף מסלול (דיווח, ביטול, החלה, ניקוי, מיגרציה) לא כותב לשדות המעטפה אחרי המעבר ל-`queued`.
+- `createdAt` ו-`expectedUpdatedAt` נשלחים ב-`toISOString()` (UTC עם מילישניות). השירות משווה ביניהם
+  כרגעים ולא כטקסט.
+- `jobId` הוא ObjectId בן 24 תווי hex קטנים, ולכן תמיד תואם לתבנית `^[A-Za-z0-9_-]{1,64}$` ואינו יכול
+  להיות שם התקן של Windows. `schemaVersion` תמיד 1, ו-`taskType` תמיד `ocr`.
+- המעטפה מופיעה רק בפריטי `GET /jobs`. `GET /jobs/{id}` מחזיר מצב בלבד, בלי מעטפה.
+
+`Retry-After` נשלח תמיד כמספר שניות: `300` ב-`503 storage_unavailable`, `30` ב-`503 apply_in_progress`
+ו-`3600` בשער השבת.
+השירות מגביל כל `Retry-After` לשעה (`ErrorClassifier.MaxRetryAfter`). ב-`/input` הוא דוחה רק את ההורדה
+של אותה עבודה (HANDOVER 3.1 פריט 9).
+
 ### `state` / `siteState`
 
 | מצב העבודה באתר | `state` | `closed` |
