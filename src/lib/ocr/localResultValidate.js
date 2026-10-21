@@ -12,7 +12,7 @@
 // imports: אין (נבדק ב-node:test).
 
 export const MAX_RESULT_BYTES = 100 * 1024 * 1024; // = Site:MaxResultBytes בשירות
-export const MAX_PAGE_TEXT_CHARS = 2_000_000;
+export const MAX_PAGE_TEXT_CHARS = 2_000_000; // = ResultValidator.MaxPageTextUnits בשירות (1.0.141+): יחידות UTF-16 (String.length), בדיוק הגבול מתקבל
 export const RESULT_OUTCOMES = Object.freeze(['success', 'partial', 'failed', 'cancelled']);
 
 const UTF8_BOM = [0xef, 0xbb, 0xbf];

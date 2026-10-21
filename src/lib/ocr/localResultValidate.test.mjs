@@ -151,12 +151,92 @@ test('טקסט עמוד ארוך מהמותר נדחה', () => {
   assert.deepEqual(check(doc).errors, ['page 1 text too long']);
 });
 
-test('the page limit counts UTF-16 units, matching .NET even for surrogate pairs', () => {
+// אותו גבול ואותה יחידה כמו ResultValidator.MaxPageTextUnits בשירות (Validation/Validators.cs, 1.0.141+):
+// 2,000,000 יחידות UTF-16 (String.length = .NET string.Length), "> גבול" נדחה — בדיוק הגבול מתקבל
+test('גבול טקסט עמוד: בדיוק 2,000,000 יחידות UTF-16 מתקבל, גם בזוגות surrogate; יחידה אחת יותר נדחית', () => {
+  assert.equal(MAX_PAGE_TEXT_CHARS, 2_000_000);
+  const exact = success();
+  exact.pages[0].text = 'א'.repeat(MAX_PAGE_TEXT_CHARS);
+  assert.deepEqual(check(exact), { ok: true, errors: [] });
+
+  // 1,000,000 אמוג'י = 2,000,000 יחידות UTF-16 (מיליון נקודות קוד בלבד) — בדיוק הגבול
+  const emoji = success();
+  emoji.pages[0].text = '😀'.repeat(MAX_PAGE_TEXT_CHARS / 2);
+  assert.equal(emoji.pages[0].text.length, MAX_PAGE_TEXT_CHARS);
+  assert.deepEqual(check(emoji), { ok: true, errors: [] });
+  // עוד תו אחד: 1,000,001 נקודות קוד בלבד, אבל 2,000,001 יחידות — נדחה (לא נספר בנקודות קוד)
+  emoji.pages[0].text += 'א';
+  assert.deepEqual(check(emoji).errors, ['page 1 text too long']);
+});
+
+// עמוד חורג כפי ש-ResultFinalizer.Load בשירות (Execution/ResultFinalizer.cs:63-73, 1.0.141+) הופך אותו לפני
+// ההקפאה: בלי text, metadata של העמוד נשמר, error.code = page_text_too_long, ו-success הופך ל-partial
+test('עמוד page_text_too_long (עם metadata ובלי text) מתקבל ב-partial — גם כשכל העמודים כאלה', () => {
+  const tooLong = (i) => ({
+    pdfPageIndex: i,
+    metadata: { lines: 30, review: null },
+    error: { code: 'page_text_too_long', message: 'Page text exceeds 2000000 UTF-16 code units.' },
+  });
+  const one = success();
+  one.outcome = 'partial';
+  one.pages[1] = tooLong(2);
+  assert.deepEqual(check(one), { ok: true, errors: [] });
+
+  const all = success();
+  all.outcome = 'partial';
+  all.pages = [tooLong(1), tooLong(2)];
+  assert.deepEqual(check(all), { ok: true, errors: [] });
+
+  // ב-failed (שגיאה בכל עמוד, עם או בלי error עליון no_page_processed) וב-cancelled — גם כן
+  const failed = success();
+  failed.outcome = 'failed';
+  failed.pages = [tooLong(1), tooLong(2)];
+  assert.deepEqual(check(failed), { ok: true, errors: [] });
+  failed.error = { code: 'no_page_processed', message: 'no requested page was processed' };
+  assert.deepEqual(check(failed), { ok: true, errors: [] });
+  const cancelled = success();
+  cancelled.outcome = 'cancelled';
+  cancelled.pages[0] = tooLong(1);
+  assert.deepEqual(check(cancelled), { ok: true, errors: [] });
+});
+
+// כל קודי שגיאת העמוד שהשירות עשוי לשלוח: layout_failed / not_processed (bridge/ocr_bridge.py build_result,
+// עם text:"" ובלי metadata) ו-page_text_too_long (ResultFinalizer.cs). האתר לא מסנן לפי קוד.
+test('קודי שגיאת עמוד של השירות מתקבלים, עם text ריק ובלי metadata (pipeline-contract.md)', () => {
+  for (const code of ['layout_failed', 'not_processed', 'page_text_too_long']) {
+    const doc = success();
+    doc.outcome = 'partial';
+    doc.pages[1] = { pdfPageIndex: 2, text: '', error: { code, message: 'm' } };
+    assert.deepEqual(check(doc), { ok: true, errors: [] }, code);
+  }
+});
+
+// pipeline-contract.md: ערכים בתוך metadata של הספר עשויים להיות null (למשל gpu.name כשאין GPU מזוהה)
+test('metadata של הספר/העמוד עם ערכי null בתוכו מתקבל', () => {
   const doc = success();
-  doc.pages[0].text = '😀'.repeat(MAX_PAGE_TEXT_CHARS / 2);
-  assert.equal(check(doc).ok, true);
-  doc.pages[0].text += 'א';
-  assert.deepEqual(check(doc).errors, ['page 1 text too long']);
+  doc.metadata = {
+    hardware: null,
+    gpu: { name: null, vram_peak_allocated_gb: null, vram_peak_reserved_gb: null },
+    resumed: false,
+    bridge_version: null,
+  };
+  doc.pages[0].metadata = { lines: 3, scripts: { square: 3, rashi: null, mixed: null } };
+  assert.deepEqual(check(doc), { ok: true, errors: [] });
+});
+
+// הקלה מכוונת (CONTRACT.md, סעיף "מגבלות וקבלה סלחנית"): השירות 1.0.141+ לא מקפיא error עליון בלי code
+// (Validators.cs:154, HANDOVER 3.1 פריט 11), אבל DeliverySender לא מאמת מחדש קובץ שהוקפא בגרסה ישנה —
+// ולכן partial/cancelled כזה עדיין מתקבל (ב-failed נדחה, כמו בשירות)
+test('error עליון עם code ריק: ב-partial/cancelled מתקבל (הקלה), ב-failed נדחה', () => {
+  for (const outcome of ['partial', 'cancelled']) {
+    const doc = parse(EXAMPLES.partial);
+    doc.outcome = outcome;
+    doc.error = { code: '', message: 'm' };
+    assert.deepEqual(check(doc), { ok: true, errors: [] }, outcome);
+  }
+  const failed = parse(EXAMPLES.failed);
+  failed.error.code = '';
+  assert.deepEqual(check(failed).errors, ['failed result top-level error without code']);
 });
 
 test('null מפורש / טיפוס שגוי בשדות חובה — שגיאת צורה, בלי לגעת בשאר', () => {

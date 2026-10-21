@@ -221,6 +221,63 @@ describe('POST /api/worker/v1/jobs/{id}/result', () => {
     expect(pages.every((p) => p.content === '')).toBe(true)
   })
 
+  // השירות 1.0.141+ (ResultFinalizer.cs:63-73): עמוד מעל 2,000,000 יחידות UTF-16 הופך לפני ההקפאה לעמוד בלי
+  // text עם metadata ו-error.code=page_text_too_long, ו-success הופך ל-partial. metadata של הספר עשוי להכיל null.
+  it('page_text_too_long מהשירות + עמוד בדיוק בגבול 2,000,000 → 200 accepted partial; העמוד החורג לא נכתב ונרשם עם הקוד', async () => {
+    const id = await makeJob()
+    const payload = doc(id, {
+      outcome: 'partial',
+      pages: [
+        { pdfPageIndex: 1, text: 'א'.repeat(2_000_000), metadata: { lines: 30 } },
+        {
+          pdfPageIndex: 2,
+          metadata: { lines: 41, review: null },
+          error: { code: 'page_text_too_long', message: 'Page text exceeds 2000000 UTF-16 code units.' },
+        },
+      ],
+      metadata: { gpu: { name: null, vram_peak_allocated_gb: null }, bridge_version: null },
+    })
+    const { res, body, sha } = await post(id, payload)
+    expect(res.status).toBe(200)
+    expect(body).toEqual({ ack: 'accepted', jobId: id, resultSha256: sha, outcome: 'partial' })
+    expect(isValidAck(body)).toBe(true)
+    const job = await OcrJob.findById(id).lean()
+    expect(job).toMatchObject({ status: 'completed', successPages: 1, failedPages: 1 })
+    expect(job.pageErrors).toHaveLength(1)
+    expect(job.pageErrors[0].pageNumber).toBe(2)
+    expect(job.pageErrors[0].message).toContain('(page_text_too_long)')
+    const pages = await Page.find({ book: job.book }).sort({ pageNumber: 1 }).lean()
+    expect(pages[0].content.length).toBe(2_000_000)
+    expect(pages[1].content).toBe('')
+  })
+
+  it('partial שכל עמודיו page_text_too_long → ack partial כפי שנשלח; העבודה נסגרת כ-failed בלי לכתוב עמוד', async () => {
+    const id = await makeJob()
+    const tooLong = (i) => ({
+      pdfPageIndex: i,
+      error: { code: 'page_text_too_long', message: 'Page text exceeds 2000000 UTF-16 code units.' },
+    })
+    const { res, body, sha } = await post(id, doc(id, { outcome: 'partial', pages: [tooLong(1), tooLong(2)] }))
+    expect(res.status).toBe(200)
+    expect(body).toEqual({ ack: 'accepted', jobId: id, resultSha256: sha, outcome: 'partial' })
+    const job = await OcrJob.findById(id).lean()
+    expect(job).toMatchObject({ status: 'failed', errorCode: 'no_pages_succeeded', successPages: 0, failedPages: 2 })
+    const pages = await Page.find({ book: job.book }).lean()
+    expect(pages.every((p) => p.content === '')).toBe(true)
+  })
+
+  it('טקסט עמוד של 2,000,001 יחידות UTF-16 (קובץ שהוקפא לפני 1.0.141) → 422 "page 1 text too long", בלי נעילה', async () => {
+    const id = await makeJob()
+    const pages = [
+      { pdfPageIndex: 1, text: '😀'.repeat(1_000_000) + 'x' },
+      { pdfPageIndex: 2, text: 'עולם' },
+    ]
+    const { res, body } = await post(id, doc(id, { pages }))
+    expect(res.status).toBe(422)
+    expect(body).toEqual({ error: 'validation_failed', details: 'page 1 text too long' })
+    expect((await OcrJob.findById(id).lean()).resultSha256).toBeUndefined()
+  })
+
   it('החלה בעיצומה (lease חי) → 503 apply_in_progress עם Retry-After', async () => {
     const id = await makeJob()
     const payload = doc(id)
