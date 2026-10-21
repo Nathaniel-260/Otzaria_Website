@@ -187,7 +187,8 @@ test('קלט עוין ב-layout: קינון עמוק, __proto__/constructor, מ�
   assert.equal(normalizePageLayout(deepJson(200_000), e).status, 'invalid');
 
   // מפתח __proto__ מ-JSON.parse הוא מאפיין רגיל (לא שינוי prototype) — שדה לא מוכר, נשמר כמות שהוא
-  const proto = JSON.parse(JSON.stringify(layoutOf(1)).replace('{', '{"__proto__":{"polluted":1},"constructor":{"x":1},'));
+  // הזרקה לרמת השורש בלבד: מחליפים את ה-'{' הפותח של האובייקט החיצוני
+  const proto = JSON.parse('{"__proto__":{"polluted":1},"constructor":{"x":1},' + JSON.stringify(layoutOf(1)).slice(1));
   const r = normalizePageLayout(proto, e);
   assert.equal(r.status, 'ok', JSON.stringify(r.errors));
   assert.equal(({}).polluted, undefined);
