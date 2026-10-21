@@ -278,3 +278,33 @@ test('validationDetails: עד 5 שגיאות מחוברות ב-"; "', () => {
   assert.equal(validationDetails(['a', 'b', 'c', 'd', 'e', 'f']), 'a; b; c; d; e');
   assert.equal(validationDetails(['a']), 'a');
 });
+
+// נתוני פריסה/עזר (חוזה layout v1): הוולידטור לא בודק אותם — שום בעיה בהם לא דוחה את התוצאה
+// (הנרמול לכל עמוד — localResultLayout.pure.js). הפיקסצ'ר המשותף של החוזה עובר כמות שהוא.
+test('הפיקסצ\'ר המשותף (layout/warnings/metadata חדשים) עובר מול עבודה שנבנתה מהמעטפה שלו', async () => {
+  const { readFileSync } = await import('node:fs');
+  const bytes = readFileSync(new URL('./fixtures/localResultLayout.result.json', import.meta.url));
+  const envelope = JSON.parse(readFileSync(new URL('./fixtures/localResultLayout.envelope.json', import.meta.url), 'utf8'));
+  const job = {
+    _id: envelope.jobId,
+    inputSha256: envelope.inputSha256,
+    pageMap: envelope.pageMap.map((e) => ({ ...e, page: e.pageId })),
+  };
+  const parsed = parseResultBytes(bytes);
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(validateResult(parsed.doc, job, bytes.length), { ok: true, errors: [] });
+});
+
+test('layout:"x", warnings:5 ו-metadata עם $key לא נדחים; metadata שאינו אובייקט — נדחה כמו תמיד', () => {
+  const doc = success();
+  doc.pages[0].layout = 'x';
+  doc.pages[0].warnings = 5;
+  doc.pages[1].layout = { layoutVersion: 99, $bad: { 'a.b': 1 } };
+  doc.pages[1].warnings = [null, { code: 'BAD CODE' }];
+  doc.pages[1].metadata = { $key: 1, 'x.y': [1] };
+  doc.metadata = { $root: true };
+  assert.deepEqual(check(doc), { ok: true, errors: [] });
+  const bad = success();
+  bad.pages[0].metadata = 'x';
+  assert.deepEqual(check(bad), { ok: false, errors: ['pages[0].metadata is not an object'] });
+});
