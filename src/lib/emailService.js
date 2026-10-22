@@ -746,7 +746,9 @@ export async function sendAppReportContactEmail({ to, product, subject, message,
         return { sent: true };
     } catch (error) {
         console.error('App Report Contact Email Error:', error);
-        return { sent: false, error: error.message };
+        // שרת ה-SMTP דחה את הנמען עצמו (דומיין לא קיים וכו') — לא תקלה זמנית
+        const recipientRejected = error.code === 'EENVELOPE' && (error.command === 'RCPT TO' || error.rejected?.length > 0);
+        return { sent: false, error: error.message, ...(recipientRejected ? { reason: 'recipient_rejected' } : {}) };
     }
 }
 

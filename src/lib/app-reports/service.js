@@ -11,6 +11,7 @@ import { createGithubClient, issueHtmlUrl } from './github.js';
 import { handleIssueStateChange } from './state-change.js';
 import { planPublication } from './merge.js';
 import { verifyUnsubscribeToken } from './unsubscribe.js';
+import { suggestEmailDomain } from '../emailTypo.js';
 import {
   newReplyToken, buildReplyAddress, validateInboundPayload, isAutoReply, inboundMessageBody, buildInboundComment, buildOutboundComment,
 } from './inbound.js';
@@ -304,6 +305,8 @@ export function serializeReport(doc, role) {
     product: productOf(doc),
     _id: String(doc._id),
     hasEmail: Boolean(reporterEmail),
+    // רק הדומיין המוצע — הכתובת עצמה חשופה למנהל כללי בלבד
+    emailDomainSuggestion: reporterEmail ? suggestEmailDomain(reporterEmail) : null,
     ...(role === 'admin' ? { reporterEmail: reporterEmail || null } : {}),
     fileIds: undefined,
     files: {
@@ -442,7 +445,14 @@ export async function contactReporter({ reportId, subject, message, user }, deps
   const result = await deps.sendContactMail({
     to: doc.reporterEmail, subject: s, message: m, reportTitle: doc.title, issueUrl: doc.issueUrl || null, replyTo, product: productOf(doc),
   });
-  if (!result?.sent) return { status: 502, body: { error: 'Failed to send email' } };
+  if (!result?.sent) {
+    const suggestion = suggestEmailDomain(doc.reporterEmail);
+    const hint = suggestion ? ` כנראה יש שגיאת הקלדה בכתובת (אולי התכוון ל-@${suggestion}?)` : '';
+    if (result?.reason === 'recipient_rejected') {
+      return { status: 422, body: { error: `שרת הדואר דחה את כתובת המייל של המדווח.${hint}`, field: 'reporterEmail' } };
+    }
+    return { status: 502, body: { error: `שליחת המייל נכשלה.${hint}` } };
+  }
 
   const entry = { direction: 'out', byUserId: user.id || null, byName: user.name || '', subject: s, message: m, sentAt: deps.now || new Date() };
   await AppReport.updateOne({ reportId }, { $push: { contactLog: entry } });

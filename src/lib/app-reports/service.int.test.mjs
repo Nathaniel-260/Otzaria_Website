@@ -361,6 +361,26 @@ test('יצירת קשר: 404 לדיווח חסר, 422 בלי מייל, שליח�
   assert.equal(failing.status, 502);
 });
 
+test('יצירת קשר: כתובת עם שגיאת הקלדה — התרעה למנהל והודעה ברורה כששרת הדואר דוחה', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const typo = await post(manual({ reporterEmail: 'someone@gmail.cim' }));
+  assert.equal(typo.status, 200, 'הדיווח מתקבל — לא נדחה בגלל החשד');
+  const detail = await getReportDetail(typo.body.reportId, 'developer');
+  assert.equal(detail.report.emailDomainSuggestion, 'gmail.com');
+  assert.equal(JSON.stringify(detail).includes('someone@gmail.cim'), false);
+
+  const args = { reportId: typo.body.reportId, subject: 'ש', message: 'ה', user: user() };
+  const rejected = await contactReporter(args, { sendContactMail: async () => ({ sent: false, reason: 'recipient_rejected' }) });
+  assert.equal(rejected.status, 422);
+  assert.equal(rejected.body.field, 'reporterEmail');
+  assert.match(rejected.body.error, /דחה את כתובת המייל/);
+  assert.match(rejected.body.error, /@gmail\.com/);
+
+  const down = await contactReporter(args, { sendContactMail: async () => ({ sent: false }) });
+  assert.equal(down.status, 502);
+  assert.match(down.body.error, /@gmail\.com/);
+});
+
 const replyConfig = { ...config, replyDomain: 'reply.otzaria.org', inboundSecret: 'inbound-secret' };
 const user = () => ({ id: String(new mongoose.Types.ObjectId()), name: 'מפתח' });
 

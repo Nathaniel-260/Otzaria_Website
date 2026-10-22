@@ -239,6 +239,14 @@ function ContactPanel({ report }) {
           {log.map((c, i) => <ContactEntry key={i} entry={c} index={i} reportId={report.reportId} />)}
         </ul>
       )}
+      {report.emailDomainSuggestion && (
+        <p className="flex items-center gap-2 rounded-lg p-3 text-sm bg-warning-50 border-r-4 border-warning-400">
+          <span className="material-symbols-outlined text-base">warning</span>
+          <span>
+            נראה שיש שגיאת הקלדה בכתובת המייל של המדווח (אולי התכוון ל-<span dir="ltr">@{report.emailDomainSuggestion}</span>?) — ייתכן שהמייל לא יגיע.
+          </span>
+        </p>
+      )}
       {report.hasEmail ? (
         <form onSubmit={send} className="space-y-3">
           <input
