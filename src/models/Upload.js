@@ -27,6 +27,7 @@ const UploadSchema = new mongoose.Schema({
   sourceUrl: { type: String }, // מקור הספר (קישור לPDF ציבורי)
   isOcr: { type: Boolean, default: false }, // האם הטקסט הוא ע"י OCR
   ocrDescription: { type: String }, // תיאור שיטת ה-OCR
+  allowOtherPlatforms: { type: Boolean }, // האם המעלה מאשר גם ל'זית' ולפלטפורמות נוספות שיקבלו אישור מאוצריא (חסר בהעלאות ישנות)
 }, { timestamps: true });
 
 // שאילתות תכופות מסננות לפי isDeleted (+ מיון לפי תאריך יצירה) ולפי uploader —

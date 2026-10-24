@@ -52,7 +52,8 @@ async function loadAdminUploadsUncached() {
     copyrightHolder: u.copyrightHolder,
     sourceUrl: u.sourceUrl,
     isOcr: u.isOcr,
-    ocrDescription: u.ocrDescription
+    ocrDescription: u.ocrDescription,
+    allowOtherPlatforms: u.allowOtherPlatforms
   }))
 
   // סריאליזציה בטוחה בגבול Server->Client Component (ObjectId/Date -> מחרוזת)
