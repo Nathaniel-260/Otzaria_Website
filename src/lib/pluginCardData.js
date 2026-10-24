@@ -26,7 +26,8 @@ export const PLUGIN_CARD_FIELDS = [
   'fileUpdatedAt',
   'publishedAt',
   'originalDate',
-  'updatedAt'
+  'updatedAt',
+  'hasService'
 ]
 
 // includeDescription: לדף "כל התוספים", שהחיפוש המקומי שלו (pluginFilter.js)

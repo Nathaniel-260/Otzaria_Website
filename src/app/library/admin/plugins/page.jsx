@@ -9,12 +9,13 @@ import PluginApproveModal from '@/components/plugins/PluginApproveModal'
 import PluginRatingsModal from '@/components/admin/PluginRatingsModal'
 import AssignCategoriesModal from '@/components/admin/AssignCategoriesModal'
 import StoreLayoutTab from './StoreLayoutTab'
+import ServicePluginsAdmin from '@/components/admin/servicePlugins/ServicePluginsAdmin'
 import { formatPluginStatus } from '@/lib/pluginStatus'
 import { formatAdminDate } from './formatAdminDate'
 import Loader from '@/components/ui/Loader'
 
 export default function AdminPluginsPage() {
-  const [activeTab, setActiveTab] = useState('pending') // 'pending' | 'approved' | 'store'
+  const [activeTab, setActiveTab] = useState('pending') // 'pending' | 'approved' | 'store' | 'service'
   const [pendingPlugins, setPendingPlugins] = useState([])
   const [approvedPlugins, setApprovedPlugins] = useState([])
   const [categories, setCategories] = useState([]) // קטגוריות החנות — להצגת שיבוצים בכרטיסי המאושרים
@@ -93,7 +94,7 @@ export default function AdminPluginsPage() {
     } else if (activeTab === 'approved') {
       loadApprovedPlugins()
     } else {
-      // לשונית "סידור החנות" טוענת את נתוניה בעצמה (StoreLayoutTab)
+      // הלשוניות "סידור החנות" ו"תוספי שירות" טוענות את נתוניהן בעצמן
       setLoading(false)
     }
   }
@@ -196,14 +197,15 @@ export default function AdminPluginsPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to unapprove plugin')
+        const result = await response.json().catch(() => ({}))
+        throw new Error(result.error || 'לא הצלחנו לבטל את האישור')
       }
 
       await showAlert('אישור בוטל', `האישור של התוסף "${plugin.name}" בוטל בהצלחה`)
       loadPlugins()
     } catch (error) {
       console.error('Error unapproving plugin:', error)
-      showAlert('שגיאה', 'לא הצלחנו לבטל את האישור')
+      showAlert('שגיאה', error.message || 'לא הצלחנו לבטל את האישור')
     } finally {
       setProcessingId(null)
     }
@@ -312,6 +314,11 @@ export default function AdminPluginsPage() {
       if (!response.ok) {
         throw new Error(result.error || 'לא ניתן לטעון את מסך העריכה')
       }
+      // תוסף שירות: העריכה הישירה חסומה גם למנהל — שינוי רק דרך הגשה חדשה
+      if (result.editBlocked) {
+        showAlert('עריכה חסומה', 'זהו תוסף שירות: שינויים מתבצעים רק דרך הגשה חדשה בדף הגשות השירות של התוסף.')
+        return
+      }
 
       setEditingPlugin({
         ...result,
@@ -392,6 +399,8 @@ export default function AdminPluginsPage() {
           <p className="text-on-surface/60 mt-1">
             {activeTab === 'store'
               ? 'סידור דף הבית של החנות: נבחרים, קטגוריות ושיבוצים'
+              : activeTab === 'service'
+              ? 'תוספים עם שירות חיצוני: בחירה והתחלת בדיקה, תקלות תפעוליות וחזרה לגרסה קודמת'
               : activeTab === 'pending'
               ? plugins.length === 0
                 ? 'אין תוספים ממתינים לאישור'
@@ -476,11 +485,27 @@ export default function AdminPluginsPage() {
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></div>
           )}
         </button>
+
+        <button
+          onClick={() => setActiveTab('service')}
+          className={`px-6 py-3 font-bold transition-colors relative ${
+            activeTab === 'service'
+              ? 'text-primary'
+              : 'text-on-surface/60 hover:text-on-surface'
+          }`}
+        >
+          <span>תוספי שירות</span>
+          {activeTab === 'service' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></div>
+          )}
+        </button>
       </div>
 
       {/* לשונית סידור החנות — טוענת את נתוניה בעצמה */}
       {activeTab === 'store' ? (
         <StoreLayoutTab />
+      ) : activeTab === 'service' ? (
+        <ServicePluginsAdmin />
       ) : plugins.length === 0 ? (
         <div className="glass rounded-2xl p-12 text-center">
           <span className="material-symbols-outlined text-6xl text-on-surface/30 mb-4 block">
@@ -543,6 +568,9 @@ export default function AdminPluginsPage() {
                       <span className="px-3 py-1 bg-surface rounded-full text-xs font-bold text-on-surface/60">
                         גרסה {source.version}
                       </span>
+                      {plugin.hasService && (
+                        <span className="rounded-full bg-info-100 px-3 py-1 text-xs font-bold text-info-800">דורש שירות חיצוני</span>
+                      )}
                       {plugin.isSuspended && (
                         <span className="rounded-full bg-warning-strong-100 px-3 py-1 text-xs font-bold text-warning-strong-800">
                           מושהה {plugin.suspendedByRole === 'admin' ? '(ע"י הניהול)' : '(ע"י המעלה)'}
@@ -833,6 +861,12 @@ export default function AdminPluginsPage() {
                         )}
                       </button>
 
+                      {/* בתוסף שירות השרת חוסם ביטול אישור (409) — מסירים מהחנות בהשהיה */}
+                      {plugin.hasService ? (
+                        <p className="max-w-[16rem] text-xs text-on-surface/60">
+                          לתוסף שירות אין ביטול אישור. כדי להסיר אותו מהחנות — השהו אותו.
+                        </p>
+                      ) : (
                       <button
                         onClick={() => handleUnapprove(plugin)}
                         disabled={processingId === plugin._id}
@@ -850,6 +884,7 @@ export default function AdminPluginsPage() {
                           </>
                         )}
                       </button>
+                      )}
 
                       <button
                         onClick={() => handleDelete(plugin)}
@@ -880,6 +915,15 @@ export default function AdminPluginsPage() {
                     <span>הורד לבדיקה</span>
                   </a>
 
+                  {plugin.hasService ? (
+                    <a
+                      href={`/plugins/${plugin._id}/service`}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-neutral-warm-700 px-6 py-3 font-medium text-white transition-colors hover:bg-neutral-warm-800"
+                    >
+                      <span className="material-symbols-outlined">package_2</span>
+                      <span>הגשות השירות</span>
+                    </a>
+                  ) : (
                   <button
                     onClick={() => handleEdit(plugin)}
                     disabled={editingId === plugin._id}
@@ -888,6 +932,7 @@ export default function AdminPluginsPage() {
                     <span className="material-symbols-outlined">edit</span>
                     <span>{editingId === plugin._id ? 'טוען...' : 'ערוך'}</span>
                   </button>
+                  )}
                 </div>
               </div>
             </div>
