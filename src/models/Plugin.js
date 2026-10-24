@@ -141,6 +141,36 @@ const PluginSchema = new mongoose.Schema(
     // ב"תוספים נבחרים" (StoreSettings.featuredPluginIds) — הנבחרים ממוינים
     // ראשונים ב-GET /api/plugins ומסומנים בו isPinned:true לתאימות לאחור.
 
+    // תוסף עם שירות מקומי (src/lib/servicePlugins): נקבע בהעלאה ואינו מתבטל. מתפרסם רק בבדיקה,
+    // ו-serviceState נכתב רק בעדכונים מותנים של מודול זה.
+    hasService: { type: Boolean, default: false, index: true },
+    serviceState: {
+      type: new mongoose.Schema({
+        activeReviewId: { type: mongoose.Schema.Types.ObjectId, default: null },
+        activeFence: { type: Number, default: 0 },
+        currentPluginReview: { type: mongoose.Schema.Types.ObjectId, default: null },
+        currentServiceReview: { type: mongoose.Schema.Types.ObjectId, default: null },
+        previousServiceReview: { type: mongoose.Schema.Types.ObjectId, default: null },
+        platforms: [{
+          _id: false, os: String, arch: String, minOs: String, port: Number, fileKey: String, name: String, size: Number, sha256: String
+        }],
+        ports: [{ _id: false, os: String, port: Number }],
+        serviceVersion: { type: String, default: null },
+        serviceRange: { min: { type: String, default: null }, max: { type: String, default: null } },
+        uninstall: { type: String, default: null },
+        publishedPluginVersions: [String],
+        publishedServiceVersions: [String],
+        lastServiceCycleStartedAt: { type: Date, default: null },
+        adminException: {
+          type: new mongoose.Schema({
+            reason: String, grantedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, grantedAt: Date
+          }, { _id: false }),
+          default: null
+        }
+      }, { _id: false }),
+      default: undefined
+    },
+
     // היסטוריית גרסאות קודמות. נדחפת אליה הגרסה היוצאת כשמעלים גרסה חדשה
     // (עליית גרסה ממש). עריכה ללא העלאת גרסה דורסת את הגרסה הנוכחית ולא נשמרת כאן.
     // הקובץ עצמו של כל גרסה ישנה נשמר תחת storage/plugins/<id>/versions/<version>/.
@@ -158,6 +188,8 @@ const PluginSchema = new mongoose.Schema(
       requiresNetwork: { type: Boolean, default: false },
       shortDescription: { type: String, default: '' },
       description: { type: String, default: '' },
+      // תוסף שירות: ההגשה שבאחסונה נמצא קובץ הגרסה
+      reviewId: { type: mongoose.Schema.Types.ObjectId, default: null },
       archivedAt: { type: Date, default: Date.now }
     }],
   },
