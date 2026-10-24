@@ -29,20 +29,22 @@ export async function GET(request) {
     // מכוון: ללא סינון isApproved — תוסף שנוצר זה עתה וממתין לאישור מנהל חייב
     // להיפתר גם הוא, אחרת הדחיפה הבאה תנסה ליצור אותו מחדש ותיכשל ככפילות.
     const plugin = await Plugin.findOne({ pluginUid: uid })
-      .select('_id authorId isHidden')
+      .select('_id authorId isHidden hasService')
       .lean()
 
     if (!plugin || plugin.isHidden) {
       return NextResponse.json({ exists: false })
     }
 
+    // תוסף שירות: עדכון רק בהגשה לבדיקה — ה-Action יקבל 409 מנתיב העריכה
+    const hasService = plugin.hasService === true
     const isAdmin = hasPluginsAccess(session.user?.role)
     const isOwner = plugin.authorId?.toString() === session.user?.id
     if (!isAdmin && !isOwner) {
-      return NextResponse.json({ exists: true, owned: false })
+      return NextResponse.json({ exists: true, owned: false, hasService })
     }
 
-    return NextResponse.json({ exists: true, owned: true, id: plugin._id.toString() })
+    return NextResponse.json({ exists: true, owned: true, id: plugin._id.toString(), hasService })
   } catch (error) {
     console.error('Error resolving plugin by uid:', error)
     return NextResponse.json({ error: 'Failed to resolve plugin' }, { status: 500 })

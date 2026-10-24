@@ -29,6 +29,7 @@ import { CACHE_TAGS, revalidateNow } from '@/lib/cacheTags'
 import { archiveCurrentVersion } from '@/lib/pluginVersions'
 import { validatePluginArchive, OTZARIA_DESIGN_TAG } from '@/lib/pluginValidation'
 import { sendPluginReportNoticeIfNeeded } from '@/lib/systemMessages'
+import { isServicePlugin, serviceBlockedBody } from '@/lib/servicePlugins/existingPaths'
 import {
   MAX_IMAGE_BYTES,
   MAX_PLUGIN_BYTES,
@@ -184,7 +185,8 @@ export async function GET(request, { params }, { asOwner = false } = {}) {
     }
 
     const source = getEditableSource(access.plugin)
-    return NextResponse.json(buildEditResponse(access.plugin, source))
+    const blocked = isServicePlugin(access.plugin) ? { hasService: true, editBlocked: true } : {}
+    return NextResponse.json({ ...buildEditResponse(access.plugin, source), ...blocked })
   } catch (error) {
     console.error('Error loading plugin for edit:', error)
     return bad('Failed to load plugin', 500)
@@ -205,6 +207,10 @@ export async function PUT(request, { params }, { asOwner = false } = {}) {
     }
 
     const { plugin, isAdmin, isOwner } = access
+    // 409 ולא 403: ה-Action של הוולידטור מנסה שוב בנתיב המנהל על 403
+    if (isServicePlugin(plugin)) {
+      return NextResponse.json(serviceBlockedBody('edit', plugin._id.toString()), { status: 409 })
+    }
     const livePlugin = getLivePluginData(plugin)
     const editableSource = getEditableSource(plugin)
     const formData = await request.formData()
