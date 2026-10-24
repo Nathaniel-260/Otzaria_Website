@@ -748,6 +748,21 @@ const closedEvent = (number, over = {}) => ({
   ...over,
 });
 
+test('מייל הסגירה כולל את התגובה שאיתה נסגר ה-issue (ולא תגובות בוט או של אחרים)', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const a = await post(manual());
+  const n = a.body.issueNumber;
+  const closedAt = new Date();
+  gh.addComment(n, 'אולי זה קשור?', { author: 'someone', createdAt: new Date(closedAt - 30_000) });
+  gh.addComment(n, 'תוקן בגרסה 2.5,\nתודה על הדיווח!', { author: 'maint', createdAt: new Date(closedAt - 1000) });
+  gh.setState(n, 'closed', 'completed', { closedBy: 'maint', closedAt });
+
+  await runAppReportsSync(syncDeps());
+  assert.equal(mails.length, 1);
+  assert.equal(mails[0].closingComment, 'תוקן בגרסה 2.5,\nתודה על הדיווח!');
+  assert.ok(gh.calls.some((c) => c.method === 'GET' && c.path.endsWith(`/issues/${n}/comments`)));
+});
+
 test('webhook: סגירה אמיתית שולחת מייל אחרי קריאה מחדש מ-GitHub, וה-cron לא שולח שוב', async (t) => {
   if (db.skip) return t.skip(db.skip);
   const a = await post(manual());
@@ -1150,7 +1165,7 @@ test('מוצרים: webhook מריפו העדכונים (רישיות שונה) 
   assert.equal(hub.calls.length, before);
 
   assert.equal(await hookVia(hub, closedEvent(100, { repository: { full_name: 'otzaria/otzaria_offline_update' } })), 202);
-  assert.deepEqual(upd.calls.filter((c) => c.method === 'GET').map((c) => c.path), [`/repos/${UPD_REPO}/issues/100`]);
+  assert.deepEqual(upd.calls.filter((c) => c.method === 'GET').map((c) => c.path), [`/repos/${UPD_REPO}/issues/100`, `/repos/${UPD_REPO}/issues/100/comments`]);
   assert.equal(otz.calls.filter((c) => c.method === 'GET').length, 0);
   assert.deepEqual(mails.map((m) => [m.to, m.reasonKind, m.product]), [['upd@example.com', 'not_planned', 'offline-update']]);
   assert.equal((await AppReport.findOne({ reportId: a.body.reportId }).lean()).issueState, 'open');
@@ -1158,7 +1173,7 @@ test('מוצרים: webhook מריפו העדכונים (רישיות שונה) 
 
   // issue של העדכונים שאין לו דיווח אצלנו — בלי קריאה ל-GitHub
   assert.equal(await hookVia(hub, closedEvent(555, { repository: { full_name: UPD_REPO } })), 202);
-  assert.equal(upd.calls.filter((c) => c.method === 'GET').length, 1);
+  assert.equal(upd.calls.filter((c) => c.method === 'GET').length, 2);
 
   assert.equal(await hookVia(hub, closedEvent(100)), 202);
   assert.deepEqual(mails.map((m) => m.to), ['upd@example.com', 'otz@example.com']);

@@ -279,7 +279,7 @@ async function syncProduct(product, github, d, summary) {
   for (const { _id: number } of issues) {
     try {
       const issue = await github.getIssue(number);
-      const r = await handleIssueStateChange(issue, { ...d, product });
+      const r = await handleIssueStateChange(issue, { ...d, product, github });
       summary.states.checked += 1;
       if (r.transition === 'closed') summary.states.closed += 1;
       summary.states.notified += r.notified;
