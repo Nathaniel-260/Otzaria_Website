@@ -8,8 +8,9 @@
 //   1. findDuplicateActive — אם יש ספר עם יותר מעבודה פעילה אחת, עוצרים עם דוח (בלי לשנות
 //      דבר), אלא אם failOlderDuplicates — ואז העבודות הישנות מסומנות failed + active:false.
 //   2. backfillActive — active נקבע לרשומות שאין להן את השדה: true אם status='running'.
-//   3. swapActiveIndex — מחיקת { book:1 } partial { status:'running' } (לפי מפתח ו-filter,
-//      לא לפי שם) ויצירת האינדקסים החדשים (createIndex אידמפוטנטי).
+//   3. swapActiveIndex — יצירת האינדקסים החדשים (createIndex אידמפוטנטי) ואז מחיקת
+//      { book:1 } partial { status:'running' } (לפי מפתח ו-filter, לא לפי שם); בשרת ישן
+//      שלא מאפשר שני אינדקסים באותו מפתח — מחיקה ואז יצירה.
 //   4. ensurePageResultIndexes — אינדקסי האוסף OcrPageResult (נתוני פריסה/עזר לכל עמוד).
 import mongoose from 'mongoose';
 import OcrJob from '../../models/OcrJob.js';
@@ -156,18 +157,32 @@ export async function swapActiveIndex({ apply }) {
   }
   if (!apply) return { ok: true, ...plan, dropped: [], created: [], applied: false };
 
+  // קודם יוצרים את החדשים ורק אחר כך מוחקים את הישן — כך אין רגע בלי אכיפת ייחודיות.
+  // MongoDB 7.3+ מרשה שני אינדקסים עם אותו מפתח ו-partialFilterExpression שונה. בגרסאות ישנות
+  // יותר createIndex נכשל ב-IndexOptionsConflict (85) / IndexKeySpecsConflict (86): אז, ורק אז,
+  // חוזרים לסדר מחיקה-ואז-יצירה (חלון קצר בלי אכיפה).
   const dropped = [];
-  for (const name of plan.toDrop) {
-    await OcrJob.collection.dropIndex(name);
-    dropped.push(name);
-  }
   const created = [];
+  const dropLegacy = async () => {
+    for (const name of plan.toDrop) {
+      if (dropped.includes(name)) continue;
+      await OcrJob.collection.dropIndex(name);
+      dropped.push(name);
+    }
+  };
   for (const { key, options } of TARGET_INDEXES) {
     const name = options.name || defaultIndexName(key);
-    // createIndex אידמפוטנטי: אינדקס זהה קיים → no-op
-    await OcrJob.collection.createIndex(key, { ...options, name });
+    try {
+      // createIndex אידמפוטנטי: אינדקס זהה קיים → no-op
+      await OcrJob.collection.createIndex(key, { ...options, name });
+    } catch (err) {
+      if (err?.code !== 85 && err?.code !== 86) throw err;
+      await dropLegacy();
+      await OcrJob.collection.createIndex(key, { ...options, name });
+    }
     if (plan.toCreate.includes(name)) created.push(name);
   }
+  await dropLegacy();
   return { ok: true, ...plan, dropped, created, applied: true };
 }
 

@@ -10,7 +10,8 @@
  *   --apply                  מבצע בפועל.
  *   --fail-older-duplicates  אם יש ספר עם יותר מעבודה פעילה אחת: מסמן את הישנות failed
  *                            (בלי זה — עוצר עם דוח ולא נוגע בכלום).
- * סדר פריסה: פריסה ומיד אחריה --apply. עד אז activeFilter() סובלני לרשומות בלי active.
+ * סדר פריסה: הסקריפט אינו חלק מהפריסה האוטומטית — מריצים אותו ידנית (--apply) אחרי pm2 restart; אידמפוטנטי.
+ * עד שהמיגרציה רצה activeFilter() סובלני לרשומות בלי active. ריצה חוזרת בטוחה (no-op).
  */
 import mongoose from 'mongoose';
 import { migrateOcrLocal } from '../src/lib/ocr/ocrJobMigration.js';
@@ -20,7 +21,7 @@ const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/otzaria_db';
 const apply = process.argv.includes('--apply');
 const failOlder = process.argv.includes('--fail-older-duplicates');
 
-// בלי autoIndex: האינדקסים נוצרים כאן במפורש ובסדר הנכון (קודם מחיקת הישן)
+// בלי autoIndex: האינדקסים נוצרים כאן במפורש ובסדר הנכון (קודם יצירת החדש, אחר כך מחיקת הישן)
 await mongoose.connect(uri, { serverSelectionTimeoutMS: 10_000, autoIndex: false });
 try {
   const res = await migrateOcrLocal({ apply, failOlder });
