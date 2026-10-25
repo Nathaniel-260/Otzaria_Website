@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import ManualSourcePicker from './ManualSourcePicker'
 
 const PATH = 'ToratEmetToOtzaria/ספרים/אוצריא/חזון איש.txt'
@@ -61,5 +62,22 @@ describe('בחירת מקור ידנית', () => {
     expect(lineInput().value).toBe('5')
     await waitFor(() => expect(p.run).toHaveBeenCalledWith({ action: 'preview_source', path: PATH, lineIndex: 4 }, { keep: true, quiet: true }))
     await waitFor(() => expect(p.onPreview).toHaveBeenCalledWith(preview))
+  })
+
+  it('ספר שאותר במאגר נבחר מראש: הסמן בשדה השורה, ואפשר לשנות את הספר', async () => {
+    setup({ knownPath: PATH })
+    expect(pathInput().value).toBe(PATH)
+    expect(pathInput().hidden).toBe(true)
+    expect(screen.getByText(PATH)).toBeTruthy()
+    expect(document.activeElement).toBe(lineInput())
+    fireEvent.click(screen.getByRole('button', { name: 'שינוי ספר' }))
+    expect(pathInput().hidden).toBe(false)
+    await waitFor(() => expect(document.activeElement).toBe(pathInput()))
+  })
+
+  it('אנטר בשדה השורה טוען את השורה', async () => {
+    const p = setup({ knownPath: PATH, probe: undefined })
+    await userEvent.type(lineInput(), '5{Enter}')
+    await waitFor(() => expect(p.run).toHaveBeenCalledWith({ action: 'preview_source', path: PATH, lineIndex: 4 }, { keep: true, quiet: true }))
   })
 })

@@ -14,15 +14,20 @@ const PATH_CHECK_DELAY_MS = 500
  *   run:(body:object, opts?:object)=>Promise<any>,
  *   probe?:(body:object)=>Promise<{ok:boolean, data:object}>,
  *   pick?:{path:string, lineIndex:(number|null), key:number}|null,
+ *   knownPath?:string|null,
  *   preview:object|null,
  *   onPreview:(preview:object|null)=>void,
  *   onEdit:()=>void,
  * }} props
  *   probe — בדיקה שקטה (בלי busy), לבדיקת הנתיב בזמן ההקלדה.
  *   pick — מועמד שנבחר מרשימת המועמדים: ממלא את השדות וטוען את השורה (מועמד חדש = רכיב חדש, לפי key).
+ *   knownPath — קובץ הספר שאותר במאגר (גם כשהשורה עצמה לא נמצאה): נבחר מראש, ונשאר רק לבחור שורה.
  */
-export default function ManualSourcePicker({ busy, run, probe, pick, preview, onPreview, onEdit }) {
-  const [path, setPath] = useState(pick?.path ?? '')
+export default function ManualSourcePicker({ busy, run, probe, pick, knownPath = null, preview, onPreview, onEdit }) {
+  const initialPath = pick?.path || knownPath || ''
+  const [path, setPath] = useState(initialPath)
+  // ספר שנבחר מראש מוצג כקבוע; שינוי שלו הוא אפשרות, לא חובה
+  const [editingPath, setEditingPath] = useState(!initialPath)
   const [line, setLine] = useState(Number.isInteger(pick?.lineIndex) ? String(pick.lineIndex + 1) : '')
   const [pathCheck, setPathCheck] = useState(null)
   const [loadError, setLoadError] = useState(null)
@@ -49,7 +54,7 @@ export default function ManualSourcePicker({ busy, run, probe, pick, preview, on
 
   // פתיחה: הסמן בשדה הנתיב (או בשדה השורה כשהנתיב כבר מולא); מועמד עם מספר שורה — נטען מיד
   useEffect(() => {
-    ;(pick?.path ? lineInput : pathInput).current?.focus()
+    ;(initialPath ? lineInput : pathInput).current?.focus()
     if (pick?.path && Number.isInteger(pick.lineIndex)) fetchLine(pick.path, pick.lineIndex + 1).then(showResult)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -72,6 +77,11 @@ export default function ManualSourcePicker({ busy, run, probe, pick, preview, on
     return () => { cancelled = true; clearTimeout(t) }
   }, [probe, trimmedPath])
 
+  const changeBook = () => {
+    setEditingPath(true)
+    requestAnimationFrame(() => { pathInput.current?.focus(); pathInput.current?.select() })
+  }
+
   const onSubmit = (e) => {
     e.preventDefault()
     if (!busy && trimmedPath && lineValid && !pathError && !lineTooBig) fetchLine(trimmedPath, lineNumber).then(showResult)
@@ -79,10 +89,23 @@ export default function ManualSourcePicker({ busy, run, probe, pick, preview, on
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-on-surface/60">נתיב Git מלא במאגר (תחת &lt;תיקייה&gt;/ספרים/אוצריא/) ומספר שורה (1 = ראשונה). הבחירה מתועדת; האישור עצמו נעשה דרך &quot;עריכה ואז אישור&quot;.</p>
+      <p className="text-xs text-on-surface/60">
+        {editingPath
+          ? <>נתיב Git מלא במאגר (תחת &lt;תיקייה&gt;/ספרים/אוצריא/) ומספר שורה (1 = ראשונה).</>
+          : <>הספר נמצא במאגר — נשאר לבחור את מספר השורה (1 = ראשונה).</>}
+        {' '}הבחירה מתועדת; האישור עצמו נעשה דרך &quot;עריכה ואז אישור&quot;.
+      </p>
+      {!editingPath && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-on-surface/70">ספר:</span>
+          <span dir="ltr" className="font-mono text-xs bg-surface-variant rounded px-2 py-1 break-all">{trimmedPath}</span>
+          <button type="button" onClick={changeBook} className="text-xs text-primary underline">שינוי ספר</button>
+        </div>
+      )}
       <form onSubmit={onSubmit} className="flex flex-wrap gap-2">
         <input
           ref={pathInput}
+          hidden={!editingPath}
           value={path}
           onChange={(e) => { setPath(e.target.value); setLoadError(null) }}
           placeholder="ToratEmetToOtzaria/ספרים/אוצריא/…txt"

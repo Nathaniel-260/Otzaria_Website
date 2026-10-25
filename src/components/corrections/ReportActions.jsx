@@ -217,7 +217,7 @@ export default function ReportActions({ detail, meId, busy, run, probe, sourcePi
       )}
 
       {mode === 'source' && (
-        <ManualSourcePicker key={activePick?.key ?? 'manual'} busy={busy} run={run} probe={probe} pick={activePick} preview={preview} onPreview={setPreview} onEdit={openEdit} />
+        <ManualSourcePicker key={activePick?.key ?? 'manual'} busy={busy} run={run} probe={probe} pick={activePick} knownPath={source?.path ?? null} preview={preview} onPreview={setPreview} onEdit={openEdit} />
       )}
     </div>
   )
