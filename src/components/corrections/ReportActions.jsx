@@ -30,6 +30,7 @@ export default function ReportActions({ detail, meId, busy, run, probe, sourcePi
   const [activePick, setActivePick] = useState(null)
   const [seenPick, setSeenPick] = useState(null)
   const box = useRef(null)
+  const closeNote = useRef(null)
 
   // מועמד חדש שנבחר בדף פותח את בחירת המקור הידנית (עדכון בזמן רינדור, לא ב-effect)
   if (sourcePick !== seenPick) {
@@ -120,6 +121,10 @@ export default function ReportActions({ detail, meId, busy, run, probe, sourcePi
     return run({ ...body, generation: c.generation }, { reloadOnFail: true })
   }
 
+  const closeManual = async () => {
+    if (await act({ action: 'close_manual', generation: g, note: reason })) setMode(null)
+  }
+
   const openEdit = () => {
     setNewLine(rev ? (rev.newLine ?? baseLine) : baseLine)
     setMode('edit')
@@ -205,11 +210,24 @@ export default function ReportActions({ detail, meId, busy, run, probe, sourcePi
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
             {CLOSE_NOTES.map((n) => (
-              <button key={n} type="button" onClick={() => setReason(n)} aria-pressed={reason === n} className={`px-2 py-1 rounded-full text-xs ${reason === n ? 'bg-primary text-on-primary' : 'glass hover:bg-surface-variant'}`}>{n}</button>
+              <button key={n} type="button" onClick={() => { setReason(n); closeNote.current?.focus() }} aria-pressed={reason === n} className={`px-2 py-1 rounded-full text-xs ${reason === n ? 'bg-primary text-on-primary' : 'glass hover:bg-surface-variant'}`}>{n}</button>
             ))}
           </div>
-          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="הערה (למשל: טופל מחוץ למערכת)" className="w-full border rounded-lg p-2 bg-white" />
-          <button disabled={busy} onClick={async () => { if (await act({ action: 'close_manual', generation: g, note: reason })) setMode(null) }} className={`${btn} bg-primary text-on-primary`}>סגירה</button>
+          {/* אנטר = סגירה; Shift+Enter = שורה חדשה בהערה */}
+          <textarea
+            ref={closeNote}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
+              e.preventDefault()
+              if (!busy) closeManual()
+            }}
+            rows={2}
+            placeholder="הערה (למשל: טופל מחוץ למערכת)"
+            className="w-full border rounded-lg p-2 bg-white"
+          />
+          <button disabled={busy} onClick={closeManual} className={`${btn} bg-primary text-on-primary`}>סגירה</button>
         </div>
       )}
 
