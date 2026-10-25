@@ -170,12 +170,14 @@ export function guideInput(raw) {
 }
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+// התווית היא טקסט בלבד: הסרת התגיות בספריית הניקוי (לא בביטוי רגולרי), ואז פענוח הישויות של הטקסט
 const stripTags = (s) =>
-  String(s)
-    .replace(/<span class="material-symbols-outlined">[^<]*<\/span>/g, '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/[<>]/g, '') // שארית של תגית חלקית — התווית היא טקסט בלבד
+  sanitizeHtml(String(s).replace(/<span class="material-symbols-outlined">[^<]*<\/span>/g, ''), {
+    allowedTags: [],
+    allowedAttributes: {},
+  })
     .replace(/&quot;/g, '"')
+    .replace(/&#39;|&#x27;/g, "'")
     .replace(/&amp;/g, '&')
     .trim();
 
