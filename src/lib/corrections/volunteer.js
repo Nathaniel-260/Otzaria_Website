@@ -47,7 +47,12 @@ const LIST_FILTERS = {
   mine: (user) => ({ 'manual.status': 'claimed', 'manual.assignee': user._id }),
   // שיוך שפג זמין שוב ללקיחה, ולכן מוצג בתור.
   queued: (user, now) => ({
-    $and: [OPEN_FILTER, { $or: [{ 'manual.status': { $in: ['queued', 'released'] } }, { 'manual.status': 'claimed', 'manual.leaseExpiresAt': { $lte: now } }] }],
+    $and: [
+      OPEN_FILTER,
+      { $or: [{ 'manual.status': { $in: ['queued', 'released'] } }, { 'manual.status': 'claimed', 'manual.leaseExpiresAt': { $lte: now } }] },
+      // פרסום שנכשל מוצג רק בלשונית "אושרו / בפרסום", לא בתור הראשי
+      { 'publish.status': { $ne: 'failed' } },
+    ],
   }),
   claimed: () => ({ 'manual.status': 'claimed', state: 'open' }),
   auto: () => ({ state: 'open', 'verification.status': { $in: ['queued', 'in_progress'] } }),
@@ -449,6 +454,23 @@ export async function resubmitToService({ user, id, generation, config, now = ne
   return ok({ generation: updated.workflowGeneration });
 }
 
+/** בחירת מקור ידנית, לפני הקלדת מספר שורה: האם הקובץ קיים וקריא, וכמה שורות יש בו. */
+export async function checkSourcePath({ user, id, path, config, deps }) {
+  if (!canHandleCorrections(user)) return err(403, 'Forbidden');
+  if (!isId(id)) return err(404, 'not_found');
+  if (!isAllowedRepoPath(path)) return err(400, 'path_not_allowed');
+  try {
+    const git = gitSourceFor(config, deps);
+    const head = await git.getHead();
+    const f = await git.getFile(path, head.commitSha);
+    if (!f) return err(404, 'file_not_found');
+    if (f.lossy) return err(409, 'non_utf8_source');
+    return ok({ path, lineCount: splitSourceLines(f.content).lines.length });
+  } catch (e) {
+    return err(503, 'source_unavailable', { detail: e.status ? `github_${e.status}` : 'network' });
+  }
+}
+
 /** בחירת מקור ידנית: מחזיר את השורה העדכנית ביעד שנבחר (לתצוגת diff לפני אישור). */
 export async function previewSourceChoice({ user, id, path, lineIndex, config, deps }) {
   if (!canHandleCorrections(user)) return err(403, 'Forbidden');
@@ -465,7 +487,7 @@ export async function previewSourceChoice({ user, id, path, lineIndex, config, d
     if (f.lossy) return err(409, 'non_utf8_source');
     const parsed = splitSourceLines(f.content);
     const { lines } = parsed;
-    if (lineIndex >= lines.length) return err(400, 'line_out_of_range');
+    if (lineIndex >= lines.length) return err(400, 'line_out_of_range', { lineCount: lines.length });
     const from = Math.max(0, lineIndex - 2);
     await logEvent(r._id, 'source_chosen_preview', userActor(user), r.workflowGeneration, { path, lineIndex, blobSha: f.blobSha });
     return ok({
