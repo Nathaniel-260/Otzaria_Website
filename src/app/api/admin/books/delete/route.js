@@ -4,6 +4,7 @@ import connectDB from '@/lib/db';
 import Book from '@/models/Book';
 import Page from '@/models/Page';
 import OcrPageResult from '@/models/OcrPageResult';
+import OcrConflict from '@/models/OcrConflict';
 import fs from 'fs-extra';
 import path from 'path';
 import { getServerSession } from 'next-auth';
@@ -71,6 +72,8 @@ export async function DELETE(request) {
         await Page.deleteMany({ book: bookId });
         // נתוני OCR מקומי לעמודים (layout/metadata — נשמרים לצמיתות, נמחקים רק עם הספר)
         await OcrPageResult.deleteMany({ book: bookId });
+        // התנגשויות OCR (OcrConflict, כולל ocrText מלא) של הספר — מצביעות על עמודים שנמחקו
+        await OcrConflict.deleteMany({ book: bookId });
 
         // 4. מחיקת רשומת הספר עצמה מה-DB (קורה תמיד!)
         await Book.findByIdAndDelete(bookId);

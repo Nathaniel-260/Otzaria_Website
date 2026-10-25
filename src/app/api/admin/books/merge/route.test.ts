@@ -9,6 +9,7 @@ const m = vi.hoisted(() => ({
   pageInsertMany: vi.fn(),
   pageDeleteMany: vi.fn(),
   pageResultDeleteMany: vi.fn(),
+  conflictDeleteMany: vi.fn(),
   ensureDir: vi.fn(),
   cancelBooks: vi.fn(),
   cancelLate: vi.fn(),
@@ -45,6 +46,9 @@ vi.mock("@/models/Page", () => ({
 }));
 vi.mock("@/models/OcrPageResult", () => ({
   default: { deleteMany: m.pageResultDeleteMany },
+}));
+vi.mock("@/models/OcrConflict", () => ({
+  default: { deleteMany: m.conflictDeleteMany },
 }));
 vi.mock("@/lib/ocr/localCancel", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ocr/localCancel")>();
@@ -107,6 +111,18 @@ describe("POST /api/admin/books/merge - ביטול OCR מתועד", () => {
     }
   });
 
+  it("התנגשויות OCR (OcrConflict) של הספרים הישנים נמחקות יחד עם העמודים שלהם", async () => {
+    const res = await POST(makeRequest({ bookIds: ["a1", "a2"], newName: "מאוחד" }));
+
+    expect(res.status).toBe(200);
+    expect(m.conflictDeleteMany.mock.calls).toEqual([[{ book: "a1" }], [{ book: "a2" }]]);
+    for (const i of [0, 1]) {
+      const at = m.conflictDeleteMany.mock.invocationCallOrder[i];
+      expect(at).toBeGreaterThan(m.pageDeleteMany.mock.invocationCallOrder[i]);
+      expect(at).toBeLessThan(m.bookFindByIdAndDelete.mock.invocationCallOrder[i]);
+    }
+  });
+
   it("קליטת תוצאות OCR בעיצומה באחד הספרים → 409 ושום דבר לא נוצר או נמחק", async () => {
     m.cancelBooks.mockRejectedValue(new OcrApplyInProgressError("j1"));
 
@@ -121,6 +137,7 @@ describe("POST /api/admin/books/merge - ביטול OCR מתועד", () => {
     expect(m.bookCreate).not.toHaveBeenCalled();
     expect(m.pageDeleteMany).not.toHaveBeenCalled();
     expect(m.pageResultDeleteMany).not.toHaveBeenCalled();
+    expect(m.conflictDeleteMany).not.toHaveBeenCalled();
     expect(m.bookFindByIdAndDelete).not.toHaveBeenCalled();
     expect(m.revalidateTag).not.toHaveBeenCalled();
   });

@@ -6,6 +6,7 @@ const {
   findByIdAndDeleteMock,
   pageDeleteManyMock,
   pageResultDeleteManyMock,
+  conflictDeleteManyMock,
   pathExistsMock,
   cancelActiveOcrForBookMock,
   cancelLateOcrJobsQuietMock,
@@ -16,6 +17,7 @@ const {
   findByIdAndDeleteMock: vi.fn(),
   pageDeleteManyMock: vi.fn().mockResolvedValue(undefined),
   pageResultDeleteManyMock: vi.fn().mockResolvedValue(undefined),
+  conflictDeleteManyMock: vi.fn().mockResolvedValue(undefined),
   pathExistsMock: vi.fn().mockResolvedValue(false),
   cancelActiveOcrForBookMock: vi.fn().mockResolvedValue({ cancelled: [] }),
   cancelLateOcrJobsQuietMock: vi.fn().mockResolvedValue({ cancelled: [] }),
@@ -59,6 +61,10 @@ vi.mock("@/models/OcrPageResult", () => ({
   default: { deleteMany: pageResultDeleteManyMock },
 }));
 
+vi.mock("@/models/OcrConflict", () => ({
+  default: { deleteMany: conflictDeleteManyMock },
+}));
+
 vi.mock("@/lib/ocr/localCancel", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ocr/localCancel")>();
   return {
@@ -83,6 +89,7 @@ describe("DELETE /api/admin/books/delete", () => {
     findByIdAndDeleteMock.mockReset();
     pageDeleteManyMock.mockClear();
     pageResultDeleteManyMock.mockClear();
+    conflictDeleteManyMock.mockClear();
     pathExistsMock.mockReset();
     pathExistsMock.mockResolvedValue(false);
     removeMock.mockClear();
@@ -152,6 +159,9 @@ describe("DELETE /api/admin/books/delete", () => {
     expect(cancelOrder).toBeLessThan(pageDeleteManyMock.mock.invocationCallOrder[0]);
     // נתוני OCR מקומי לעמודים (OcrPageResult) נמחקים יחד עם העמודים
     expect(pageResultDeleteManyMock).toHaveBeenCalledWith({ book: "b1" });
+    // התנגשויות OCR (OcrConflict) של הספר נמחקות גם הן, לפני מחיקת רשומת הספר
+    expect(conflictDeleteManyMock).toHaveBeenCalledWith({ book: "b1" });
+    expect(conflictDeleteManyMock.mock.invocationCallOrder[0]).toBeLessThan(findByIdAndDeleteMock.mock.invocationCallOrder[0]);
     expect(cancelOrder).toBeLessThan(findByIdAndDeleteMock.mock.invocationCallOrder[0]);
     expect(cancelLateOcrJobsQuietMock).toHaveBeenCalledWith(["b1"], { reason: "book_deleted", byName: "" });
     expect(cancelLateOcrJobsQuietMock.mock.invocationCallOrder[0]).toBeGreaterThan(
@@ -186,6 +196,7 @@ describe("DELETE /api/admin/books/delete", () => {
     expect(removeMock).not.toHaveBeenCalled();
     expect(pageDeleteManyMock).not.toHaveBeenCalled();
     expect(pageResultDeleteManyMock).not.toHaveBeenCalled();
+    expect(conflictDeleteManyMock).not.toHaveBeenCalled();
     expect(findByIdAndDeleteMock).not.toHaveBeenCalled();
     expect(revalidateTagMock).not.toHaveBeenCalled();
   });

@@ -7,6 +7,7 @@ import connectDB from '@/lib/db';
 import Book from '@/models/Book';
 import Page from '@/models/Page';
 import OcrPageResult from '@/models/OcrPageResult';
+import OcrConflict from '@/models/OcrConflict';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { hasBookLibraryAccess } from '@/lib/roles';
@@ -183,6 +184,8 @@ export async function POST(request) {
             // נתוני OCR מקומי (OcrPageResult) של העמודים הישנים — כמו במחיקת ספר. המיזוג יוצר עמודים
             // חדשים (מזהים חדשים, בלי טקסט ובלי lastOcrJobId), ולכן אין למה להעביר את הרשומות.
             await OcrPageResult.deleteMany({ book: oldBook._id });
+            // התנגשויות OCR (OcrConflict, כולל ocrText מלא) מצביעות על העמודים הישנים שנמחקו — נמחקות איתם.
+            await OcrConflict.deleteMany({ book: oldBook._id });
             await Book.findByIdAndDelete(oldBook._id);
 
             // 2. טיפול במחיקת הקבצים הפיזיים
