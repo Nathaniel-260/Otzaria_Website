@@ -174,6 +174,7 @@ const stripTags = (s) =>
   String(s)
     .replace(/<span class="material-symbols-outlined">[^<]*<\/span>/g, '')
     .replace(/<[^>]+>/g, '')
+    .replace(/[<>]/g, '') // שארית של תגית חלקית — התווית היא טקסט בלבד
     .replace(/&quot;/g, '"')
     .replace(/&amp;/g, '&')
     .trim();
