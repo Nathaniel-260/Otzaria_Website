@@ -6,6 +6,7 @@ import { shabbatGate } from '@/lib/shabbat-cache';
 import { isProtectedPath } from '@/lib/protected-routes';
 // מפתח-גישה של תוכנת-הספר לנתיבי הניהול של הגהת-העמודים (טהור, בלי מסד)
 import { proxyLetsBearerThrough } from '@/lib/pageProof/tokenRules';
+import { proxyLetsBearerThrough as tzuratLetsBearerThrough } from '@/lib/tzuratHadaf/tokenRules';
 
 // ===== חסימת שבת/יום טוב בצד שרת =====
 // הלוגיקה הועברה מסקריפט צד-לקוח (Shabbat-blocker.js):
@@ -277,7 +278,10 @@ const authProxy = withAuth(
         // בלי session: בקשה עם מפתח-גישה של תוכנת-הספר (Bearer ppt_…) עוברת לראוט — רק
         // בנתיבי הניהול של הגהת-העמודים, ולא בניהול המפתחות. הראוט עצמו מאמת את המפתח
         // (lib/pageProof/tokenAuth.js); ראוט שאינו מקבל מפתח עונה 401. שאר הבקשות — להתחברות.
-        return proxyLetsBearerThrough(path, req.headers.get('authorization'));
+        // כך גם מפתח של צורת הדף (Bearer tht_…) — רק תחת /api/admin/tzurat-hadaf, חוץ מ-tokens
+        // (lib/tzuratHadaf/tokenAuth.js)
+        const auth = req.headers.get('authorization');
+        return proxyLetsBearerThrough(path, auth) || tzuratLetsBearerThrough(path, auth);
       }
     },
     pages: {

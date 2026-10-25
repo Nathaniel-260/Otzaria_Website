@@ -91,3 +91,27 @@ describe('proxy — /api/worker (עובד OCR מקומי)', () => {
     }
   })
 })
+
+describe('proxy — מפתח-גישה של צורת הדף (tht_)', () => {
+  const THT = `tht_${'Ab9-_'.repeat(8)}xyz`
+
+  it('Bearer tht_ בלי session עובר לראוטי הניהול של צורת הדף', async () => {
+    for (const path of [
+      '/api/admin/tzurat-hadaf/stats',
+      '/api/admin/tzurat-hadaf/export',
+      '/api/admin/tzurat-hadaf/uploads',
+      '/api/admin/tzurat-hadaf/uploads/64b7f0c2a1b2c3d4e5f60001/chunks/3',
+      '/api/admin/tzurat-hadaf/sync',
+    ]) {
+      expect(passed(await call(path, `Bearer ${THT}`)), path).toBe(true)
+    }
+  })
+
+  it('ניהול המפתחות, שאר הניהול והמתנדב — הפניה להתחברות; ppt_ אינו פותח את צורת הדף ולהפך', async () => {
+    for (const path of ['/api/admin/tzurat-hadaf/tokens', '/api/admin/tzurat-hadaf/tokens/64b7f0c2a1b2c3d4e5f60001', '/api/tzurat-hadaf/fast', '/api/admin/page-proof', '/library/admin/tzurat-hadaf']) {
+      expect(toLogin(await call(path, `Bearer ${THT}`)), path).toBe(true)
+    }
+    expect(toLogin(await call('/api/admin/tzurat-hadaf/stats', `Bearer ${TOKEN}`))).toBe(true)
+    expect(toLogin(await call('/api/admin/tzurat-hadaf/stats'))).toBe(true)
+  })
+})
