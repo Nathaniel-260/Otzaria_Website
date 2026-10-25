@@ -62,6 +62,17 @@ const LIST_FILTERS = {
   all: () => ({ state: { $ne: 'email_only' }, 'publish.status': { $nin: PUBLISHING_STATUSES } }),
 };
 
+const MAX_HIDDEN_BOOKS = 50;
+
+/** ספרים שהמתנדב בחר להסתיר מהרשימה (למשל ספר משובש עם הרבה דיווחים): מערך JSON של שמות מדויקים. */
+export function parseHiddenBooks(raw) {
+  if (typeof raw !== 'string' || !raw) return [];
+  let arr;
+  try { arr = JSON.parse(raw); } catch { return []; }
+  if (!Array.isArray(arr)) return [];
+  return [...new Set(arr.filter((b) => typeof b === 'string' && b.trim() && b.length <= 200))].slice(0, MAX_HIDDEN_BOOKS);
+}
+
 export async function listReports({ user, query = {}, now = new Date() }) {
   if (!canHandleCorrections(user)) return err(403, 'Forbidden');
   const view = LIST_FILTERS[query.view] ? query.view : 'queued';
@@ -72,6 +83,8 @@ export async function listReports({ user, query = {}, now = new Date() }) {
   if (isId(query.assignee)) filter['manual.assignee'] = new mongoose.Types.ObjectId(query.assignee);
   const book = typeof query.book === 'string' ? query.book.trim().slice(0, 200) : '';
   if (book) filter.bookTitle = { $regex: escapeRegExp(book) };
+  const hidden = parseHiddenBooks(query.hideBooks);
+  if (hidden.length) filter.bookTitle = { ...filter.bookTitle, $nin: hidden };
   const limit = Math.min(100, Math.max(1, Number.parseInt(query.limit, 10) || 50));
   const skip = Math.max(0, Number.parseInt(query.skip, 10) || 0);
   const rows = await ErrorReport.find(filter)

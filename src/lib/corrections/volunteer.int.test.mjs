@@ -533,6 +533,10 @@ test('סינון לפי ספר (חלק מהשם, בלי פרשנות regex) וא
   assert.deepEqual(await byBook('כתר'), ['כתר ראש (גר"א)']);
   assert.deepEqual(await byBook('(גר"א)'), ['כתר ראש (גר"א)'], 'סוגריים כטקסט ולא כ-regex');
   assert.deepEqual(await byBook('.*'), []);
+  const hiding = (hideBooks, book) => listReports({ user: users.a, query: { view: 'queued', hideBooks, book } }).then((r) => r.body.items.map((i) => i.bookTitle).sort());
+  assert.deepEqual(await hiding(JSON.stringify(['בראשית'])), ['כתר ראש (גר"א)'], 'ספר מוסתר אינו ברשימה');
+  assert.deepEqual(await hiding(JSON.stringify(['כתר ראש (גר"א)']), 'כתר'), [], 'הסתרה משולבת עם סינון לפי שם');
+  assert.deepEqual(await hiding('not-json'), ['בראשית', 'כתר ראש (גר"א)'], 'קלט פגום — בלי הסתרה');
   const opts = await listFilterOptions({ user: users.a });
   assert.deepEqual(opts.body.sourceFolders, ['ToratEmetToOtzaria']);
   assert.deepEqual(opts.body.books, ['בראשית', 'כתר ראש (גר"א)']);
