@@ -54,6 +54,8 @@ import {
   summarizeApply,
 } from './localApply.pure.js';
 import { bookMetadataJson } from './localResultLayout.pure.js';
+import { SemaphoreTimeoutError } from '../semaphore.js';
+import { resultIntakeLimiter, RESULT_INTAKE_WAIT_MS } from './localLimiters.js';
 
 const DURABLE = { writeConcern: { w: 1, j: true } };
 
@@ -169,6 +171,8 @@ async function storeCancelAck(job, sha, now) {
   return stored ? ok(stored) : err(500, 'internal_error');
 }
 
+const PAGE_YIELD_EVERY = 50;
+
 // מאגר עם מקביליות מוגבלת; חריגה ראשונה עוצרת לקיחת משימות חדשות ונזרקת אחרי שהרצות בתנועה מסתיימות
 async function runPool(items, limit, fn) {
   const results = new Array(items.length);
@@ -177,6 +181,8 @@ async function runPool(items, limit, fn) {
   const worker = async () => {
     while (failure === null && next < items.length) {
       const i = next++;
+      // הנרמול/ההחלה של עמוד כולל עבודת CPU סינכרונית — מפנים את לולאת האירועים כל ~50 עמודים
+      if (i > 0 && i % PAGE_YIELD_EVERY === 0) await new Promise((r) => setImmediate(r));
       try {
         results[i] = await fn(items[i], i);
       } catch (e) {
@@ -550,14 +556,20 @@ export async function resumeStalledApplies({ now = new Date(), env = process.env
   for (const job of jobs) {
     let code;
     let okFlag = false;
+    let busy = false;
     try {
-      const r = await resumeStalledApply(job._id, { now, env });
+      // אותו מגביל כמו קליטת תוצאה: החלה אחת בכל רגע בתהליך
+      const r = await resultIntakeLimiter.run(() => resumeStalledApply(job._id, { now, env }), {
+        timeoutMs: RESULT_INTAKE_WAIT_MS,
+      });
       code = r.code;
       okFlag = r.ok;
     } catch (e) {
-      code = String(e?.code ?? e?.name ?? 'error');
+      busy = e instanceof SemaphoreTimeoutError;
+      code = busy ? 'intake_busy' : String(e?.code ?? e?.name ?? 'error');
     }
-    if (!okFlag && resumeFailureBacksOff(code)) await recordResumeFailure(job, code, now);
+    // עומס בתהליך אינו כשל של העבודה — בלי backoff, ננסה שוב בסבב הבא
+    if (!okFlag && !busy && resumeFailureBacksOff(code)) await recordResumeFailure(job, code, now);
     out.push({ jobId: String(job._id), ok: okFlag, code });
   }
   return out;

@@ -15,6 +15,7 @@
 // המוחזקים עד save + הפלט). לכן נבדקת תקרת נפח לפי גודל הקבצים **לפני** קריאתם, ו-PNG
 // מוטמע מיד (img.embed) כדי שהפיקסלים המפוענחים ישתחררו לפני העמוד הבא.
 // imports יחסיים בלבד (נבדק ב-node:test).
+import { jobInputBuildLimiter, JOB_INPUT_BUILD_WAIT_MS } from './localLimiters.js';
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
@@ -74,7 +75,12 @@ async function statPages(pages) {
  * @throws {LocalInputError} בשגיאת קלט סופית (no_pages, missing_image, unsupported_image,
  *   missing_timestamp, invalid_page_number, too_many_pages, input_too_large). כל חריגה אחרת — זמנית.
  */
-export async function buildJobInput({ jobId, pages, limits = readLocalLimits(), env = process.env }) {
+export async function buildJobInput(args) {
+  // בניית PDF טוענת תמונות רבות לזיכרון — אחת בכל רגע בתהליך (המתנה חסומה; חריגה זמנית אחרת)
+  return jobInputBuildLimiter.run(() => buildJobInputUnlimited(args), { timeoutMs: JOB_INPUT_BUILD_WAIT_MS });
+}
+
+async function buildJobInputUnlimited({ jobId, pages, limits = readLocalLimits(), env = process.env }) {
   if (typeof jobId !== 'string' || !JOB_ID_RE.test(jobId)) throw new Error('invalid_job_id');
   if (!Array.isArray(pages) || pages.length === 0) throw new LocalInputError('no_pages');
 

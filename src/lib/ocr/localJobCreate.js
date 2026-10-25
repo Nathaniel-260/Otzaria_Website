@@ -214,10 +214,24 @@ async function prepare(job, lease, req) {
   const jobId = String(job._id);
   const mode = job.existingTextMode || req.existingTextMode;
 
-  const pages = await Page.find({ book: job.book })
+  // סורקים בסמן ושומרים לכל עמוד רק את מה שצריך: ה-PDF משתמש ב-_id/pageNumber/imagePath/updatedAt,
+  // והבחירה/הספירה רק ב-pageHasText. את הטקסט עצמו (עשוי להיות גדול) לא מחזיקים בזיכרון —
+  // content מוחלף בסמן '1'/'' שנותן ל-pageHasText בדיוק את אותה תשובה (אותה trim של JS).
+  const pages = [];
+  const cursor = Page.find({ book: job.book })
     .sort({ pageNumber: 1 })
     .select('_id pageNumber imagePath content rightColumn leftColumn updatedAt')
-    .lean();
+    .lean()
+    .cursor();
+  for await (const p of cursor) {
+    pages.push({
+      _id: p._id,
+      pageNumber: p.pageNumber,
+      imagePath: p.imagePath,
+      updatedAt: p.updatedAt,
+      content: pageHasText(p) ? '1' : '',
+    });
+  }
   const editedPagesCount = pages.filter(pageHasText).length;
   const selected = selectPagesForLocal(pages, mode);
 

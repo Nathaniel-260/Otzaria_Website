@@ -11,6 +11,8 @@ import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { storageRoot, writeJobFileDurable } from './localStorage.js';
 import { MAX_RESULT_BYTES, parseResultBytes, validateResult, validationDetails } from './localResultValidate.js';
+import { SemaphoreTimeoutError } from '../semaphore.js';
+import { resultIntakeLimiter, RESULT_INTAKE_WAIT_MS, RESULT_INTAKE_RETRY_AFTER_SEC } from './localLimiters.js';
 import { receiveResult, recordRejectedFile, storedAnswerFor } from './localApply.js';
 
 // תקרת בטיחות לרשומות דחייה בעבודה (לא נדחקות — הניקוי מוחק קובץ דחייה לפי receivedAt שברשומה):
@@ -158,21 +160,33 @@ export async function intakeResult({ job, claimedSha, body, now, env = process.e
   }
   if (file.mismatch || file.sha256 !== claimedSha) return answer(400, { error: 'hash_mismatch' });
   const sha = file.sha256;
-  const at = now ?? new Date();
 
-  const parsed = parseResultBytes(await fs.readFile(/*turbopackIgnore: true*/ file.absPath));
-  if (!parsed.ok) {
-    await recordRejection(job, sha, file, at, 'invalid_result', '', env);
-    return answer(400, { error: 'invalid_result' });
-  }
-  const v = validateResult(parsed.doc, job, file.bytes, maxBytes);
-  if (!v.ok) {
-    const details = validationDetails(v.errors);
-    await recordRejection(job, sha, file, at, 'validation_failed', details, env);
-    return answer(422, { error: 'validation_failed', details });
-  }
+  // החלק הכבד (קריאה לזיכרון, פענוח, ולידציה, החלה) — אחד בכל רגע בתהליך. ההמתנה חסומה:
+  // מעבר לתקרה 503 + Retry-After והעובד ישלח שוב (ה-hash כבר נשמר, שליחה חוזרת זולה).
+  // at נקבע אחרי הכניסה, כדי שהמתנה בתור לא תקצר את ה-lease של ההחלה.
+  try {
+    return await resultIntakeLimiter.run(async () => {
+      const at = now ?? new Date();
+      const parsed = parseResultBytes(await fs.readFile(/*turbopackIgnore: true*/ file.absPath));
+      if (!parsed.ok) {
+        await recordRejection(job, sha, file, at, 'invalid_result', '', env);
+        return answer(400, { error: 'invalid_result' });
+      }
+      const v = validateResult(parsed.doc, job, file.bytes, maxBytes);
+      if (!v.ok) {
+        const details = validationDetails(v.errors);
+        await recordRejection(job, sha, file, at, 'validation_failed', details, env);
+        return answer(422, { error: 'validation_failed', details });
+      }
 
-  const r = await receiveResult({ jobId: job._id, sha, doc: parsed.doc, file, now: at, env, hooks });
-  if (r.status === 410) await recordRejection(job, sha, file, at, 'job_closed', '', env);
-  return r;
+      const r = await receiveResult({ jobId: job._id, sha, doc: parsed.doc, file, now: at, env, hooks });
+      if (r.status === 410) await recordRejection(job, sha, file, at, 'job_closed', '', env);
+      return r;
+    }, { timeoutMs: RESULT_INTAKE_WAIT_MS });
+  } catch (e) {
+    if (e instanceof SemaphoreTimeoutError) {
+      return answer(503, { error: 'intake_busy' }, { 'Retry-After': String(RESULT_INTAKE_RETRY_AFTER_SEC) });
+    }
+    throw e;
+  }
 }
