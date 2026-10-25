@@ -130,6 +130,8 @@
 
 ### נתוני פריסה, אזהרות ונתוני עזר (שירות ≥1.0.149, גשר 2)
 
+> **הערת סטטוס (חשוב):** החלק הזה — `pages[].layout`, `pages[].warnings`, `metadata.service_version` וקודי `layout_*` — ממומש **בצד האתר בלבד**. שירות העובד (`local-ocr-service`, גרסה 1.0.142 המותקנת, ובדיקת כל ענפי הריפו והיסטוריית git) **עדיין לא שולח** אותם: ל-`ResultPage` ב-`Contracts.cs` אין `Layout`/`Warnings`, ו-`UnmappedMemberHandling = Skip` משמיט שדות לא מוכרים; אין בריפו `layout-v1.schema.json` או `LayoutSummary`. עד שתשוחרר גרסת שירות ששולחת אותם — היכולת רדומה, ותוצאות מתקבלות בלי layout בדיוק כמו קודם. ההפניות לקבצי השירות בהמשך הסעיף מתארות את החוזה המתוכנן, לא קוד קיים.
+
 מקור האמת למבנה: מפרט החוזה המשותף (סעיף A — `layout` v1, `warnings`, תוספות ה-`metadata`), ובריפו השירות
 `contracts/layout-v1.schema.json` ו-`contracts/result.schema.json`. פיקסצ'ר משותף (מועתק בלי עריכה):
 `src/lib/ocr/fixtures/localResultLayout.result.json` + `.envelope.json`. המעטפה לא משתנה.
