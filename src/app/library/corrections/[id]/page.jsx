@@ -13,6 +13,7 @@ import ReportActions from '@/components/corrections/ReportActions'
 import HistoryPanel from '@/components/corrections/HistoryPanel'
 import { committedNewLine } from '@/lib/corrections/unified-diff'
 import { errorText } from '@/lib/corrections/error-text'
+import { githubFileUrl } from '@/lib/corrections/github-link'
 
 const SOURCE_STATUS = {
   exact: 'אותר בדיוק',
@@ -135,6 +136,10 @@ export default function CorrectionReportPage() {
         before: rev?.originalLine ?? '', after: targetLine, context: null, lineIndex: null, path: null,
         contextNote: `הקשר מהקובץ אינו זמין (${source ? SOURCE_STATUS[source.status] || source.status : sourceError ? 'המקור אינו זמין כרגע' : 'המקור לא נטען'}) — מוצגת השורה כפי שנשלחה מהתוכנה.`,
       }
+  // השורה לא אותרה בוודאות אבל הקובץ כן: קישור לספר בגיטהאב, ממוקד בשורה שדווחה (אם ידועה), לחיפוש ידני
+  const githubUrl = source?.path && !fileDiff
+    ? githubFileUrl({ repo: source.repo, ref: source.ref, path: source.path, lineIndex: source.lineIndex ?? report.location?.lineIndex ?? null })
+    : null
   const expandContext = () => {
     setExpanding(true)
     setContextLines((source?.context?.contextLines ?? 3) + 10)
@@ -219,6 +224,12 @@ export default function CorrectionReportPage() {
               </div>
             )}
           />
+          {githubUrl && (
+            <a href={githubUrl} target="_blank" rel="noopener noreferrer" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-primary hover:underline">
+              <span className="material-symbols-outlined text-base">open_in_new</span>
+              מיקום השורה לא אותר בוודאות — פתיחת הספר בגיטהאב{githubUrl.includes('#L') ? ' (סביב השורה שדווחה)' : ''} לחיפוש הטקסט
+            </a>
+          )}
           {source?.candidates?.length > 0 && (
             <section className="glass rounded-xl p-4">
               <h3 className="font-bold">מועמדים (התאמה לא ודאית — לבחירה ידנית בלבד)</h3>
