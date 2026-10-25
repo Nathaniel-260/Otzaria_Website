@@ -6,6 +6,8 @@ import ManualSourcePicker from '@/components/corrections/ManualSourcePicker'
 
 const btn = 'px-3 py-2 rounded-lg font-medium text-sm disabled:opacity-50 flex items-center gap-1'
 const PUBLISHING = new Set(['ready', 'in_progress', 'unknown_needs_reconcile', 'pr_opened'])
+// הערות סגירה נפוצות — בלחיצה, בלי להקליד כל פעם
+const CLOSE_NOTES = ['טופל מחוץ למערכת', 'כבר תוקן במקור', 'כפילות של דיווח אחר']
 
 /**
  * פעולות המתנדב על דיווח. כל שליחה נושאת את ה-generation שהוצג; השרת דוחה תצוגה ישנה.
@@ -201,6 +203,11 @@ export default function ReportActions({ detail, meId, busy, run, probe, sourcePi
 
       {mode === 'close' && (
         <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {CLOSE_NOTES.map((n) => (
+              <button key={n} type="button" onClick={() => setReason(n)} aria-pressed={reason === n} className={`px-2 py-1 rounded-full text-xs ${reason === n ? 'bg-primary text-on-primary' : 'glass hover:bg-surface-variant'}`}>{n}</button>
+            ))}
+          </div>
           <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="הערה (למשל: טופל מחוץ למערכת)" className="w-full border rounded-lg p-2 bg-white" />
           <button disabled={busy} onClick={async () => { if (await act({ action: 'close_manual', generation: g, note: reason })) setMode(null) }} className={`${btn} bg-primary text-on-primary`}>סגירה</button>
         </div>
