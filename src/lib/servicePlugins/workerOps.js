@@ -10,6 +10,7 @@ import {
 } from './policy.js'
 import { newLeaseToken, hashLeaseToken, isLeaseTokenShape } from './workerAuth.js'
 import { publishReview, finalizeIfPublished, releaseScanLock, CLEARED_LEASE } from './publish.js'
+import { syncPortReservations } from './ports.js'
 import { openReviewAssetStream } from './storage.js'
 
 const fail = (status, code, more = {}) => ({ ok: false, status, code, ...more })
@@ -285,6 +286,7 @@ export async function submitResult({ reviewId, token, digest, decision, report, 
     })
     if (res.matchedCount !== 1) return leaseLost()
     await Plugin.updateOne({ _id: review.pluginId, 'serviceState.activeReviewId': review._id }, { $set: { 'serviceState.activeReviewId': null } })
+    await syncPortReservations(review.pluginId)
     await releaseScanLock(review._id)
     await notifyRejected(decided)
     return { ok: true, status: 'rejected', published: false }

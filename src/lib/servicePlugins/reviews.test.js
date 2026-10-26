@@ -646,3 +646,67 @@ describe('תיקוני QA', () => {
     expect((await claimNext({ workerId: 'a', now })).job.reviewId).toBe(String(review._id))
   })
 })
+
+
+describe('תיקוני הסקירה: התאוששות ושריון פורטים', () => {
+  it('טיוטה שמעוכבת לפני ההוספה כבר מחזיקה בפורט; ביטול משחרר אותו', async () => {
+    const a = await makePlugin()
+    const b = await makePlugin()
+    const realCreate = ServicePluginReview.create.bind(ServicePluginReview)
+    let releaseFirst, firstReached
+    const hold = new Promise((resolve) => { releaseFirst = resolve })
+    const reached = new Promise((resolve) => { firstReached = resolve })
+    const spy = vi.spyOn(ServicePluginReview, 'create').mockImplementationOnce(async (...args) => {
+      firstReached()
+      await hold
+      return realCreate(...args)
+    })
+    let first
+    try {
+      first = createDraft({ plugin: await loadPlugin(a._id), user: owner, body: serviceBody() })
+      await reached
+      expect(await createDraft({ plugin: await loadPlugin(b._id), user: owner, body: serviceBody() })).toMatchObject({ ok: false, code: 'port_taken' })
+    } finally { releaseFirst(); spy.mockRestore() }
+    const winner = await first
+    expect(winner.ok).toBe(true)
+    await cancelReview({ review: await loadReview(winner.review._id), by: owner._id })
+    expect((await createDraft({ plugin: await loadPlugin(b._id), user: owner, body: serviceBody() })).ok).toBe(true)
+  })
+
+  it('האינדקס עוצר שתי שמירות גם כשבדיקות ההקדמה נעשו לפני שתיהן', async () => {
+    const plugins = await Promise.all([makePlugin(), makePlugin()])
+    // כתיבות ישירות ל-DB מאמתות את הערבות האטומית, בלי להסתמך על בדיקת הקיום.
+    const results = await Promise.allSettled(plugins.map((p) => Plugin.updateOne({ _id: p._id },
+      { $addToSet: { 'serviceState.reservedPortKeys': 'windows:18090' } })))
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+    expect(results.find((r) => r.status === 'rejected').reason.code).toBe(11000)
+  })
+
+  it('הפורט של השירות הקודם נשמר עד פרסום גרסה שלישית; חזרה לאחור בטוחה', async () => {
+    const a = await makePlugin()
+    await approve(a, serviceBody())
+    const next = async (version, port) => {
+      await Plugin.updateOne({ _id: a._id }, { $set: { 'serviceState.lastServiceCycleStartedAt': new Date(Date.now() - 22 * DAY) } })
+      await approve(a, serviceBody({ pluginVersion: version, serviceVersion: version, assets: [asset({ port })] }))
+    }
+    await next('2.0.0', 18091)
+    const b = await makePlugin()
+    expect(await createDraft({ plugin: await loadPlugin(b._id), user: owner, body: serviceBody() })).toMatchObject({ code: 'port_taken' })
+    await next('3.0.0', 18092)
+    const reserved = (await loadPlugin(a._id)).serviceState.reservedPortKeys
+    expect(reserved).toEqual(['windows:18091', 'windows:18092'])
+    expect((await createDraft({ plugin: await loadPlugin(b._id), user: owner, body: serviceBody() })).ok).toBe(true)
+    expect((await rollback({ plugin: await loadPlugin(a._id) })).ok).toBe(true)
+    expect((await loadPlugin(a._id)).serviceState.reservedPortKeys).toEqual(['windows:18091'])
+  })
+
+  it('כשל ביצירת ההגשה משחרר את השריון והנעילה', async () => {
+    const a = await makePlugin()
+    const spy = vi.spyOn(ServicePluginReview, 'create').mockRejectedValueOnce(new Error('כשל הוספה'))
+    try { await expect(createDraft({ plugin: await loadPlugin(a._id), user: owner, body: serviceBody() })).rejects.toThrow('כשל הוספה') }
+    finally { spy.mockRestore() }
+    expect((await loadPlugin(a._id)).serviceState.reservedPortKeys).toEqual([])
+    const b = await makePlugin()
+    expect((await createDraft({ plugin: await loadPlugin(b._id), user: owner, body: serviceBody() })).ok).toBe(true)
+  })
+})

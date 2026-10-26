@@ -6,6 +6,7 @@ import ServiceScanControl from '../../models/ServiceScanControl.js'
 import { revalidateNow, CACHE_TAGS } from '../cacheTags.js'
 import { invalidatePluginSearchIndex } from '../pluginSearchIndex.js'
 import { sendPluginApprovalNotification } from '../emailService.js'
+import { syncPortReservations } from './ports.js'
 import { ACTIVE_STATUSES } from './policy.js'
 
 const PLUGIN_STABILITY = ['stable', 'beta', 'experimental']
@@ -98,6 +99,7 @@ async function markApproved(review, publishedAt) {
     { $set: { status: 'approved', publishedAt, activeKey: null, nextAttemptAt: null, lease: CLEARED_LEASE } },
   )
   await releaseScanLock(review._id)
+  await syncPortReservations(review.pluginId)
   return res.modifiedCount === 1
 }
 
@@ -218,6 +220,7 @@ export async function rollback({ plugin, now = new Date() }) {
     { $set: set },
   )
   if (res.modifiedCount !== 1) return fail(409, 'conflict', 'מצב התוסף השתנה בזמן הפעולה; רעננו ונסו שוב')
+  await syncPortReservations(plugin._id)
   refreshPublicCaches()
   return { ok: true, currentServiceReview: String(prev._id), serviceVersion: prev.serviceVersion, pluginVersion: prev.pluginVersion }
 }

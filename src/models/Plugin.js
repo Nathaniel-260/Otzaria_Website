@@ -155,6 +155,7 @@ const PluginSchema = new mongoose.Schema(
           _id: false, os: String, arch: String, minOs: String, port: Number, fileKey: String, name: String, size: Number, sha256: String
         }],
         ports: [{ _id: false, os: String, port: Number }],
+        reservedPortKeys: { type: [String], default: [] },
         serviceVersion: { type: String, default: null },
         serviceRange: { min: { type: String, default: null }, max: { type: String, default: null } },
         uninstall: { type: String, default: null },
@@ -288,5 +289,11 @@ PluginSchema.statics.getPendingPlugins = function () {
     .populate('authorId', 'name email')
     .select('-__v')
 }
+
+// מפתח אחד לכל OS/פורט; מערך מאפשר כמה פורטים לאותו תוסף, אך אוסר בעלות של תוסף אחר.
+PluginSchema.index({ 'serviceState.reservedPortKeys': 1 }, {
+  name: 'service_port_owner', unique: true,
+  partialFilterExpression: { 'serviceState.reservedPortKeys': { $type: 'string' } },
+})
 
 export default mongoose.models.Plugin || mongoose.model('Plugin', PluginSchema)

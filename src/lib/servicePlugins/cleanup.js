@@ -4,6 +4,7 @@ import ServicePluginReview from '../../models/ServicePluginReview.js'
 import { ACTIVE_STATUSES, NATIVE_KEYS } from './policy.js'
 import { deleteReviewFiles, sweepTmpFiles } from './storage.js'
 import { finalizeIfPublished } from './publish.js'
+import { syncPortReservations } from './ports.js'
 import { cancelReview } from './reviews.js'
 
 const HOUR = 3600_000
@@ -98,6 +99,10 @@ export async function runServicePluginCleanup(now = new Date()) {
       await ServicePluginReview.updateOne({ _id: review._id, nativeFilesDeletedAt: null }, { $set: { nativeFilesDeletedAt: now } })
       summary.deletedNativeFiles++
     }
+  })
+
+  await safely(summary, 'ports', async () => {
+    for (const plugin of await Plugin.find({ hasService: true }).select('_id').lean()) await syncPortReservations(plugin._id)
   })
 
   await safely(summary, 'tmp', async () => {

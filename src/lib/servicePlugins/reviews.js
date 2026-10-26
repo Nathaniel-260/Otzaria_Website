@@ -10,6 +10,7 @@ import {
   LIMITS, POLICY_VERSION, ACTIVE_STATUSES, OWNER_CANCELLABLE, validateDraftRequest, submissionDigest,
   cooldownState, versionInRange,
 } from './policy.js'
+import { findPortConflict, portKeys, portTaken, isPortDuplicate, syncPortReservations } from './ports.js'
 import { readReviewAssetBuffer, deleteReviewFiles } from './storage.js'
 import { finalizeIfPublished, releaseScanLock, CLEARED_LEASE } from './publish.js'
 
@@ -50,24 +51,11 @@ export function uploadUrls(pluginId, review) {
   return urls
 }
 
-/** פורט תפוס בידי תוסף שירות אחר (מפורסם) או הגשה פעילה של תוסף אחר. */
-async function findPortConflict(pluginId, assets, { createdBefore = null } = {}) {
-  const pairs = new Map()
-  for (const a of assets || []) pairs.set(`${a.os}:${a.port}`, { os: a.os, port: a.port })
-  for (const { os, port } of pairs.values()) {
-    const owned = await Plugin.exists({ _id: { $ne: pluginId }, hasService: true, 'serviceState.ports': { $elemMatch: { os, port } } })
-    const reviewFilter = { pluginId: { $ne: pluginId }, activeKey: { $type: 'string' }, assets: { $elemMatch: { os, port } } }
-    if (createdBefore) reviewFilter._id = { $lt: createdBefore }
-    const pending = owned ? null : await ServicePluginReview.exists(reviewFilter)
-    if (owned || pending) return fail(409, 'port_taken', `פורט הזיהוי ${port} עבור ${os} כבר שייך לתוסף שירות אחר. יש לבחור פורט אחר`)
-  }
-  return null
-}
-
 const tooManyActive = () => fail(429, 'too_many_active', `אפשר להחזיק עד ${LIMITS.maxActivePerDeveloper} הגשות פעילות בו-זמנית. יש לסיים או לבטל הגשה קיימת`)
 
 async function releasePluginLock(pluginId, reviewId) {
   await Plugin.updateOne({ _id: pluginId, 'serviceState.activeReviewId': reviewId }, { $set: { 'serviceState.activeReviewId': null } })
+  await syncPortReservations(pluginId)
 }
 
 /** יצירת טיוטה: בעלים בלבד, נעילה אטומית לתוסף, עד 3 פעילות למפתח, פורט ייחודי. */
@@ -88,10 +76,19 @@ export async function createDraft({ plugin, user, body }) {
   if (portConflict) return portConflict
 
   const reviewId = new ObjectId()
-  const locked = await Plugin.updateOne(
-    { _id: plugin._id, hasService: true, 'serviceState.activeReviewId': null },
-    { $set: { 'serviceState.activeReviewId': reviewId } },
-  )
+  // ממתינים ליצירת האינדקס לפני קבלת שריון ראשון גם בתהליך אתר חדש.
+  await Plugin.init()
+  let locked
+  try {
+    locked = await Plugin.updateOne(
+      { _id: plugin._id, hasService: true, 'serviceState.activeReviewId': null },
+      { $set: { 'serviceState.activeReviewId': reviewId },
+        ...(value.assets.length ? { $addToSet: { 'serviceState.reservedPortKeys': { $each: portKeys(value.assets) } } } : {}) },
+    )
+  } catch (err) {
+    if (isPortDuplicate(err)) return portTaken()
+    throw err
+  }
   if (locked.modifiedCount !== 1) return fail(409, 'active_review_exists', 'לתוסף זה כבר יש הגשה פעילה. יש לסיים או לבטל אותה לפני הגשה חדשה')
 
   let review
@@ -124,7 +121,7 @@ export async function createDraft({ plugin, user, body }) {
   const after = await ServicePluginReview.countDocuments({ ownerId, activeKey: { $type: 'string' } })
   const conflict = after > LIMITS.maxActivePerDeveloper
     ? tooManyActive()
-    : await findPortConflict(plugin._id, value.assets, { createdBefore: reviewId })
+    : await findPortConflict(plugin._id, value.assets)
   if (conflict) {
     await ServicePluginReview.updateOne(
       { _id: reviewId, status: 'draft' },
@@ -291,6 +288,7 @@ export async function cancelReview({ review, by = null, reason = null, asAdmin =
     { $set: set, $inc: { fence: 1 } },
     { returnDocument: 'before', projection: { status: 1, lease: 1 } },
   ).lean()
+  await syncPortReservations(review.pluginId)
   await releaseScanLockAfterCancel(review._id, previous, now)
   if (!previous) return fail(409, 'invalid_state', 'ההגשה כבר הסתיימה')
   return { ok: true, status: 'cancelled' }
