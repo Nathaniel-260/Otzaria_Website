@@ -446,3 +446,15 @@ test('תוסף ZIP פגום נדחה בהכנת המקור לפני הפעלת C
   await rejectsSource(ctx, /ZIP/)
 })
 
+
+test('CLI שמפיק לוגים בלבד אחרי init נעצר כתקוע ואינו מחזיק את התור', async (t) => {
+  const { config } = await setup(t, { claudeEvents: [INIT], claudeSilent: true })
+  const scenarioPath = config.claude.args[1]
+  const scenario = JSON.parse(await readFile(scenarioPath, 'utf8'))
+  await writeFile(scenarioPath, JSON.stringify({ ...scenario, noise: true }))
+  const ctrl = new AbortController()
+  const safety = setTimeout(() => ctrl.abort(), 4000)
+  t.after(() => clearTimeout(safety))
+  const ctx = new JobContext({ job: pluginJob(), config, api: fakeApi(), signal: ctrl.signal, fetchImpl: fakeFetch() })
+  await assert.rejects(runPipeline(ctx), (e) => e.code === 'claude_stalled')
+})

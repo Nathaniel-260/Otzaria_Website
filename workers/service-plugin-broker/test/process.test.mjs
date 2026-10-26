@@ -101,3 +101,22 @@ test('SIGKILL לקבוצה נשלח גם אחרי שהמנהיג יצא (נכד 
   if (survived) process.kill(pid, 'SIGKILL')
   assert.equal(survived, false)
 })
+
+
+test('שומר אירועים: פלט לוגים רציף ב-stdout וב-stderr אינו מאפס תקיעה', async () => {
+  const r = await runProcess(fakeBin('chatty-child.mjs', '1600'), [], {
+    stallTimeoutMs: 400, killGraceMs: 100, stallOnStdoutLine: true,
+    onStdoutLine: () => false,
+  })
+  assert.equal(r.stalled, true)
+  assert.ok(r.stderr.length > 0)
+})
+
+test('שומר אירועים: אירועים שמזוהים בידי המפענח משאירים תהליך פעיל', async () => {
+  const r = await runProcess(fakeBin('chatty-child.mjs', '1200'), [], {
+    stallTimeoutMs: 400, killGraceMs: 100, stallOnStdoutLine: true,
+    onStdoutLine: (line) => typeof JSON.parse(line).tick === 'number',
+  })
+  assert.equal(r.stalled, false)
+  assert.equal(r.code, 0)
+})

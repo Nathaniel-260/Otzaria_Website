@@ -105,6 +105,7 @@ export async function runClaudeReview(ctx) {
     cwd,
     env: claudeEnv(ctx.config),
     captureStdout: false,
+    stallOnStdoutLine: true,
     stallTimeoutMs: ctx.config.stallTimeoutMs ?? STALL_TIMEOUT_MS,
     killGraceMs: ctx.config.killGraceMs ?? 10_000,
     onSpawn: (c) => {
@@ -112,8 +113,10 @@ export async function runClaudeReview(ctx) {
     },
     onStdoutLine: (line) => {
       const hadSession = state.sessionId
+      const progressBefore = state.progressEvents
       if (state.consume(line) === 'kill') killTree(child, ctx.config.killGraceMs ?? 10_000)
       if (!hadSession && state.sessionId) ctx.stageLog('claude', 'session', { session_id: state.sessionId })
+      return state.progressEvents > progressBefore
     },
   })
   const outcome = classifyOutcome(state, { stalled: run.stalled, spawnError: run.spawnError, exitCode: run.code, aborted: run.aborted })

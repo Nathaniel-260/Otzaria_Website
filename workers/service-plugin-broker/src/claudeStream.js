@@ -66,6 +66,7 @@ export class ClaudeStreamState {
     this.result = null
     this.sessionId = null
     this.events = 0
+    this.progressEvents = 0
     this.badLines = 0
   }
 
@@ -90,12 +91,19 @@ export class ClaudeStreamState {
         this.initViolation = v.reason
         return 'kill'
       }
+      this.progressEvents++
       return 'continue'
     }
     if (!this.sawInit && (ev.type === 'assistant' || ev.type === 'user' || ev.type === 'result')) {
       this.initViolation = 'לא התקבל אירוע init לפני תחילת הסקירה'
       return 'kill'
     }
+    if (this.sawInit && (
+      (['assistant', 'user'].includes(ev.type) && (ev.message || ev.error)) ||
+      (ev.type === 'result' && typeof ev.subtype === 'string') ||
+      (ev.type === 'stream_event' && ['message_start', 'content_block_start', 'content_block_delta',
+        'content_block_stop', 'message_delta', 'message_stop'].includes(ev.event?.type))
+    )) this.progressEvents++
     if (ev.type === 'rate_limit_event') {
       if (ev.rate_limit_info?.status === 'rejected') this.rejectedResetAt = resetAtFromRateLimit(ev.rate_limit_info)
       return 'continue'

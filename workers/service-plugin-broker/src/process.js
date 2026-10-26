@@ -79,14 +79,14 @@ export function killAllChildren(graceMs) {
  * @param {string[]} args
  * @param {{cwd?:string, env?:object, signal?:AbortSignal, wrapper?:string[]|null, timeoutMs?:number,
  *   stallTimeoutMs?:number, killGraceMs?:number, captureStdout?:boolean, maxStdoutBytes?:number,
- *   maxStderrBytes?:number, onStdoutLine?:(line:string)=>void, onActivity?:()=>void,
+ *   maxStderrBytes?:number, onStdoutLine?:(line:string)=>boolean|void, stallOnStdoutLine?:boolean, onActivity?:()=>void,
  *   onSpawn?:(child)=>void}} opts
  */
 export function runProcess(command, args, opts = {}) {
   const {
     cwd, env = buildChildEnv(), signal, wrapper = null, timeoutMs = 0, stallTimeoutMs = 0,
     killGraceMs = 10_000, captureStdout = true, maxStdoutBytes = 8 * 1024 * 1024,
-    maxStderrBytes = 256 * 1024, onStdoutLine, onActivity, onSpawn, closeGraceMs = 2000,
+    maxStderrBytes = 256 * 1024, onStdoutLine, stallOnStdoutLine = false, onActivity, onSpawn, closeGraceMs = 2000,
   } = opts
   const argv = [...(command.args ?? []), ...args]
   const [bin, finalArgs] = wrapper?.length
@@ -139,7 +139,7 @@ export function runProcess(command, args, opts = {}) {
     }
 
     child.stdout.on('data', (chunk) => {
-      activity()
+      if (!stallOnStdoutLine) activity()
       if (captureStdout) {
         if (stdoutBytes + chunk.length <= maxStdoutBytes) {
           stdoutChunks.push(chunk)
@@ -154,12 +154,12 @@ export function runProcess(command, args, opts = {}) {
         while ((idx = lineBuf.indexOf('\n')) !== -1) {
           const line = lineBuf.slice(0, idx).replace(/\r$/, '')
           lineBuf = lineBuf.slice(idx + 1)
-          if (line) onStdoutLine(line)
+          if (line && onStdoutLine(line) === true && stallOnStdoutLine) activity()
         }
       }
     })
     child.stderr.on('data', (chunk) => {
-      activity()
+      if (!stallOnStdoutLine) activity()
       if (stderrBytes < maxStderrBytes) {
         out.stderr += chunk.subarray(0, maxStderrBytes - stderrBytes).toString('utf8')
         stderrBytes += chunk.length

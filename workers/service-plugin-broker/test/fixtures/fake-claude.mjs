@@ -10,7 +10,9 @@ const next = () => {
     process.stdout.write(JSON.stringify(events[i++]) + '\n')
     setTimeout(next, 5)
   } else if (scenario.silent) {
-    setInterval(() => {}, 60_000)
+    setInterval(() => {
+      if (scenario.noise) { process.stdout.write('CLI log\n{"type":"ping"}\n'); process.stderr.write('still alive\n') }
+    }, 40)
   } else {
     process.exit(scenario.exitCode ?? 0)
   }

@@ -167,3 +167,19 @@ test('דוח שמכיל סוד של השרת נחסם', () => {
   assert.equal(reportLeaksSecret('נמצא: super-secret-value-123', ['super-secret-value-123']), true)
   assert.equal(reportLeaksSecret('token sk-ant-oat01-abcdefghijk', []), true)
 })
+
+
+test('התקדמות נמדדת רק באירועי פרוטוקול מוכרים אחרי init', () => {
+  const state = new ClaudeStreamState()
+  const consume = (event) => state.consume(typeof event === 'string' ? event : JSON.stringify(event))
+  for (const ev of ['log', { tick: 1 }, { type: 'stream_event', event: { type: 'content_block_delta' } }]) consume(ev)
+  assert.equal(state.progressEvents, 0)
+  consume(INIT)
+  assert.equal(state.progressEvents, 1)
+  for (const ev of [INIT, { type: 'system', subtype: 'status' }, { type: 'rate_limit_event' }, { type: 'stream_event', event: { type: 'ping' } }, { type: 'assistant' }]) consume(ev)
+  assert.equal(state.progressEvents, 1)
+  consume({ type: 'stream_event', event: { type: 'content_block_delta', delta: { text: 'התקדמות' } } })
+  consume({ type: 'assistant', message: { content: [] } })
+  consume(success('{"decision":1,"report":"תקין"}'))
+  assert.equal(state.progressEvents, 4)
+})
