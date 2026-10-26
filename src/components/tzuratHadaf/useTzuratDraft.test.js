@@ -9,7 +9,7 @@ function setup(results) {
     sent.push({ id, body, opts })
     return results.shift() || { ok: true, status: 200, data: { updatedAt: `t${sent.length}` } }
   })
-  const eng = createDraftEngine({ pageId: 'p1', baseUpdatedAt: 't0', onStatus: (s) => statuses.push(s.state), save })
+  const eng = createDraftEngine({ pageId: 'p1', version: '["b1",1]', baseUpdatedAt: 't0', onStatus: (s) => statuses.push(s.state), save })
   return { eng, sent, statuses, save }
 }
 
@@ -28,7 +28,7 @@ describe('createDraftEngine', () => {
     await vi.advanceTimersByTimeAsync(DRAFT_MS - 1)
     expect(sent).toHaveLength(0)
     await vi.advanceTimersByTimeAsync(1)
-    expect(sent).toEqual([{ id: 'p1', body: { stage: 'lines', state: { a: 2 }, baseUpdatedAt: 't0' }, opts: { keepalive: false } }])
+    expect(sent).toEqual([{ id: 'p1', body: { stage: 'lines', state: { a: 2 }, version: '["b1",1]', baseUpdatedAt: 't0' }, opts: { keepalive: false } }])
     expect(statuses.at(-1)).toBe('saved')
     expect(eng.dirty()).toBe(false)
     eng.update('lines', { a: 3 })

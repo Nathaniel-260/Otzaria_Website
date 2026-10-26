@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { zipSync, strToU8 } from 'fflate';
+import { zipSync, unzipSync, strToU8 } from 'fflate';
 import sharp from 'sharp';
 
 // התיקיות — לפני טעינת המודולים (images.js קורא את UPLOAD_DIR בטעינה)
@@ -25,7 +25,7 @@ const { default: TzuratUpload } = await import('../../models/TzuratUpload.js');
 const { startMongo } = await import('../corrections/testing/mongo.js');
 const { createUpload, writeChunk, completeUpload, requeueUpload, cleanupOldUploads } = await import('./uploads.js');
 const { processUpload, PRACTICE_PREFIX } = await import('./importPackage.js');
-const { addAnswer } = await import('./items.js');
+const { addAnswer, answerChoice, fastItemFor } = await import('./items.js');
 const { itemCrop, pageImage } = await import('./imageServe.js');
 const { packagePath } = await import('./storage.js');
 
@@ -240,4 +240,50 @@ test('חבילה פגומה ← failed עם הודעה; ניקוי העלאות 
   assert.ok(r.removed >= 1);
   await assert.rejects(fs.access(packagePath(id)));
   assert.equal((await requeueUpload(id)).code, 'gone');
+});
+
+test('missing or truncated required files fail before any page/image mutation; malformed full imports cannot retire questions', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  await processUpload(await upload(await buildZip({ pages: [pageRec('002a')], items: [itemRec(1, '002a')] })));
+  const original = await TzuratPage.findOne().lean();
+  const changed = await buildZip({ buildId: 'b2', pages: [pageRec('002a', { changed: true })], items: [itemRec(2, '002a')] });
+  for (const missing of ['items.jsonl', 'pages.jsonl']) {
+    const files = unzipSync(changed);
+    delete files[missing];
+    const id = await upload(Buffer.from(zipSync(files)));
+    await processUpload(id);
+    assert.equal((await TzuratUpload.findById(id).lean()).status, 'failed');
+    assert.equal((await TzuratPage.findById(original._id).lean()).buildId, 'b1');
+    assert.equal((await TzuratItem.findOne().lean()).status, 'open');
+  }
+  const truncated = unzipSync(changed);
+  truncated['items.jsonl'] = strToU8(''); // manifest still promises one item
+  const badCount = await upload(Buffer.from(zipSync(truncated)));
+  await processUpload(badCount);
+  assert.equal((await TzuratUpload.findById(badCount).lean()).status, 'failed');
+  assert.equal((await TzuratPage.findById(original._id).lean()).round, 1);
+  const malformed = unzipSync(changed);
+  malformed['items.jsonl'] = strToU8('{invalid json');
+  const badRecord = await upload(Buffer.from(zipSync(malformed)));
+  await processUpload(badRecord);
+  assert.ok((await TzuratUpload.findById(badRecord).lean()).errorList.length);
+  assert.equal((await TzuratItem.findOne().lean()).status, 'open');
+  // An explicitly empty, valid full package is still allowed to retire all unanswered questions.
+  const empty = await upload(await buildZip({ buildId: 'b3', pages: [pageRec('002a')], items: [] }));
+  await processUpload(empty);
+  assert.equal((await TzuratUpload.findById(empty).lean()).status, 'done');
+  assert.equal((await TzuratItem.findOne().lean()).status, 'obsolete');
+});
+
+test('reimporting a legacy unanswered question invalidates the displayed revision before accepting a vote', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  await processUpload(await upload(await buildZip({ pages: [pageRec('002a')], items: [itemRec(1, '002a')] })));
+  await TzuratItem.updateOne({}, { $unset: { revision: 1 } });
+  const old = await TzuratItem.findOne().lean();
+  const u = await User.create({ name: 'א', email: 'legacy@x.test' });
+  const shown = await fastItemFor(old, String(u._id));
+  await processUpload(await upload(await buildZip({ buildId: 'b2', pages: [pageRec('002a')], items: [itemRec(1, '002a', { print: ['ה'] })] })));
+  const r = await answerChoice(old._id, { id: String(u._id), name: 'א' }, { choice: 'a', revision: shown.revision });
+  assert.equal(r.code, 'stale');
+  assert.equal((await TzuratItem.findById(old._id).lean()).answers.length, 0);
 });

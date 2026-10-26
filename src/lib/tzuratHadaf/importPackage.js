@@ -241,14 +241,14 @@ async function importItems(ctx, records, { practice = false } = {}) {
       ctx.summary.items.updated++;
     } else if (prev.status === 'open') {
       // פתוחה בלי תשובות — הכול מתעדכן (התנאי answers ריק — תשובה שנוספה בינתיים מבטלת את העדכון)
-      ops.push({ updateOne: { filter: { sourceKey, status: 'open', answers: { $size: 0 } }, update: { $set: { ...fields, ...text } } } });
+      ops.push({ updateOne: { filter: { sourceKey, status: 'open', answers: { $size: 0 } }, update: { $set: { ...fields, ...text }, $inc: { revision: 1 } } } });
       ctx.summary.items.updated++;
     } else if (prev.status === 'obsolete') {
       // החייאה: שאלה חדשה ונקייה (התשובות הישנות היו לגרסה אחרת)
       ops.push({
         updateOne: {
           filter: { sourceKey, status: 'obsolete' },
-          update: { $set: { ...fields, ...text, status: 'open', answers: [], decision: null, resolved: null, flag: null, flags: [], pointsAwarded: false } },
+          update: { $set: { ...fields, ...text, status: 'open', answers: [], decision: null, resolved: null, flag: null, flags: [], pointsAwarded: false }, $inc: { revision: 1 } },
         },
       });
       ctx.summary.items.revived++;
@@ -357,10 +357,20 @@ export async function processUpload(uploadId, { now = () => new Date(), keepStag
     summary.buildId = manifest.buildId;
     summary.full = manifest.full;
 
+    for (const name of [ENTRY.pages, ENTRY.items]) {
+      if (!texts.has(name)) throw new ImportError(`${name} חסר בחבילה`);
+    }
+    const pageLines = parseJsonl(texts.get(ENTRY.pages).toString('utf8'));
+    const itemLines = parseJsonl(texts.get(ENTRY.items).toString('utf8'));
+    for (const [name, lines, count] of [[ENTRY.pages, pageLines, manifest.pages], [ENTRY.items, itemLines, manifest.items]]) {
+      if (count !== null && (count < 0 || count !== lines.length)) throw new ImportError(`${name}: מספר הרשומות אינו תואם ל-manifest`);
+    }
+    // A malformed full package must never retire questions omitted by a broken/truncated record.
+    const safeFull = !itemLines.some((l) => l.error || parseItemRecord(l.value, manifest.slug).error);
+
     const ctx = { manifest, images, staging, summary, errors, pageIds: new Map(), beat };
 
     // עמודים
-    const pageLines = parseJsonl(texts.get(ENTRY.pages)?.toString('utf8') || '');
     if (!pageLines.length) throw new ImportError('pages.jsonl חסר או ריק');
     for (const l of pageLines) {
       if (l.error) {
@@ -386,7 +396,7 @@ export async function processUpload(uploadId, { now = () => new Date(), keepStag
     // החלטות
     const keep = new Set();
     const itemRecs = [];
-    for (const l of parseJsonl(texts.get(ENTRY.items)?.toString('utf8') || '')) {
+    for (const l of itemLines) {
       if (l.error) {
         pushError(errors, `items.jsonl שורה ${l.line}: ${l.error}`);
         continue;
@@ -420,7 +430,7 @@ export async function processUpload(uploadId, { now = () => new Date(), keepStag
     if (practiceRecs.length) await importItems(ctx, practiceRecs, { practice: true });
 
     // full — החלטות פתוחות שאינן בחבילה
-    if (manifest.full) {
+    if (manifest.full && safeFull && !errors.length) {
       // פריט שכבר יש לו תשובות אינו נזרק (keptAnswered) — המנהל יחליט עליו
       const gone = { slug: manifest.slug, status: 'open', practice: { $ne: true }, manual: { $ne: true }, sourceKey: { $nin: [...keep] } };
       const r = await TzuratItem.updateMany({ ...gone, 'answers.0': { $exists: false } }, { $set: { status: 'obsolete', leasedBy: null, leasedUntil: null } });

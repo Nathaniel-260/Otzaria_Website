@@ -13,7 +13,7 @@ export async function PUT(request, { params }) {
     const { body, tooBig } = await readJsonBody(request, MAX_DRAFT_BYTES);
     if (tooBig) return tooBigResponse();
     if (!body || typeof body !== 'object') return badRequest('גוף הבקשה חסר');
-    const r = await saveDraft(id, g.userId, { stage: body.stage, state: body.state, baseUpdatedAt: body.baseUpdatedAt || null });
+    const r = await saveDraft(id, g.userId, { version: body.version, stage: body.stage, state: body.state, baseUpdatedAt: body.baseUpdatedAt || null });
     if (!r.ok) return fromResult(r);
     return json({ updatedAt: r.updatedAt });
   } catch (e) {

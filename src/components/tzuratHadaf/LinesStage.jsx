@@ -14,7 +14,7 @@ import { isConfirmed, nextSuspicious, suspiciousLeft, toggleConfirm, tryAddOp, w
 // "מכאן — לשורה הבאה" (opStartAt), ו"השורה נכונה" (confirm). הרשימה מוצגת אחרי כל הפעולות (applyLineOps).
 // ops / onOps(nextOps) — ההורה מחזיק את ההיסטוריה (ביטול/חזרה); onRejected(reason) — הודעה כשהפעולה נדחית.
 
-export default function LinesStage({ pageId, model, ops, onOps, onUndo, onRedo, canUndo, canRedo, onRejected, readOnly = false, nonVilna = false }) {
+export default function LinesStage({ pageId, scanUrl, model, ops, onOps, onUndo, onRedo, canUndo, canRedo, onRejected, readOnly = false, nonVilna = false }) {
   const blocks = useMemo(() => model?.blocks || [], [model])
   const [blockId, setBlockId] = useState(() => blocks[0]?.id || null)
   const [menu, setMenu] = useState(null)
@@ -110,6 +110,7 @@ export default function LinesStage({ pageId, model, ops, onOps, onUndo, onRedo, 
             <LineRow
               key={key}
               pageId={pageId}
+              scanUrl={scanUrl}
               block={block}
               line={line}
               k={k}

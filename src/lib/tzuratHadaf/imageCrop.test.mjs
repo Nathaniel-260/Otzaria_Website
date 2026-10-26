@@ -59,7 +59,7 @@ test('fastItemShape: עיוור, עם חיתוך ותיבה יחסית', () => {
   };
   const f = fastItemShape(item, page, 'u1');
   assert.deepEqual(Object.keys(f).sort(), [
-    'allowText', 'box', 'ctxAfter', 'ctxBefore', 'daf', 'focus', 'fullBox', 'fullImageUrl', 'id', 'imageUrl', 'kind', 'kindLabel', 'masechet', 'options', 'prompt', 'question', 'slug',
+    'allowText', 'box', 'ctxAfter', 'ctxBefore', 'daf', 'focus', 'fullBox', 'fullImageUrl', 'id', 'imageUrl', 'kind', 'kindLabel', 'masechet', 'options', 'prompt', 'question', 'revision', 'slug',
   ].sort());
   assert.equal(f.kindLabel, 'גמרא');
   assert.match(f.imageUrl, /^\/api\/tzurat-hadaf\/items\/a{24}\/image\?v=/);

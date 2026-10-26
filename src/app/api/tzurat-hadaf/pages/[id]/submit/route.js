@@ -14,7 +14,7 @@ export async function POST(request, { params }) {
     if (!body || typeof body !== 'object') return badRequest('גוף הבקשה חסר');
     const r = await submitPage(id, g.user, body, { canRashi: g.canRashi });
     if (!r.ok) return fromResult(r);
-    return json({ submission: r.submission, points: r.points });
+    return json({ submission: r.submission, points: r.points, warnings: r.warnings || [] });
   } catch (e) {
     console.error('tzurat submit', e);
     return serverError();

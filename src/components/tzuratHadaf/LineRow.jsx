@@ -17,6 +17,7 @@ function chipCls({ flagged, selected, menu }) {
 
 export default function LineRow({
   pageId,
+  scanUrl,
   block,
   line,
   k,
@@ -59,7 +60,7 @@ export default function LineRow({
       </div>
       {crop ? (
         <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-1">
-          <img src={pageImageUrl(pageId, 'scan', crop)} alt={`שורה ${k + 1} בסריקה`} loading="lazy" className="block h-auto max-h-24 w-full object-contain" draggable={false} />
+          <img src={pageImageUrl(pageId, 'scan', crop, { baseUrl: scanUrl })} alt={`שורה ${k + 1} בסריקה`} loading="lazy" className="block h-auto max-h-24 w-full object-contain" draggable={false} />
         </div>
       ) : (
         <p className="text-xs text-on-surface/50">לשורה הזו אין מקום מסומן בסריקה.</p>

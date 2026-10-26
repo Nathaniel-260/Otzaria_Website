@@ -26,7 +26,7 @@ export default function TextStage({ pageId, items, answers, onAnswer, manualItem
           <ol className="flex flex-col gap-3">
             {items.map((it) => (
               <li key={it.id} className="glass-strong rounded-xl p-4">
-                <FastItemCard item={it} value={answers?.[it.id] || null} onChange={(v) => onAnswer(it.id, v)} compact disabled={readOnly} />
+                <FastItemCard item={it} value={answers?.[it.id] || null} onChange={(v) => onAnswer(it.id, v ? { ...v, revision: it.revision } : null)} compact disabled={readOnly} />
               </li>
             ))}
           </ol>

@@ -50,7 +50,7 @@ async function reopenPage(p, now) {
   const buildId = cleanText(p.buildId, 200);
   if (page.status === 'open' && page.changedInRound && page.reopen && page.reopen.note === note && page.reopen.buildId === buildId) return { ok: true };
   const round = page.round || 1;
-  if (await TzuratSubmission.exists({ page: page._id, round, status: 'submitted' })) {
+  if (await TzuratSubmission.exists({ page: page._id, round, status: { $in: ['processing', 'submitted'] } })) {
     return { error: 'יש הגשה שממתינה לאישור בסבב הנוכחי — אשרו או דחו אותה, ואז סנכרנו שוב' };
   }
   const r = await TzuratPage.updateOne(
@@ -105,7 +105,7 @@ export async function applySync(body, admin = null, now = new Date()) {
     } else if (p.action === 'close') {
       // כמו בפתיחה מחדש: עמוד עם הגשה שממתינה לאישור לא נסגר מתחתיה
       const page = await TzuratPage.findOne({ slug: p.slug, dafKey: p.dafKey }, { round: 1 }).lean();
-      if (page && (await TzuratSubmission.exists({ page: page._id, round: page.round || 1, status: 'submitted' }))) {
+      if (page && (await TzuratSubmission.exists({ page: page._id, round: page.round || 1, status: { $in: ['processing', 'submitted'] } }))) {
         if (errors.length < 20) errors.push(`${p.slug} ${p.dafKey}: יש הגשה שממתינה לאישור בסבב הנוכחי — אשרו או דחו אותה, ואז סנכרנו שוב`);
         continue;
       }

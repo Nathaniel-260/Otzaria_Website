@@ -46,15 +46,15 @@
   TzuratPage), `kind`, `cls`, `question` (`replace` / `print_only` / `otz_only` / `paren`), `ref`, `wi`, `n`,
   `otz` [String], `print` [String], `ctxBefore`, `ctxAfter`, `box` {x,y,w,h} (שבר מהסריקה) או null,
   `score`, `hints` (Mixed; למנהל בלבד), `manual` (Bool — נוצר בבדיקת עמוד), `answers` [{user, who, name,
-  verdict, text, via (`fast`/`page`), at}], `status` (`open` / `agreed` / `disputed` / `resolved` / `flagged` /
+  verdict, text, via (`fast`/`page`), submission?, at}], `status` (`open` / `agreed` / `disputed` / `resolved` / `flagged` /
   `obsolete`), `resolved` {verdict, text, by, byName, at}, `leasedBy`, `leasedUntil`, `pointsAwarded` (Bool),
-  `buildId`. אינדקסים: `{status, kind, score}`, `{page}`, `{'answers.user': 1}`.
+  `buildId`, `revision` (מונה שמתחיל ב-0 ועולה בעדכון שאלה שלא נענתה). אינדקסים: `{status, kind, score, _id}`, `{status, score, _id}`, `{page}`, `{'answers.user': 1}`.
 - `TzuratSubmission` — הגשת בדיקת עמוד: `page`, `slug`, `dafKey`, `user`, `who`, `userName`, `round`,
   `buildId`, `checks` {key: 'ok'|'issue'}, `lineOps` [Mixed] (כפי שנשלחו), `anchors` [נגזר: PACKAGE.md],
   `itemAnswers` [{item, verdict, text}], `manualItems` [ids], `reports` [ids], `note`, `status`
-  (`submitted` / `approved` / `rejected`), `review*` (`reviewedBy`, `reviewedByName`, `reviewedAt`,
-  `reviewNote`, `reviewerEdited`), `exportedAt`.
-- `TzuratDraft` — טיוטה אחת לעמוד (`page` ייחודי): `user`, `stage`, `state` (Mixed), `updatedAt`.
+  (`processing` / `submitted` / `approved` / `rejected`), `review*` (`reviewedBy`, `reviewedByName`, `reviewedAt`,
+  `reviewNote`, `reviewerEdited`), `exportedAt`, `input` (קלט מנורמל עמיד לחידוש), `answerIssues`, `processingToken`, `processingUntil`.
+- `TzuratDraft` — טיוטה אחת לעמוד (`page` ייחודי): `user`, `stage`, `state` (Mixed), `version`, `updatedAt`. מוחזרת רק אם גרסת הבנייה והסבב תואמת.
 - `TzuratReport` — דיווח חופשי: `page`, `slug`, `dafKey`, `user`, `who`, `userName`, `category`, `text`,
   `regions` [{side: `scan`|`ours`, x, y, w, h}] (שברים 0–1 מהתמונה), `status` (`new` / `in_progress` /
   `fixed` / `wontfix` / `duplicate`), `resolution` {note, buildId, at, by}, `submission` (אם נשלח בהגשה).
@@ -72,7 +72,7 @@
   אקראיות קלה בין המובילים ($sample מתוך 20 הראשונים). מחזיר `{item: publicItem, stats}`; `publicItem`
   **בלי** `otz`/`print` מסומנים — שתי הקריאות כ-`options: [{id:'a', words}, {id:'b', words}]` בסדר אקראי
   קבוע לפריט ולמשתמש (hash), בלי `hints`, בלי `answers` של אחרים.
-- `POST /api/tzurat-hadaf/items/[id]/answer` `{choice, text?, via}` — `choice` הוא מזהה האפשרות שהוצגה
+- `POST /api/tzurat-hadaf/items/[id]/answer` `{choice, revision, text?, via}` — `choice` הוא מזהה האפשרות שהוצגה
   (`a`/`b`/`other`/`elsewhere`/`none`/`unclear`/`yes`/`no`); השרת מתרגם ל-`verdict` קנוני (PACKAGE.md),
   ומוסיף תשובה אטומית (`answers.user: {$ne: uid}`, סטטוס `open`). אחרי ההוספה: `consensus(answers)`:
   שתי תשובות עם אותו verdict (ובאותו טקסט מנורמל ב-`other`) → `agreed` ו-+1 נקודה לכל אחד מהמסכימים
@@ -125,15 +125,15 @@
 - `POST /api/tzurat-hadaf/practice` `{answers:[{id, choice, text?}]}` (חובה תשובות ל-min(10, הזמינות); אחרת 400
   `{code:'practice_short'}` בלי לסמן) → `{score, total, results:[{id, correct,
   expected (choice id), explain}]}` — מסמן `practiceDone` (בכל ציון).
-- `FastItem` = `{id, slug, masechet, daf, kind, kindLabel, question, prompt, focus:[words]|null, fullBox,
+- `FastItem` = `{id, revision, slug, masechet, daf, kind, kindLabel, question, prompt, focus:[words]|null, fullBox,
   options:[{id, label, words?}], allowText, ctxBefore, ctxAfter, imageUrl, fullImageUrl, box}`.
   `options[].id` מתוך `a`/`b`/`yes`/`no`/`here`/`elsewhere`/`none`. `allowText` — יש "משהו אחר" (`replace`).
   "לא ברור" (`unclear`) ו"משהו אחר" (`other` + `text`) תמיד אפשריים בשליחה, גם אם אינם ב-`options`.
   `box` — שברים בתוך תמונת החיתוך (`imageUrl`), למסגרת. `fullBox` — אותה תיבה כשברים מהסריקה המלאה (`fullImageUrl`), או null. `focus` — המילים שבשאלה (`print_only`/`otz_only`).
-- `GET /api/tzurat-hadaf/fast?exclude=id,id&kind=any|g|r|t` → `{item: FastItem|null, stats:{open, mine,
-  mineAgreed}, needPractice: bool, needRashi: bool, rashi: bool, practiceDone: bool}`. אם `needPractice` — `item: null`.
-- `POST /api/tzurat-hadaf/items/[id]/answer` `{choice, text?, via: 'fast'|'page'}` → `{status:
-  'recorded'|'agreed'|'disputed', points: 0|1}`. 409 `{code:'closed'|'answered'|'paused'}`; 403 `{code:'practice'}` (לא סיים
+- `GET /api/tzurat-hadaf/fast?exclude=id,id&kind=any|g|r|t&stats=1` → `{item: FastItem|null, stats:{open, mine,
+  mineAgreed}|null, needPractice: bool, needRashi: bool, rashi: bool, practiceDone: bool}`. אם `needPractice` — `item: null`. המונים מחושבים רק עם `stats=1` (בפתיחת המסלול); בבקשת השאלה הבאה `stats:null`.
+- `POST /api/tzurat-hadaf/items/[id]/answer` `{choice, revision, text?, via: 'fast'|'page'}` → `{status:
+  'recorded'|'agreed'|'disputed', points: 0|1}`. 409 `{code:'closed'|'answered'|'paused'|'stale'}`; 403 `{code:'practice'}` (לא סיים
   תרגול, כשיש תרגול) או בלי קוד (רש"י בלי הדגל). `answers[].text`/`decision.text` נשמרים כפי שנכתבו; הנרמול רק להשוואה.
 - `POST /api/tzurat-hadaf/items/[id]/flag` `{reason}` → `{ok:true, flagged}` — רך: נרשם לסימון של המשתמש (השאלה לא תוצע לו
   שוב), והפריט `flagged` רק אחרי שני משתמשים שונים. 409 `{code:'flagged'|'closed'|'paused'}`, 429 (10 לדקה).
@@ -142,17 +142,22 @@
   pages:[{id, daf, dafKey, state, pendingCount, round, nonVilna}], held:[id], maxHeld}`.
   `state` ∈ `open`/`mine`/`taken`/`submitted`/`approved`/`done`/`closed`.
 - `POST /api/tzurat-hadaf/pages/[id]/claim` → `{leasedUntil}` (המחזיק עצמו — חידוש שלא מקצר ואינו נספר מול 5); `POST …/release` → `{ok:true}`.
-- `GET /api/tzurat-hadaf/pages/[id]` → `{page:{id, slug, masechet, daf, dafKey, round, nonVilna, state,
+- `GET /api/tzurat-hadaf/pages/[id]` → `{page:{id, slug, masechet, daf, dafKey, round, version, nonVilna, state,
   leasedUntil, scan:{url, w, h}, ours:{url, w, h}, model}, items:[FastItem], draft:{stage, state,
-  updatedAt}|null, prev:{id,daf}|null, next:{id,daf}|null}`.
+  updatedAt}|null, processing:bool, prev:{id,daf}|null, next:{id,daf}|null}`.
 - `GET /api/tzurat-hadaf/pages/[id]/image?side=scan|ours[&x=&y=&w=&h=][&thumb=1]` (שברים) → תמונה. החיתוך מתרחב לרשת של 1/200
   (ונשמר בדיסק); חיתוך/ממוזערת — עד 240 לדקה למשתמש (429).
-- `PUT /api/tzurat-hadaf/pages/[id]/draft` `{stage, state, baseUpdatedAt}` → `{updatedAt}`; 409
+- `PUT /api/tzurat-hadaf/pages/[id]/draft` `{stage, state, version, baseUpdatedAt}` → `{updatedAt}`; 409
   `{code:'stale'|'not_holder'}`.
 - `POST /api/tzurat-hadaf/pages/[id]/submit`
-  `{checks:{blocks, headers, edges, size}, lineOps:[…], itemAnswers:[{item, choice, text?}],
+  `{checks:{blocks, headers, edges, size}, lineOps:[…], itemAnswers:[{item, choice, revision, text?}],
     manualItems:[{block, line, ref, wi, n, otz:[…], text, box:{x,y,w,h}|null}],
-    reports:[{category, text, regions:[…]}], note}` → `{submission: id, points: 0}`.
+    reports:[{category, text, regions:[…]}], note, version, round?}` → `{submission: id, points: 0, warnings:[string]}`.
+  `version` מועתק ללא שינוי מ-`page.version`; גם שמירה וגם הגשה מחזירות `409 stale` לגרסה ישנה.
+  ההגשה מתחילה כ-`processing`: הקלט נשמר לפני תופעות הלוואי, ואינה ניתנת לבדיקה או לייצוא.
+  כשל מסד מחזיר `503 retry` ומשאיר טיוטה וקלט. אותה בקשת הגשה ממשיכה מהקלט השמור, ללא כפילויות.
+  בעמוד עם `processing:true` הלקוח מציג כפתור חידוש במקום עריכה; `409 processing` משמעו שעובד אחר עדיין שומר.
+  שינוי/סגירת שאלה בזמן השמירה נרשמים ב-`answerIssues` וב-`warnings`, עם הקלט המקורי לעיון המנהל.
   `stage` של הטיוטה ∈ `overview`/`lines`/`text`/`submit`.
 - `POST /api/tzurat-hadaf/reports` `{page, category, text, regions}` → `{id}`.
 - `GET /api/tzurat-hadaf/mine` → `{points, decisions:{total, agreed, disputed, open}, pages:[{id, slug,

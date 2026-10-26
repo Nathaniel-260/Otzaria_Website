@@ -31,7 +31,7 @@ afterEach(() => {
 
 describe('FastTrack', () => {
   it('מקש 1 בוחר, Enter שולח — בלי לגלות אם צדקתם — ונטען הכרטיס הבא', async () => {
-    const calls = mockServer({ fast: [fastRes(fixtureItem()), fastRes(fixtureItem({ id: '64b7f0000000000000000002', ctxBefore: ['שני'] }))] })
+    const calls = mockServer({ fast: [fastRes(fixtureItem({ revision: 4 })), fastRes(fixtureItem({ id: '64b7f0000000000000000002', ctxBefore: ['שני'] }))] })
     render(<FastTrack />)
     await screen.findByText('אמר רבי')
     expect(screen.getByTestId('crop-frame')).toHaveStyle({ left: '40%', width: '20%' })
@@ -44,10 +44,12 @@ describe('FastTrack', () => {
     expect(screen.getByTestId('flash')).toHaveTextContent('נשמר — תודה')
     const post = calls.find((c) => c.method === 'POST')
     expect(post.url).toBe('/api/tzurat-hadaf/items/64b7f0000000000000000001/answer')
-    expect(post.body).toEqual({ choice: 'a', via: 'fast' })
+    expect(post.body).toEqual({ choice: 'a', via: 'fast', revision: 4 })
+    expect(calls.find((c) => c.url.includes('/fast')).url).toContain('stats=1')
     await waitFor(() => expect(document.querySelector('[data-item="64b7f0000000000000000002"]')).not.toBeNull())
     const lastFast = calls.filter((c) => c.url.includes('/fast')).pop()
     expect(lastFast.url).toContain('exclude=64b7f0000000000000000001')
+    expect(lastFast.url).not.toContain('stats=1')
     expect(screen.queryByText(/נכון/)).toBeNull()
   })
 

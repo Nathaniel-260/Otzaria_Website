@@ -36,6 +36,7 @@ export function answerReady(value) {
 export function answerBody(value, via) {
   if (!answerReady(value)) return null
   const body = { choice: value.choice }
+  if (Number.isInteger(value.revision)) body.revision = value.revision
   if (value.choice === 'other') body.text = value.text.trim()
   if (via) body.via = via
   return body

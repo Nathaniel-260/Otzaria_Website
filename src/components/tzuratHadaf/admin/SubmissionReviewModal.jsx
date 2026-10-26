@@ -224,6 +224,13 @@ export default function SubmissionReviewModal({ id, onClose, onDone }) {
               )}
             </section>
 
+            {sub.answerIssues?.length > 0 && (
+              <section aria-label="תשובות הדורשות בדיקה" className="rounded-xl border border-warning-500 p-3 text-sm">
+                <h4 className="font-bold">תשובות שלא נוספו לפריטים — יש לבדוק לפני אישור</h4>
+                <ul>{sub.answerIssues.map((issue, i) => <li key={i}>{issue}</li>)}</ul>
+
+              </section>
+            )}
             <div className="grid gap-3 lg:grid-cols-2">
               <section aria-label="תשובות להחלטות" className="rounded-xl border border-surface-variant p-3 text-sm">
                 <h4 className="mb-2 font-bold">תשובות להחלטות ({(sub.itemAnswers || []).length})</h4>

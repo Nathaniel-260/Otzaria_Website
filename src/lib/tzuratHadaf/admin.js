@@ -119,7 +119,7 @@ const counts = (s) => ({
 
 /** GET submissions?status=&page= ← {submissions, total} */
 export async function listSubmissions({ status, page = 1 } = {}) {
-  const filter = {};
+  const filter = { status: { $in: SUB_STATUSES } };
   if (status) {
     if (!SUB_STATUSES.includes(status)) return fail(400, 'סטטוס לא מוכר');
     filter.status = status;

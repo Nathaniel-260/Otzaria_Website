@@ -87,14 +87,18 @@ export async function* exportRowsStream({ types, since = null, now = new Date(),
   if (want.has('anchor') || want.has('check')) {
     const pageOf = pageCache();
     const q = TzuratSubmission.find({ status: 'approved', ...sinceFilter(since) }).sort({ _id: 1 }).lean();
-    for await (const sub of cursorOf(q)) {
+    for await (const candidate of cursorOf(q)) {
+      const sub = markExported
+        ? await TzuratSubmission.findOneAndUpdate(
+            { _id: candidate._id, status: 'approved' },
+            [{ $set: { exportedAt: { $ifNull: ['$exportedAt', now] } } }],
+            { returnDocument: 'after', lean: true, timestamps: false, updatePipeline: true }
+          )
+        : await TzuratSubmission.findOne({ _id: candidate._id, status: 'approved' }).lean();
+      if (!sub) continue;
       const page = await pageOf(sub.page);
       if (want.has('anchor')) for (const r of anchorRows(sub, page)) yield r;
       if (want.has('check')) for (const r of checkRows(sub, page)) yield r;
-      if (markExported && !sub.exportedAt) {
-        // בלי לגעת ב-updatedAt — אחרת ההגשה "משתנה" בכל ייצוא ותחזור ב-since הבא
-        await TzuratSubmission.updateOne({ _id: sub._id, exportedAt: null }, { $set: { exportedAt: now } }, { timestamps: false });
-      }
     }
   }
   if (want.has('report')) {

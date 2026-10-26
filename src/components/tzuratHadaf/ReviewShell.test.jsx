@@ -18,6 +18,7 @@ const pageData = (over = {}) => ({
     daf: 'ב.',
     dafKey: '002a',
     round: 1,
+    version: '["b1",1]',
     nonVilna: false,
     state: 'mine',
     leasedUntil: '2026-10-27T10:00:00Z',
@@ -26,7 +27,7 @@ const pageData = (over = {}) => ({
     model: fixtureModel(),
     ...over,
   },
-  items: [fixtureItem({ id: 'it1' })],
+  items: [fixtureItem({ id: 'it1', revision: 3 })],
   draft: null,
   prev: null,
   next: { id: '64b7f00000000000000000bb', daf: 'ב:' },
@@ -105,11 +106,12 @@ describe('ReviewShell', () => {
     expect(sub.body).toEqual({
       checks: { blocks: 'ok', headers: 'ok', edges: 'ok', size: 'ok' },
       lineOps: [{ op: 'start', block: 'g', line: 1, ref: 'ברכות ב.', wi: 2 }],
-      itemAnswers: [{ item: 'it1', choice: 'b' }],
+      itemAnswers: [{ item: 'it1', choice: 'b', revision: 3 }],
       manualItems: [],
       reports: [],
       note: 'נבדק',
       round: 1,
+      version: '["b1",1]',
     })
     expect(screen.getByRole('link', { name: /לדף הבא: ב:/ })).toHaveAttribute('href', '/library/tzurat-hadaf/review?page=64b7f00000000000000000bb')
   })
@@ -149,4 +151,14 @@ describe('ReviewShell', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('העמוד לא נמצא')
     expect(screen.getByRole('link', { name: /לרשת העמודים/ })).toBeInTheDocument()
   })
+})
+
+it('resumes persisted submission input after a failure without requiring new edits/checks', async () => {
+  const data = { ...pageData(), processing: true }
+  const calls = mockServer(data)
+  render(<ReviewShell pageId={PID} />)
+  fireEvent.click(await screen.findByRole('button', { name: 'המשך שמירת ההגשה' }))
+  expect(await screen.findByTestId('submitted')).toBeInTheDocument()
+  expect(calls.filter((c) => c.url.endsWith('/submit'))).toHaveLength(1)
+  expect(calls.some((c) => c.url.endsWith('/draft'))).toBe(false)
 })

@@ -47,9 +47,9 @@ export default function FastTrack() {
   const kindRef = useRef('any')
   const flashTimer = useRef(0)
 
-  const load = useCallback(async (k = kindRef.current) => {
+  const load = useCallback(async (k = kindRef.current, withStats = false) => {
     setLoading(true)
-    const r = await api.fast({ exclude: excludeRef.current, kind: k })
+    const r = await api.fast({ exclude: excludeRef.current, kind: k, stats: withStats })
     setLoading(false)
     if (!r.ok) {
       setFail({ status: r.status, error: r.error })
@@ -83,7 +83,7 @@ export default function FastTrack() {
       const k = (saved === 'r' || saved === 't') && meNow && !meNow.rashi ? 'any' : saved
       kindRef.current = k
       setKind(k)
-      load(k)
+      load(k, true)
     })()
     return () => {
       alive = false
@@ -100,7 +100,7 @@ export default function FastTrack() {
       } catch {
         /* אחסון חסום */
       }
-      load(k)
+      load(k, true)
     },
     [load]
   )
@@ -116,7 +116,7 @@ export default function FastTrack() {
     const body = answerBody(value, 'fast')
     if (!body) return
     setSaving(true)
-    const r = await api.answer(item.id, body)
+    const r = await api.answer(item.id, { ...body, revision: item.revision })
     setSaving(false)
     excludeRef.current = pushExclude(excludeRef.current, item.id)
     if (r.ok) {

@@ -42,8 +42,9 @@ export const api = {
   setMe: (patch) => apiJson(`${API}/me`, { method: 'POST', body: patch }),
   practice: () => apiJson(`${API}/practice`),
   submitPractice: (answers) => apiJson(`${API}/practice`, { method: 'POST', body: { answers } }),
-  fast: ({ exclude = [], kind = 'any' } = {}) => {
+  fast: ({ exclude = [], kind = 'any', stats = false } = {}) => {
     const qs = new URLSearchParams({ kind })
+    if (stats) qs.set('stats', '1')
     if (exclude.length) qs.set('exclude', exclude.join(','))
     return apiJson(`${API}/fast?${qs}`)
   },
@@ -62,8 +63,10 @@ export const api = {
 const r4 = (v) => Math.round(v * 1e4) / 1e4
 
 /** כתובת חיתוך מתמונת העמוד (side: scan|ours); box — [x, y, w, h] בשברים, או בלי (כל התמונה) */
-export function pageImageUrl(pageId, side = 'scan', box = null, { thumb = false } = {}) {
-  const qs = new URLSearchParams({ side })
+export function pageImageUrl(pageId, side = 'scan', box = null, { thumb = false, baseUrl } = {}) {
+  const [base, search = ''] = (baseUrl || `${API}/pages/${encodeURIComponent(pageId)}/image`).split('?')
+  const qs = new URLSearchParams(search)
+  qs.set('side', side)
   if (Array.isArray(box) && box.length === 4) {
     qs.set('x', String(r4(box[0])))
     qs.set('y', String(r4(box[1])))
@@ -71,5 +74,5 @@ export function pageImageUrl(pageId, side = 'scan', box = null, { thumb = false 
     qs.set('h', String(r4(box[3])))
   }
   if (thumb) qs.set('thumb', '1')
-  return `${API}/pages/${encodeURIComponent(pageId)}/image?${qs}`
+  return `${base}?${qs}`
 }

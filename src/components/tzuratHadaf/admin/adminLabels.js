@@ -78,7 +78,7 @@ export const REPORT_STATUS = Object.freeze({
   duplicate: 'כפול',
 })
 
-export const SUBMISSION_STATUS = Object.freeze({ submitted: 'ממתינות', approved: 'אושרו', rejected: 'נדחו' })
+export const SUBMISSION_STATUS = Object.freeze({ processing: 'שמירה לא הושלמה', submitted: 'ממתינות', approved: 'אושרו', rejected: 'נדחו' })
 
 export const UPLOAD_STATUS = Object.freeze({
   uploading: 'בהעלאה',

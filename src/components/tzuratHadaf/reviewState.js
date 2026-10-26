@@ -20,7 +20,7 @@ export function workFromDraft(state) {
   const ops = normalizeLineOps(state.lineOps)
   if (!ops.error) w.lineOps = ops.ops
   if (isObj(state.itemAnswers)) {
-    for (const [id, v] of Object.entries(state.itemAnswers)) if (answerBody(v)) w.itemAnswers[id] = { choice: v.choice, ...(v.choice === 'other' ? { text: v.text } : {}) }
+    for (const [id, v] of Object.entries(state.itemAnswers)) if (answerBody(v)) w.itemAnswers[id] = answerBody(v)
   }
   if (Array.isArray(state.manualItems)) w.manualItems = state.manualItems.filter((m) => isObj(m) && typeof m.ref === 'string' && typeof m.text === 'string')
   if (Array.isArray(state.reports)) w.reports = state.reports.filter((r) => isObj(r) && !validateReport(r))
@@ -35,7 +35,7 @@ export const stageFromDraft = (draft) => (STAGE_KEYS.includes(draft?.stage) ? dr
 export const missingChecks = (checks) => CHECKS.filter((c) => !checks?.[c.key]).map((c) => c.key)
 
 /** גוף ההגשה (POST submit). round — הסבב של העמוד כפי שנטען (השרת מחזיר 409 stale אם העמוד יובא מחדש בינתיים) */
-export function submitBody(work, { round } = {}) {
+export function submitBody(work, { round, version } = {}) {
   const checks = {}
   for (const c of CHECKS) if (work.checks?.[c.key]) checks[c.key] = work.checks[c.key]
   const itemAnswers = []
@@ -60,6 +60,7 @@ export function submitBody(work, { round } = {}) {
     reports: (work.reports || []).map(reportBody),
     note: String(work.note || '').trim().slice(0, MAX_NOTE),
     ...(Number.isInteger(round) ? { round } : {}),
+    ...(version ? { version } : {}),
   }
 }
 

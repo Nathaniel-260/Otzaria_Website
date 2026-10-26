@@ -13,6 +13,7 @@ const answerSchema = new mongoose.Schema(
     verdict: { type: String, enum: ['print', 'otz', 'other', 'elsewhere', 'unclear'], required: true },
     text: { type: String, default: null },
     via: { type: String, enum: ['fast', 'page'], default: 'fast' },
+    submission: { type: mongoose.Schema.Types.ObjectId, ref: 'TzuratSubmission', default: null },
     at: { type: Date, default: Date.now },
   },
   { _id: false }
@@ -23,6 +24,7 @@ const boxSchema = new mongoose.Schema({ x: Number, y: Number, w: Number, h: Numb
 const TzuratItemSchema = new mongoose.Schema(
   {
     sourceKey: { type: String, required: true },
+    revision: { type: Number, default: 0 },
     slug: { type: String, required: true },
     masechet: { type: String, default: '' },
     daf: { type: String, default: '' },
@@ -76,7 +78,8 @@ const TzuratItemSchema = new mongoose.Schema(
 );
 
 TzuratItemSchema.index({ sourceKey: 1 }, { unique: true });
-TzuratItemSchema.index({ status: 1, kind: 1, score: -1 });
+TzuratItemSchema.index({ status: 1, kind: 1, score: -1, _id: 1 });
+TzuratItemSchema.index({ status: 1, score: -1, _id: 1 });
 TzuratItemSchema.index({ page: 1 });
 TzuratItemSchema.index({ 'answers.user': 1 });
 TzuratItemSchema.index({ slug: 1, status: 1 });

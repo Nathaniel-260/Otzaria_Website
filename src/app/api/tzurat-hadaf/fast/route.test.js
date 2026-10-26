@@ -70,3 +70,15 @@ describe('GET /api/tzurat-hadaf/fast', () => {
     expect(body).toMatchObject({ item: null, needRashi: true })
   })
 })
+
+it('counts statistics only when explicitly requested, not for every next question', async () => {
+  const { fastStats } = await import('@/lib/tzuratHadaf/items')
+  fastStats.mockClear()
+  getServerSessionMock.mockResolvedValue({ user: { id: USER_ID, role: 'user', isVerified: true } })
+  findByIdMock.mockReturnValue({ lean: () => Promise.resolve({ tzuratRashi: false, tzuratPracticeDone: true }) })
+  sampleMock.mockResolvedValue(null)
+  expect((await (await GET(req())).json()).stats).toBe(null)
+  expect(fastStats).not.toHaveBeenCalled()
+  expect((await (await GET(req('?stats=1'))).json()).stats).toEqual({ open: 3, mine: 0, mineAgreed: 0 })
+  expect(fastStats).toHaveBeenCalledTimes(1)
+})

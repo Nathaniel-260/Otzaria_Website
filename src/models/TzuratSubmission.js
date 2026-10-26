@@ -23,7 +23,12 @@ const TzuratSubmissionSchema = new mongoose.Schema(
     manualItems: { type: [mongoose.Schema.Types.ObjectId], default: [] },
     reports: { type: [mongoose.Schema.Types.ObjectId], default: [] },
     note: { type: String, default: '' },
-    status: { type: String, enum: ['submitted', 'approved', 'rejected'], default: 'submitted' },
+    status: { type: String, enum: ['processing', 'submitted', 'approved', 'rejected'], default: 'submitted' },
+    // Durable input and a renewable worker lease allow retry on standalone MongoDB.
+    input: { type: mongoose.Schema.Types.Mixed, default: null },
+    answerIssues: { type: [String], default: [] },
+    processingToken: { type: String, default: null },
+    processingUntil: { type: Date, default: null },
     pointsAwarded: { type: Boolean, default: false },
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     reviewedByName: { type: String, default: '' },

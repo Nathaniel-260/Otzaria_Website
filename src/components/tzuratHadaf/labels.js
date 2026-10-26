@@ -99,6 +99,7 @@ export const REJECT_REASON = {
 
 // "התרומות שלי"
 export const SUBMISSION_STATUS = {
+  processing: { label: 'השמירה לא הושלמה — לחצו להמשך', tone: 'warning' },
   submitted: { label: 'ממתין לבדיקה', tone: 'info' },
   approved: { label: 'אושר', tone: 'success' },
   rejected: { label: 'לא אושר', tone: 'error' },

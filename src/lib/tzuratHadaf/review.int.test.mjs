@@ -13,12 +13,28 @@ import TzuratSubmission from '../../models/TzuratSubmission.js';
 import TzuratReport from '../../models/TzuratReport.js';
 import TzuratDraft from '../../models/TzuratDraft.js';
 import { startMongo } from '../corrections/testing/mongo.js';
-import { claimPage, releasePage, saveDraft, pageDetail, bookPages, MAX_HELD } from './pages.js';
-import { submitPage, approveSubmission, rejectSubmission } from './submissions.js';
+import { claimPage, releasePage, saveDraft as saveDraftRaw, pageDetail, bookPages, MAX_HELD } from './pages.js';
+import { submitPage as submitPageRaw, approveSubmission, rejectSubmission } from './submissions.js';
 import { applySync } from './reports.js';
 import { exportRowsStream } from './exportStream.js';
+import { reviewVersion } from './shapes.js';
+import { answerChoice as answerChoiceRaw } from './items.js';
 import { optionsFor } from './questions.js';
 import { overview, mine } from './volunteer.js';
+
+async function saveDraft(id, uid, body) {
+  const p = await TzuratPage.findById(id).lean();
+  return saveDraftRaw(id, uid, { version: reviewVersion(p), ...body });
+}
+async function submitPage(id, user, body, opts) {
+  const p = await TzuratPage.findById(id).lean();
+  const itemAnswers = await Promise.all((body.itemAnswers || []).map(async (a) => ({ revision: (await TzuratItem.findById(a.item).lean())?.revision ?? 0, ...a })));
+  return submitPageRaw(id, user, { version: reviewVersion(p), ...body, itemAnswers }, opts);
+}
+async function answerChoice(id, user, body) {
+  const it = await TzuratItem.findById(id).lean();
+  return answerChoiceRaw(id, user, { revision: it?.revision ?? 0, ...body });
+}
 
 let db;
 before(async () => {
@@ -171,7 +187,6 @@ test('הגשה, אישור ודחייה; ייצוא', async (t) => {
 
   // הסכמה על הפריט הידני, דיווח שתוקן (+2)
   const mItem = await TzuratItem.findById(sub.manualItems[0]).lean();
-  const { answerChoice } = await import('./items.js');
   const ch = optionsFor(mItem, String(u2._id)).find((o) => o.words[0] === 'בערבית').id;
   assert.equal((await answerChoice(mItem._id, user(u2), { choice: ch })).status, 'agreed');
   const sync = await applySync({ reports: [{ id: String(sub.reports[0]), status: 'fixed', buildId: 'b2' }], pages: [{ slug: 'berakhot', dafKey: pages[5].dafKey, action: 'close' }] });
@@ -262,7 +277,6 @@ test('דחייה מבטלת את תשובות העמוד: פתוח — יוצא�
     TzuratItem.create({ sourceKey: `berakhot|g|R|${k}|rep`, slug: 'berakhot', dafKey: p.dafKey, page: p._id, kind: 'g', question: 'replace', otz: ['א'], print: ['ב'], n: 1 });
   const open1 = await mk(10);
   const agreed = await mk(11);
-  const { answerChoice } = await import('./items.js');
   const pick = (it, u) => optionsFor(it, String(u._id)).find((o) => o.words[0] === 'ב').id;
   await answerChoice(agreed._id, user(u2), { choice: pick(agreed, u2) });
   const s = await submitPage(p._id, user(u1), {
@@ -321,4 +335,200 @@ test('ייצוא since: ביטול הכרעה שיצאה ונפתחה מחדש',
     rows.filter((r) => r.type === 'decision').map(({ at: _at, ...r }) => r),
     [{ type: 'decision', sourceKey: 'berakhot|g|R|20|rep', slug: 'berakhot', dafKey: pages[0].dafKey, status: 'retracted' }]
   );
+});
+
+test('an unfinished submission cannot be reviewed, even immediately after insertion', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const item = await TzuratItem.create({ sourceKey: 'berakhot|g|R|9|rep', slug: 'berakhot', dafKey: pages[0].dafKey, page: pages[0]._id, otz: ['א'], print: ['ב'] });
+  const create = TzuratSubmission.create;
+  t.mock.method(TzuratSubmission, 'create', async function (...args) {
+    const sub = await create.apply(this, args);
+    assert.equal(sub.status, 'processing');
+    assert.equal((await approveSubmission(sub._id, adminUser())).status, 409);
+    assert.equal((await rejectSubmission(sub._id, adminUser())).status, 409);
+    return sub;
+  });
+  const r = await submitPage(pages[0]._id, user(u1), { itemAnswers: [{ item: String(item._id), choice: 'a' }] });
+  assert.ok(r.ok, r.error);
+  const sub = await TzuratSubmission.findById(r.submission).lean();
+  assert.equal(sub.status, 'submitted');
+  assert.equal(sub.itemAnswers.length, 1);
+  assert.equal(String((await TzuratItem.findById(item._id).lean()).answers[0].submission), r.submission);
+});
+
+test('database failures preserve input/draft and resume every effect once on standalone MongoDB', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const page = pages[0];
+  await claimPage(page._id, String(u1._id));
+  await saveDraft(page._id, String(u1._id), { stage: 'submit', state: { note: 'keep me' } });
+  const item = await TzuratItem.create({ sourceKey: 'berakhot|g|R|9|rep', slug: 'berakhot', dafKey: page.dafKey, page: page._id, otz: ['א'], print: ['ב'] });
+  const body = {
+    itemAnswers: [{ item: String(item._id), choice: 'a' }],
+    manualItems: [{ block: 'g', ref: 'R', wi: 1, otz: ['קורין'], text: 'קורים' }],
+    reports: [{ category: 'header', text: 'כותרת', regions: [] }],
+  };
+  const create = TzuratItem.create;
+  let failManual = true;
+  t.mock.method(TzuratItem, 'create', async function (...args) {
+    if (args[0]?.manual && failManual) { failManual = false; throw new Error('test failure before manual write'); }
+    return create.apply(this, args);
+  });
+  const writeReport = TzuratReport.updateOne;
+  let failReport = true;
+  t.mock.method(TzuratReport, 'updateOne', async function (...args) {
+    const result = await writeReport.apply(this, args);
+    if (failReport) { failReport = false; throw new Error('test failure after report write'); }
+    return result;
+  });
+  assert.equal((await submitPage(page._id, user(u1), body)).code, 'retry');
+  const pending = await TzuratSubmission.findOne().lean();
+  assert.equal(pending.status, 'processing');
+  assert.equal(pending.input.manualItems[0].text, 'קורים');
+  assert.equal(await TzuratDraft.countDocuments({}), 1);
+  assert.equal((await pageDetail(page._id, String(u1._id))).processing, true);
+  assert.equal((await approveSubmission(pending._id, adminUser())).status, 409);
+  assert.equal((await rejectSubmission(pending._id, adminUser())).status, 409);
+  assert.equal((await submitPage(page._id, user(u1), body)).code, 'retry');
+  assert.equal(await TzuratReport.countDocuments({}), 1);
+  const attempts = await Promise.all([submitPage(page._id, user(u1), body), submitPage(page._id, user(u1), body)]);
+  assert.equal(attempts.filter((r) => r.ok).length, 1);
+  assert.equal(await TzuratSubmission.countDocuments({}), 1);
+  const sub = await TzuratSubmission.findById(pending._id).lean();
+  assert.equal(sub.status, 'submitted');
+  assert.deepEqual([sub.itemAnswers.length, sub.manualItems.length, sub.reports.length], [1, 1, 1]);
+  assert.equal(await TzuratReport.countDocuments({}), 1);
+  assert.equal((await TzuratItem.findById(item._id).lean()).answers.length, 1);
+  assert.equal((await TzuratItem.findById(sub.manualItems[0]).lean()).answers.length, 1);
+  assert.equal((await TzuratPage.findById(page._id).lean()).activeCount, 1);
+  assert.equal(await TzuratDraft.countDocuments({}), 0);
+  assert.ok((await rejectSubmission(sub._id, adminUser())).ok);
+  assert.equal((await TzuratItem.findById(item._id).lean()).answers.length, 0);
+});
+
+test('drafts and submissions reject an earlier build even when the round is unchanged', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const p = pages[0];
+  const oldVersion = reviewVersion(p);
+  await claimPage(p._id, String(u1._id));
+  const draft = await saveDraft(p._id, String(u1._id), { stage: 'submit', state: { lineOps: [{ op: 'confirm', block: 'g', line: 1 }] } });
+  await TzuratPage.updateOne({ _id: p._id }, { $set: { buildId: 'b2' } });
+  assert.equal((await pageDetail(p._id, String(u1._id))).draft, null);
+  assert.equal((await saveDraftRaw(p._id, String(u1._id), { version: oldVersion, stage: 'submit', state: {}, baseUpdatedAt: draft.updatedAt })).code, 'stale');
+  assert.equal((await submitPageRaw(p._id, user(u1), { version: oldVersion, round: 1 })).code, 'stale');
+  assert.equal(await TzuratSubmission.countDocuments({}), 0);
+  const fresh = await saveDraft(p._id, String(u1._id), { stage: 'overview', state: {} });
+  assert.ok(fresh.ok);
+  assert.deepEqual((await pageDetail(p._id, String(u1._id))).draft.state, {});
+});
+
+test('the first exported anchor locks rejection before the stream is resumed', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const s = await submitPage(pages[0]._id, user(u1), { lineOps: [{ op: 'confirm', block: 'g', line: 1 }], checks: { blocks: 'ok' } });
+  await approveSubmission(s.submission, adminUser());
+  const stream = exportRowsStream({ types: ['anchor', 'check'] });
+  assert.equal((await stream.next()).value.type, 'meta');
+  assert.equal((await stream.next()).value.type, 'anchor');
+  assert.equal((await rejectSubmission(s.submission, adminUser())).status, 409);
+  assert.ok((await TzuratSubmission.findById(s.submission).lean()).exportedAt);
+  assert.equal((await stream.next()).value.type, 'check');
+  await stream.return();
+  const s2 = await submitPage(pages[1]._id, user(u1), { lineOps: [{ op: 'confirm', block: 'g', line: 1 }] });
+  await approveSubmission(s2.submission, adminUser());
+  assert.ok((await rejectSubmission(s2.submission, adminUser())).ok);
+  const rows = [];
+  for await (const row of exportRowsStream({ types: ['anchor'] })) rows.push(row);
+  assert.equal(rows.filter((r) => r.type === 'anchor').length, 1);
+});
+
+test('a rejected manual correction can be submitted again and rejected independently', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const body = { manualItems: [{ block: 'g', ref: 'R', wi: 1, otz: ['קורין'], text: 'קורים' }] };
+  const first = await submitPage(pages[0]._id, user(u1), body);
+  await rejectSubmission(first.submission, adminUser());
+  assert.equal((await TzuratItem.findOne({ manual: true }).lean()).status, 'obsolete');
+  const second = await submitPage(pages[0]._id, user(u1), body);
+  assert.ok(second.ok);
+  const item = await TzuratItem.findOne({ manual: true }).lean();
+  assert.equal(item.status, 'open');
+  assert.equal(item.answers.length, 1);
+  assert.equal(String(item.answers[0].submission), second.submission);
+  assert.deepEqual(second.warnings, []);
+  await rejectSubmission(second.submission, adminUser());
+  assert.equal((await TzuratItem.findById(item._id).lean()).answers.length, 0);
+});
+
+test('a build change between validation and slot reservation rejects the stale submission atomically', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const update = TzuratPage.findOneAndUpdate;
+  t.mock.method(TzuratPage, 'findOneAndUpdate', async function (...args) {
+    if (args[1]?.$inc?.activeCount === 1) await TzuratPage.updateOne({ _id: pages[0]._id }, { $set: { buildId: 'b2' } });
+    return update.apply(this, args);
+  });
+  const r = await submitPageRaw(pages[0]._id, user(u1), { version: reviewVersion(pages[0]), round: 1 });
+  assert.equal(r.code, 'stale');
+  assert.equal((await TzuratPage.findById(pages[0]._id).lean()).activeCount, 0);
+  assert.equal(await TzuratSubmission.countDocuments({}), 0);
+});
+
+test('an old tab cannot overwrite a newer-build draft created after its initial page read', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const p = pages[0];
+  await claimPage(p._id, String(u1._id));
+  const oldVersion = reviewVersion(p);
+  const find = TzuratDraft.findOne;
+  let changeBuild = true;
+  t.mock.method(TzuratDraft, 'findOne', function (...args) {
+    if (!changeBuild) return find.apply(this, args);
+    changeBuild = false;
+    const readDraft = find.bind(this);
+    return { lean: async () => {
+      await TzuratPage.updateOne({ _id: p._id }, { $set: { buildId: 'b2' } });
+      assert.ok((await saveDraft(p._id, String(u1._id), { stage: 'overview', state: { note: 'fresh' } })).ok);
+      return readDraft(...args).lean();
+    } };
+  });
+  assert.equal((await saveDraftRaw(p._id, String(u1._id), { version: oldVersion, stage: 'lines', state: { note: 'old' } })).code, 'stale');
+  assert.equal((await TzuratDraft.findOne().lean()).state.note, 'fresh');
+});
+
+test('a saved job remains recoverable after a new round without altering its counters or draft', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const write = TzuratReport.updateOne;
+  let failOnce = true;
+  t.mock.method(TzuratReport, 'updateOne', async function (...args) {
+    if (failOnce) { failOnce = false; throw new Error('transient'); }
+    return write.apply(this, args);
+  });
+  const p = pages[0];
+  assert.equal((await submitPage(p._id, user(u1), { reports: [{ category: 'header', text: 'כותרת', regions: [] }] })).code, 'retry');
+  await TzuratPage.updateOne({ _id: p._id }, { $set: { buildId: 'b2', round: 2, activeCount: 0, submitters: [], leasedBy: u2._id, leasedUntil: new Date(Date.now() + 60000) } });
+  assert.ok((await saveDraft(p._id, String(u2._id), { stage: 'overview', state: { note: 'new round draft' } })).ok);
+  const detail = await pageDetail(p._id, String(u1._id));
+  assert.equal(detail.processing, true);
+  const r = await submitPageRaw(p._id, user(u1), {});
+  assert.ok(r.ok);
+  assert.equal((await TzuratSubmission.findById(r.submission).lean()).round, 1);
+  assert.equal((await TzuratPage.findById(p._id).lean()).activeCount, 0);
+  assert.equal((await TzuratDraft.findOne().lean()).state.note, 'new round draft');
+});
+
+test('a question closed during submission keeps its original answer for the reviewer with an explicit warning', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const item = await TzuratItem.create({ sourceKey: 'berakhot|g|R|9|rep', slug: 'berakhot', dafKey: pages[0].dafKey, page: pages[0]._id, otz: ['א'], print: ['ב'] });
+  const create = TzuratSubmission.create;
+  t.mock.method(TzuratSubmission, 'create', async function (...args) {
+    const sub = await create.apply(this, args);
+    await TzuratItem.updateOne({ _id: item._id }, { $set: { status: 'resolved' } });
+    return sub;
+  });
+  const choice = optionsFor(item, String(u1._id)).find((o) => o.words[0] === 'ב').id;
+  const result = await submitPage(pages[0]._id, user(u1), { itemAnswers: [{ item: String(item._id), choice }] });
+  assert.ok(result.ok);
+  assert.equal(result.warnings.length, 1);
+  assert.match(result.warnings[0], /ב/);
+  const sub = await TzuratSubmission.findById(result.submission).lean();
+  assert.deepEqual(sub.answerIssues, result.warnings);
+  assert.equal(sub.input.itemAnswers[0].verdict, 'print');
+  assert.deepEqual(sub.input.itemAnswers[0].print, ['ב']);
+  assert.equal((await TzuratItem.findById(item._id).lean()).answers.length, 0);
 });

@@ -191,12 +191,17 @@ export async function settle(itemId, doc, now = new Date()) {
  * תשובה של משתמש. answer: {verdict, text} (כבר מתורגם), via: 'fast'|'page'.
  * ← {ok:true, status, points} או fail(404/409/403).
  */
-export async function addAnswer(itemId, user, { verdict, text = null, via = 'fast' }, { canRashi = true, now = new Date() } = {}) {
+export async function addAnswer(itemId, user, { verdict, text = null, via = 'fast', revision, submission = null }, { canRashi = true, now = new Date() } = {}) {
   if (!isObjectId(String(itemId))) return fail(404, MSG.notFound);
   if (!isVerdict(verdict)) return fail(400, 'תשובה לא מוכרת');
   const uid = oid(user.id);
-  const item = await TzuratItem.findById(itemId, { kind: 1, slug: 1, status: 1, practice: 1, 'answers.user': 1 }).lean();
+  const item = await TzuratItem.findById(itemId, { kind: 1, slug: 1, status: 1, practice: 1, revision: 1, answers: 1 }).lean();
   if (!item || item.practice) return fail(404, MSG.notFound);
+  if (submission && (item.answers || []).some((a) => String(a.submission) === String(submission) && String(a.user) === String(uid))) {
+    await settle(item._id, item, now);
+    return { ok: true, status: 'recorded', points: 0 };
+  }
+  if (revision !== undefined && revision !== (item.revision ?? 0)) return fail(409, 'השאלה עודכנה — טענו אותה מחדש', 'stale');
   if (isRashiKind(item.kind) && !canRashi) return fail(403, MSG.rashi);
   if (await TzuratBatch.exists({ slug: item.slug, status: 'paused' })) return fail(409, MSG.paused, 'paused');
   if ((item.answers || []).some((a) => String(a.user) === String(uid))) return fail(409, MSG.answered, 'answered');
@@ -209,15 +214,18 @@ export async function addAnswer(itemId, user, { verdict, text = null, via = 'fas
     // הטקסט כפי שנכתב (רק רווחים מכווצים) — גרשיים, ניקוד וסימנים הם חלק מנוסח הדפוס; normalizeText רק להשוואה
     text: verdict === 'other' ? cleanText(text, 200) || null : null,
     via: via === 'page' ? 'page' : 'fast',
+    submission,
     at: now,
   };
   const doc = await TzuratItem.findOneAndUpdate(
-    { _id: item._id, status: 'open', practice: { $ne: true }, 'answers.user': { $ne: uid } },
+    { _id: item._id, status: 'open', practice: { $ne: true }, 'answers.user': { $ne: uid },
+      ...(revision !== undefined ? { $or: [{ revision }, ...(revision === 0 ? [{ revision: { $exists: false } }] : [])] } : {}) },
     { $push: { answers: answer }, $set: { leasedBy: null, leasedUntil: null } },
     { returnDocument: 'after', lean: true, projection: { answers: 1, status: 1 } }
   );
   if (!doc) {
-    const now2 = await TzuratItem.findById(item._id, { status: 1, 'answers.user': 1 }).lean();
+    const now2 = await TzuratItem.findById(item._id, { status: 1, revision: 1, 'answers.user': 1 }).lean();
+    if (revision !== undefined && revision !== (now2?.revision ?? 0)) return fail(409, 'השאלה עודכנה — טענו אותה מחדש', 'stale');
     if ((now2?.answers || []).some((a) => String(a.user) === String(uid))) return fail(409, MSG.answered, 'answered');
     return fail(409, MSG.closed, 'closed');
   }
@@ -226,14 +234,15 @@ export async function addAnswer(itemId, user, { verdict, text = null, via = 'fas
 }
 
 /** תשובה מהמסלול המהיר: choice (מזהה האפשרות שהוצגה) ← verdict, ואז addAnswer */
-export async function answerChoice(itemId, user, { choice, text, via = 'fast' }, opts = {}) {
+export async function answerChoice(itemId, user, { choice, text, via = 'fast', revision }, opts = {}) {
   if (!CHOICES.includes(choice)) return fail(400, 'תשובה לא מוכרת');
   if (!isObjectId(String(itemId))) return fail(404, MSG.notFound);
-  const item = await TzuratItem.findById(itemId, { question: 1, otz: 1, print: 1, n: 1, cls: 1, practice: 1 }).lean();
+  const item = await TzuratItem.findById(itemId, { question: 1, otz: 1, print: 1, n: 1, cls: 1, practice: 1, revision: 1 }).lean();
   if (!item || item.practice) return fail(404, MSG.notFound);
+  if (revision !== (item.revision ?? 0)) return fail(409, 'השאלה עודכנה — טענו אותה מחדש', 'stale');
   const v = choiceToVerdict(item, user.id, choice, text);
   if (v.error) return fail(400, v.error);
-  return addAnswer(itemId, user, { verdict: v.verdict, text: v.text, via }, opts);
+  return addAnswer(itemId, user, { verdict: v.verdict, text: v.text, via, revision }, opts);
 }
 
 export const FLAGS_TO_CLOSE = 2;

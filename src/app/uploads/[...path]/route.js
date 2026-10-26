@@ -26,7 +26,7 @@ const BLOCKED_PREFIXES = ['ocr-layout/', 'page-proof/', 'tzurat-hadaf/'];
 
 export async function GET(request, { params }) {
   const segments = (await params).path;
-  const relative = segments.join('/');
+  const relative = segments.join('/').replace(/\\/g, '/');
 
   const resolved = path.resolve(UPLOAD_ROOT, relative);
   if (!resolved.startsWith(UPLOAD_ROOT + path.sep) && resolved !== UPLOAD_ROOT) {

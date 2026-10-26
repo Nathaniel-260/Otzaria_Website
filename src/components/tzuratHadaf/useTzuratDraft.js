@@ -14,7 +14,7 @@ export const DRAFT_MS = 5000
 export const DRAFT_RETRY_MS = 15000
 const KEEPALIVE_MAX = 60000
 
-export function createDraftEngine({ pageId, baseUpdatedAt = null, enabled = true, onStatus = () => {}, save = api.saveDraft }) {
+export function createDraftEngine({ pageId, version, baseUpdatedAt = null, enabled = true, onStatus = () => {}, save = api.saveDraft }) {
   const st = { srv: baseUpdatedAt, pending: null, pendingJson: null, sentJson: null, timer: 0, chain: Promise.resolve(true), stopped: false, enabled }
   const status = (s) => onStatus(s)
   const clear = () => {
@@ -28,7 +28,7 @@ export function createDraftEngine({ pageId, baseUpdatedAt = null, enabled = true
       st.pending = null
       return true
     }
-    const body = { ...st.pending, baseUpdatedAt: st.srv }
+    const body = { ...st.pending, version, baseUpdatedAt: st.srv }
     status({ state: 'saving' })
     const r = await save(pageId, body, { keepalive: keepalive && json.length < KEEPALIVE_MAX })
     if (r.ok) {
@@ -98,9 +98,9 @@ export function createDraftEngine({ pageId, baseUpdatedAt = null, enabled = true
   }
 }
 
-export function useTzuratDraft({ pageId, baseUpdatedAt = null, enabled = true }) {
+export function useTzuratDraft({ pageId, version, baseUpdatedAt = null, enabled = true }) {
   const [status, setStatus] = useState(() => ({ state: baseUpdatedAt ? 'saved' : 'idle', at: baseUpdatedAt }))
-  const [eng] = useState(() => createDraftEngine({ pageId, baseUpdatedAt, enabled, onStatus: setStatus }))
+  const [eng] = useState(() => createDraftEngine({ pageId, version, baseUpdatedAt, enabled, onStatus: setStatus }))
 
   useEffect(() => {
     eng.setEnabled(enabled)

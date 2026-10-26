@@ -14,7 +14,7 @@ export async function GET(request) {
     const sp = new URL(request.url).searchParams;
     const kind = sp.get('kind') || 'any';
     if (!KINDS.includes(kind)) return badRequest('kind לא תקין');
-    const stats = await fastStats(g.userId);
+    const stats = sp.get('stats') === '1' ? await fastStats(g.userId) : null;
     const flags = { rashi: g.rashi, practiceDone: g.practiceDone };
     if (!g.practiceDone && (await hasPractice())) return json({ item: null, stats, needPractice: true, needRashi: false, ...flags });
     if ((kind === 'r' || kind === 't') && !g.canRashi) return json({ item: null, stats, needPractice: false, needRashi: true, ...flags });

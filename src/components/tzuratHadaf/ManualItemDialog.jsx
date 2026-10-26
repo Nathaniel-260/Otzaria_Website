@@ -95,6 +95,7 @@ export default function ManualItemDialog({ pageId, model, scan, onSave, onClose 
             <LineRow
               key={`${block.id}:${line.i}`}
               pageId={pageId}
+                    scanUrl={scan?.url}
               block={block}
               line={line}
               k={k}

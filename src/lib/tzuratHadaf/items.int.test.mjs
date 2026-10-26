@@ -10,8 +10,13 @@ import TzuratItem from '../../models/TzuratItem.js';
 import TzuratPage from '../../models/TzuratPage.js';
 import TzuratBatch from '../../models/TzuratBatch.js';
 import { startMongo } from '../corrections/testing/mongo.js';
-import { sampleFastItem, answerChoice, addAnswer, settle, flagItem, fastStats, gradePractice, adminItemAction, practiceItems, fastItemFor } from './items.js';
+import { sampleFastItem, answerChoice as answerChoiceRaw, addAnswer, settle, flagItem, fastStats, gradePractice, adminItemAction, practiceItems, fastItemFor } from './items.js';
 import { optionsFor } from './questions.js';
+
+async function answerChoice(id, user, body, opts) {
+  const item = await TzuratItem.findById(id).lean();
+  return answerChoiceRaw(id, user, { revision: item?.revision ?? 0, ...body }, opts);
+}
 
 let db;
 before(async () => {
@@ -223,4 +228,33 @@ test('הכרעת מנהל: נקודות למי שענה כמוה, פעם אחת;
   assert.equal(ro.item.answers.length, 0);
   assert.equal((await adminItemAction(a._id, { action: 'bogus' }, admin)).status, 400);
   assert.equal((await adminItemAction(new mongoose.Types.ObjectId(), { action: 'reopen' }, admin)).status, 404);
+});
+
+test('a stale or missing revision cannot reinterpret a displayed choice, including concurrent imports', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const it = await TzuratItem.create({ sourceKey: 'berakhot|g|R|900|rep', slug: 'berakhot', dafKey: '002a', otz: ['א'], print: ['ב'] });
+  const shown = await fastItemFor(it.toObject(), String(u1._id));
+  assert.equal((await answerChoiceRaw(it._id, user(u1), { choice: 'a' })).code, 'stale');
+  await TzuratItem.updateOne({ _id: it._id }, { $set: { print: ['ה'] }, $inc: { revision: 1 } });
+  assert.equal((await answerChoiceRaw(it._id, user(u1), { choice: 'a', revision: shown.revision })).code, 'stale');
+  const update = TzuratItem.findOneAndUpdate;
+  let imported = false;
+  t.mock.method(TzuratItem, 'findOneAndUpdate', async function (...args) {
+    if (args[1]?.$push?.answers && !imported) {
+      imported = true;
+      await TzuratItem.updateOne({ _id: it._id }, { $set: { print: ['ו'] }, $inc: { revision: 1 } });
+    }
+    return update.apply(this, args);
+  });
+  assert.equal((await answerChoiceRaw(it._id, user(u1), { choice: 'a', revision: shown.revision + 1 })).code, 'stale');
+  assert.equal((await TzuratItem.findById(it._id).lean()).answers.length, 0);
+});
+
+test('the fast queue uses an index for the complete ordering instead of sorting all candidates', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  await TzuratItem.insertMany(Array.from({ length: 2000 }, (_, i) => ({ sourceKey: `perf|${i}`, slug: 'berakhot', dafKey: '002a', kind: 'g', score: i, box: { x: 0, y: 0, w: 0.1, h: 0.1 } })));
+  const plan = await TzuratItem.find({ status: 'open', kind: 'g', practice: { $ne: true }, box: { $ne: null }, 'answers.user': { $ne: u1._id }, 'flags.user': { $ne: u1._id }, $or: [{ leasedUntil: null }, { leasedUntil: { $lt: new Date() } }, { leasedBy: u1._id }] }, { _id: 1 }).sort({ score: -1, _id: 1 }).limit(20).explain('executionStats');
+  assert.equal(plan.executionStats.nReturned, 20);
+  assert.ok(plan.executionStats.totalDocsExamined <= 40, JSON.stringify(plan.executionStats));
+  assert.equal(JSON.stringify(plan.queryPlanner.winningPlan).includes('"stage":"SORT"'), false);
 });

@@ -9,7 +9,7 @@ import TzuratBatch from '../../models/TzuratBatch.js';
 import TzuratDraft from '../../models/TzuratDraft.js';
 import TzuratSubmission from '../../models/TzuratSubmission.js';
 import { leaseEnd } from '../pageProof/lease.js';
-import { pageStateFor, pageShape, fastItemShape } from './shapes.js';
+import { pageStateFor, pageShape, fastItemShape, reviewVersion } from './shapes.js';
 import { isObjectId } from './common.js';
 
 export const CLAIM_HOURS = 48;
@@ -74,14 +74,16 @@ async function mySubmissions(pages, uid) {
   const out = new Map();
   if (!pages.length) return out;
   const subs = await TzuratSubmission.find(
-    { page: { $in: pages.map((p) => p._id) }, user: uid, status: { $in: ['submitted', 'approved'] } },
+    { page: { $in: pages.map((p) => p._id) }, user: uid, status: { $in: ['processing', 'submitted', 'approved'] } },
     { page: 1, status: 1, round: 1 }
   ).lean();
   const roundOf = new Map(pages.map((p) => [String(p._id), p.round || 1]));
   for (const s of subs) {
-    if ((s.round || 1) !== roundOf.get(String(s.page))) continue;
     const k = String(s.page);
-    if (out.get(k) !== 'approved') out.set(k, s.status);
+    // Recovery uses the stored input, including when a newer build has opened another round.
+    if (s.status === 'processing') { out.set(k, 'processing'); continue; }
+    if ((s.round || 1) !== roundOf.get(k)) continue;
+    if (!['approved', 'processing'].includes(out.get(k))) out.set(k, s.status);
   }
   return out;
 }
@@ -219,12 +221,13 @@ export async function pageDetail(pageId, userId, { canRashi = false, now = new D
     TzuratPage.findOne({ slug: page.slug, order: { $gt: page.order } }, { daf: 1 }).sort({ order: 1 }).lean(),
   ]);
   const state = pageStateFor(page, uid, mine.get(String(page._id)) || null, now);
-  const myDraft = draft && String(draft.user) === String(uid) ? { stage: draft.stage, state: draft.state, updatedAt: draft.updatedAt } : null;
+  const myDraft = draft && draft.version === reviewVersion(page) && String(draft.user) === String(uid) ? { stage: draft.stage, state: draft.state, updatedAt: draft.updatedAt } : null;
   return {
     ok: true,
     page: pageShape(page, state),
     items: items.map((it) => fastItemShape(it, page, uid)),
     draft: myDraft,
+    processing: mine.get(String(page._id)) === 'processing',
     prev: prev ? { id: String(prev._id), daf: prev.daf } : null,
     next: next ? { id: String(next._id), daf: next.daf } : null,
   };
@@ -239,15 +242,21 @@ export const isHolder = (page, uid, now = new Date()) =>
  * שמירת טיוטה של המחזיק: {stage, state, baseUpdatedAt}. baseUpdatedAt — ה-updatedAt של הטיוטה שהלקוח טען
  * (null — אין טיוטה). טיוטה של מחזיק קודם נדרסת. ← {ok, updatedAt} או 409 stale/not_holder.
  */
-export async function saveDraft(pageId, userId, { stage, state, baseUpdatedAt = null } = {}, now = new Date()) {
+export async function saveDraft(pageId, userId, { stage, state, version, baseUpdatedAt = null } = {}, now = new Date()) {
   if (!isObjectId(String(pageId))) return fail(404, MSG.notFound);
   if (!DRAFT_STAGES.includes(stage)) return fail(400, 'שלב לא מוכר');
   const uid = oid(userId);
-  const page = await TzuratPage.findById(pageId, { leasedBy: 1, leasedUntil: 1 }).lean();
+  const page = await TzuratPage.findById(pageId, { leasedBy: 1, leasedUntil: 1, round: 1, buildId: 1 }).lean();
   if (!page) return fail(404, MSG.notFound);
+  if (version !== reviewVersion(page)) return fail(409, 'העמוד עודכן — טענו אותו מחדש', 'stale');
   if (!isHolder(page, uid, now)) return fail(409, MSG.notHolder, 'not_holder');
-  const cur = await TzuratDraft.findOne({ page: page._id }, { user: 1, updatedAt: 1 }).lean();
-  const set = { user: uid, stage, state: state ?? null };
+  const cur = await TzuratDraft.findOne({ page: page._id }, { user: 1, updatedAt: 1, version: 1 }).lean();
+  // Read the draft first, then recheck the page: an import cannot let an old tab
+  // overwrite a fresh-version draft (the write below also compares updatedAt).
+  const currentPage = await TzuratPage.findById(pageId, { buildId: 1, round: 1, leasedBy: 1, leasedUntil: 1 }).lean();
+  if (!currentPage || version !== reviewVersion(currentPage)) return fail(409, 'העמוד עודכן — טענו אותו מחדש', 'stale');
+  if (!isHolder(currentPage, uid, now)) return fail(409, MSG.notHolder, 'not_holder');
+  const set = { user: uid, stage, state: state ?? null, version };
   if (!cur) {
     try {
       const d = await TzuratDraft.create({ page: page._id, ...set });
@@ -257,7 +266,7 @@ export async function saveDraft(pageId, userId, { stage, state, baseUpdatedAt = 
       throw e;
     }
   }
-  const mineCur = String(cur.user) === String(uid);
+  const mineCur = String(cur.user) === String(uid) && cur.version === version;
   const base = baseUpdatedAt ? new Date(baseUpdatedAt).getTime() : NaN;
   if (mineCur && base !== new Date(cur.updatedAt).getTime()) return fail(409, MSG.stale, 'stale');
   const d = await TzuratDraft.findOneAndUpdate({ _id: cur._id, updatedAt: cur.updatedAt }, { $set: set }, { returnDocument: 'after', lean: true });
@@ -265,6 +274,6 @@ export async function saveDraft(pageId, userId, { stage, state, baseUpdatedAt = 
   return { ok: true, updatedAt: d.updatedAt };
 }
 
-export async function dropDraft(pageId) {
-  await TzuratDraft.deleteOne({ page: oid(pageId) });
+export async function dropDraft(pageId, { userId, version } = {}) {
+  await TzuratDraft.deleteOne({ page: oid(pageId), ...(userId ? { user: oid(userId) } : {}), ...(version ? { version } : {}) });
 }

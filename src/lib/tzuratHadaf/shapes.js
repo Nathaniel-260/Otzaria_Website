@@ -12,6 +12,8 @@ const sameId = (a, b) => a != null && b != null && String(a) === String(b);
 const timeOf = (v) => (v ? new Date(v).getTime() : NaN);
 
 // גרסת התמונות של עמוד: הבנייה והסבב
+export const reviewVersion = (page) => JSON.stringify([page?.buildId || '', page?.round || 1]);
+
 export const imageVersion = (page) => fnv1a(`${page?.buildId || ''}|${page?.round || 1}`).toString(36);
 
 export function itemImageUrls(item, page) {
@@ -32,6 +34,7 @@ export function fastItemShape(item, page, userId) {
   const crop = item.box ? cropRect(item.box, W, H) : null;
   return {
     id: String(item._id ?? item.id),
+    revision: item.revision ?? 0,
     slug: item.slug,
     masechet: item.masechet || page?.masechet || '',
     daf: item.daf || page?.daf || '',
@@ -61,6 +64,7 @@ export const PAGE_STATES = Object.freeze(['open', 'mine', 'taken', 'submitted', 
 export function pageStateFor(page, viewerId, mySub = null, now = new Date()) {
   const p = page || {};
   const me = viewerId == null || viewerId === '' ? null : String(viewerId);
+  if (mySub === 'processing') return 'mine';
   if (mySub === 'approved') return 'approved';
   if (mySub === 'submitted' || (me && (p.submitters || []).some((s) => sameId(s, me)))) return 'submitted';
   const leased = p.leasedBy && timeOf(p.leasedUntil) > now.getTime();
@@ -82,6 +86,7 @@ export function pageShape(page, state) {
     daf: page.daf || '',
     dafKey: page.dafKey,
     round: page.round || 1,
+    version: reviewVersion(page),
     nonVilna: !!page.nonVilna,
     state,
     leasedUntil: page.leasedUntil || null,

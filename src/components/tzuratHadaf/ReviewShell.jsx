@@ -44,7 +44,7 @@ export default function ReviewShell({ pageId }) {
       return
     }
     // העמוד בידיכם — כל פתיחה מחדשת את ההחזקה
-    if (r.data.page?.state === 'mine') {
+    if (r.data.page?.state === 'mine' && !r.data.processing) {
       const c = await api.claim(pageId)
       if (c.ok && c.data.leasedUntil) r.data.page = { ...r.data.page, leasedUntil: c.data.leasedUntil }
     }
@@ -94,7 +94,7 @@ function ReviewWorkspace({ data, onReload }) {
   const [done, setDone] = useState(null)
   const [busy, setBusy] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  const draftSaver = useTzuratDraft({ pageId: page.id, baseUpdatedAt: draft?.updatedAt || null, enabled: holder && !done })
+  const draftSaver = useTzuratDraft({ pageId: page.id, version: page.version, baseUpdatedAt: draft?.updatedAt || null, enabled: holder && !done && !data.processing })
 
   const fullWork = useMemo(() => ({ ...work, lineOps: hist.present }), [work, hist.present])
   const shownModel = useMemo(() => applyLineOps(page.model, hist.present).model, [page.model, hist.present])
@@ -144,9 +144,9 @@ function ReviewWorkspace({ data, onReload }) {
   }
 
   const submit = async () => {
-    if (missing.length) return
+    if (missing.length && !data.processing) return
     setSubmitting(true)
-    const r = await api.submit(page.id, submitBody(fullWork, { round: page.round }))
+    const r = await api.submit(page.id, submitBody(fullWork, { round: page.round, version: page.version }))
     setSubmitting(false)
     if (r.ok) {
       setDone(r.data)
@@ -156,13 +156,16 @@ function ReviewWorkspace({ data, onReload }) {
       await draftSaver.flush()
       const reload = await showConfirm(
         'העמוד עודכן בינתיים',
-        'מאז שפתחתם את העמוד נטענה לאתר בנייה חדשה שלו, ולכן ההגשה לא נקלטה. טענו את העמוד מחדש, בדקו את השינויים והגישו שוב — מה שסימנתם נשמר בטיוטה.',
+        'מאז שפתחתם את העמוד נטענה לאתר בנייה חדשה שלו, ולכן ההגשה לא נקלטה. טענו את העמוד מחדש ובדקו אותו שוב. הסימונים מהבנייה הקודמת לא יוחלו אוטומטית על העמוד החדש.',
         undefined,
         'טעינה מחדש',
         'ביטול'
       )
       if (reload) onReload()
-    } else showAlert('ההגשה נכשלה', r.error)
+    } else {
+      showAlert('ההגשה נכשלה', r.error)
+      if (r.code === 'retry' || r.code === 'processing') onReload()
+    }
   }
 
   if (done) {
@@ -173,6 +176,7 @@ function ReviewWorkspace({ data, onReload }) {
         <p className="text-on-surface/70">
           מנהל יבדוק את ההגשה. כשתאושר תקבלו 10 נקודות, והשינויים ייכנסו לבנייה הבאה של צורת הדף.
         </p>
+        {done.warnings?.length > 0 && <p role="note">חלק משאלות הנוסח השתנו או טופלו בינתיים. התשובות המקוריות נשמרו לעיון המנהל בהגשה.</p>}
         <div className="flex flex-wrap justify-center gap-2">
           {next && (
             <Button href={reviewPath(next.id)} prefetch={false} icon="arrow_back">
@@ -189,6 +193,13 @@ function ReviewWorkspace({ data, onReload }) {
       </div>
     )
   }
+
+  if (data.processing) return (
+    <div className="glass-strong flex flex-col gap-4 rounded-xl p-6" role="status">
+      <p>שמירת ההגשה נעצרה. התוכן ששלחתם נשמר; המשיכו לשמור אותו מאותה נקודה.</p>
+      <Button onClick={submit} disabled={submitting}>המשך שמירת ההגשה</Button>
+    </div>
+  )
 
   const ui = pageStateUi(page.state)
 
@@ -250,6 +261,7 @@ function ReviewWorkspace({ data, onReload }) {
       )}
       {stage === 'lines' && (
         <LinesStage
+          scanUrl={page.scan?.url}
           pageId={page.id}
           model={page.model}
           ops={hist.present}
