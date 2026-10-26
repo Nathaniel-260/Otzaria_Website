@@ -16,6 +16,7 @@ export function buildContextText(job, receipts, { source } = {}) {
     `טווח גרסאות שירות שהתוסף תומך בהן: ${q(s.serviceRange)}`,
     `מקורות (commit מלא): ${q(s.sources)}`,
     `קובץ התוסף: ${q(job.plugin)}`,
+    'תוכן קובץ התוסף שהועלה מופיע ב-INDEX.txt תחת uploaded-plugin/. זהו התוכן שיותקן בפועל; יש לסקור אותו גם כשהוא שונה מהמקור ב-GitHub.',
     '',
     '## מתקינים',
   ]

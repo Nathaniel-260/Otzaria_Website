@@ -9,6 +9,7 @@ import {
   SourceCollector, SourceFormatError, SourceLimitError, buildDiffText, collectSource, copyTextFiles, describeTarError,
   formatIndex, readSnapshot, writeSnapshot,
 } from '../source.js'
+import { collectUploadedPlugin } from '../pluginSource.js'
 import { snapshotDirFor } from '../job.js'
 import { ensureDir, escapeForList, removeDir } from '../util.js'
 
@@ -19,6 +20,13 @@ async function buildSnapshot(ctx, snapshotDir) {
   const filesDir = await ensureDir(path.join(snapshotDir, 'files'))
   const collector = new SourceCollector(filesDir, LIMITS)
   const perSource = []
+  try {
+    await collectUploadedPlugin(ctx, collector)
+  } catch (err) {
+    await removeDir(snapshotDir)
+    if (err instanceof SourceLimitError || err instanceof SourceFormatError) throw new Rejection('source', `${err.message}. ${OVER_LIMIT_NOTE}`)
+    throw err
+  }
   for (const src of ctx.job.submission.sources) {
     try {
       const r = await collectSource({ repository: src.repository, commit: src.commit, collector, signal: ctx.signal, fetchImpl: ctx.fetch })
@@ -40,7 +48,7 @@ async function buildSnapshot(ctx, snapshotDir) {
   }
   const stats = { textFiles: collector.textFiles, textBytes: collector.textBytes, binaryFiles: collector.binaryFiles, perSource }
   await writeSnapshot(snapshotDir, collector.rows, {
-    reviewId: ctx.job.reviewId, manifestDigest: ctx.job.manifestDigest, sources: ctx.job.submission.sources, stats,
+    reviewId: ctx.job.reviewId, manifestDigest: ctx.job.manifestDigest, sources: ctx.job.submission.sources, uploadedPluginSha256: ctx.job.plugin.sha256, stats,
   })
   return { rows: collector.rows, stats }
 }
@@ -50,7 +58,7 @@ export function ensureSource(ctx) {
   return ctx.once('source', async () => {
     const snapshotDir = ctx.paths.snapshotDir
     let snap = await readSnapshot(snapshotDir)
-    if (!snap || snap.manifestDigest !== ctx.job.manifestDigest) snap = await buildSnapshot(ctx, snapshotDir)
+    if (!snap || snap.manifestDigest !== ctx.job.manifestDigest || snap.uploadedPluginSha256 !== ctx.job.plugin.sha256) snap = await buildSnapshot(ctx, snapshotDir)
     const { rows, stats } = snap
 
     const reviewDir = ctx.paths.reviewDir
@@ -101,6 +109,7 @@ export async function sourceStage(ctx) {
   }
   return {
     status: 'prepared',
+    uploadedPluginSha256: ctx.job.plugin.sha256,
     textFiles: s.stats.textFiles,
     textBytes: s.stats.textBytes,
     binaryFiles: s.stats.binaryFiles,
