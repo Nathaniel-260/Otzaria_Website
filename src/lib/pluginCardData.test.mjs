@@ -39,6 +39,7 @@ function publicPlugin(overrides = {}) {
     pluginFileSize: 1234,
     supportsDirectInstall: true,
     isPinned: false,
+    hasService: false,
     versions: [{ version: '1.2.3', downloadUrl: '/x' }],
     ...overrides
   }

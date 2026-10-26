@@ -104,6 +104,26 @@ const nextConfig = {
     const scriptSrc = isDev
       ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
       : "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'";
+    // connectExtra — מקורות נוספים ל-connect-src (רק בנתיבים שצריכים אותם)
+    const contentSecurityPolicy = (connectExtra: string[] = []) => [
+      "default-src 'self'",
+      scriptSrc,
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: blob: https:",
+      "media-src 'self' blob: https:",
+      // connect-src מצומצם למקורות בשימוש מוכח בצד הלקוח: GitHub API
+      // (github-releases/editingtools/Link-Notes). הוסר התו הכללי https:
+      // שאפשר ל-XSS להדליף נתוני משתמשים לכל שרת שהוא.
+      ["connect-src 'self' blob: https://api.github.com https://raw.githubusercontent.com ws: wss:", ...connectExtra].join(' '),
+      // דף התרומות מטמיע את הווידג'ט של נדרים פלוס ב-iframe
+      "frame-src 'self' https://nedar.im https://www.matara.pro",
+      "worker-src 'self' blob:",
+      "frame-ancestors 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ');
     return [
       {
         source: '/:path*',
@@ -130,28 +150,7 @@ const nextConfig = {
           //  • connect: מצומצם ל-self + GitHub API (releases/תוספים) + ws:/wss: ל-HMR
           //  • frame: ווידג'ט התרומות של נדרים פלוס (הקישור הקצר מפנה ל-matara.pro)
           //  • frame-ancestors 'self': anti-clickjacking
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              scriptSrc,
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com data:",
-              "img-src 'self' data: blob: https:",
-              "media-src 'self' blob: https:",
-              // connect-src מצומצם למקורות בשימוש מוכח בצד הלקוח: GitHub API
-              // (github-releases/editingtools/Link-Notes). הוסר התו הכללי https:
-              // שאפשר ל-XSS להדליף נתוני משתמשים לכל שרת שהוא.
-              "connect-src 'self' blob: https://api.github.com https://raw.githubusercontent.com ws: wss:",
-              // דף התרומות מטמיע את הווידג'ט של נדרים פלוס ב-iframe
-              "frame-src 'self' https://nedar.im https://www.matara.pro",
-              "worker-src 'self' blob:",
-              "frame-ancestors 'self'",
-              "object-src 'none'",
-              "base-uri 'self'",
-              "form-action 'self'",
-            ].join('; '),
-          },
+          { key: 'Content-Security-Policy', value: contentSecurityPolicy() },
         ],
       },
       {
@@ -225,6 +224,16 @@ const nextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=60, stale-while-revalidate=300' },
         ],
       })),
+      {
+        // חנות התוספים: חלון "אפשרויות הורדה" של תוסף שירות בודק אם השירות מותקן מקומית
+        // (http://127.0.0.1:<port>/.well-known/otzaria-service). רק כאן — שאר האתר בלי גישה ל-loopback.
+        // נמצא אחרי הכלל הכללי '/:path*' בכוונה: לפי Next, כותרת באותו שם מכלל מאוחר דורסת את המוקדם,
+        // כך שנשלחת כותרת CSP אחת בלבד.
+        source: '/plugins/:path*',
+        headers: [
+          { key: 'Content-Security-Policy', value: contentSecurityPolicy(['http://127.0.0.1:*', 'http://localhost:*']) },
+        ],
+      },
     ];
   },
 };

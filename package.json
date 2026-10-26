@@ -16,6 +16,7 @@
     "start": "next start",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/*.test.mjs src/lib/*/*.test.mjs \"src/app/**/*.test.mjs\" && vitest run",
     "test:node": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/*.test.mjs src/lib/*/*.test.mjs \"src/app/**/*.test.mjs\"",
+    "test:service-broker": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"workers/service-plugin-broker/test/*.test.mjs\"",
     "test:plugin-safety": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/pluginArchive.test.mjs src/lib/pluginValidationIsolation.test.mjs src/lib/pluginValidatorPatch.test.mjs src/lib/pluginDeploy.test.mjs && vitest run src/app/api/plugins/upload/safety.test.ts",
     "test:vitest": "vitest run",
     "test:watch": "vitest",

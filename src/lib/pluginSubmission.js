@@ -179,6 +179,8 @@ export function formatPluginForPublic(plugin, options = {}) {
     id: pluginId,
     // מזהה ה-manifest — משמש את טופס הדיווח באתר (אותו מזהה שהאפליקציה שולחת)
     pluginUid: plugin.pluginUid || null,
+    // תוסף שירות: התקנה ועדכון דרך דף השירות (ראו src/lib/servicePlugins/existingPaths.js)
+    hasService: plugin.hasService === true,
     authorId: plugin.authorId?.toString?.() || plugin.authorId || null,
     name: source.name,
     slug: plugin.slug,

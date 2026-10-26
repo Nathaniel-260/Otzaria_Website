@@ -39,6 +39,8 @@ export interface Plugin {
   ratingBreakdown?: number[]
   // מצורף רק בנתיבים שמחשבים קטגוריות (דף תוסף, חיפוש)
   categories?: CategoryRef[]
+  // תוסף שפועל מול שירות מקומי — ההורדה דרך "אפשרויות הורדה" (מתקין / תוסף)
+  hasService?: boolean
 }
 
 // השדות שכרטיס תוסף מציג — מה שדפי החנות מעבירים לרכיבי הלקוח (ולא את
@@ -62,6 +64,7 @@ export type PluginCardData = Pick<
   | 'publishedAt'
   | 'originalDate'
   | 'updatedAt'
+  | 'hasService'
 > & { description?: string }
 
 // תקציר קטגוריה (כפי שמוחזר מ-/api/plugins/categories ומ-store-home)

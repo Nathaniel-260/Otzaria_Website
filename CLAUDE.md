@@ -84,6 +84,8 @@ Middleware שחוסם את כל האתר (מלבד `/api/cron`, `/api/auth`, ו�
 במיוחד רגישים: `plugins/[id]/download`, `plugins/updates`, `plugins/install-result`,
 `plugins/[id]/install-token`, `plugin-reports`, `reportingerrors` — צנרת ההתקנה הישירה של
 תוספים ודיווחי שגיאה, מאומתת שדה-מול-שדה מול קוד ה-Dart.
+`service-plugins/worker/**` נצרך בידי המתווך שב-`workers/service-plugin-broker/` (תוספי שירות,
+`docs/service-plugins/`); על `ServicePluginReview` מותרים רק עדכונים מותנים, אף פעם `doc.save()`.
 
 גם `src/app/api/worker/v1/**` חיצוני ורגיש: נצרך ע"י שירות ה-OCR המקומי (`OtzariaTaskAgent`, C#,
 ריפו נפרד), שמסווג תשובות לפי קוד הסטטוס (401/403 = תצורה, 408/429/5xx = זמני, שאר 4xx = עצירת העבודה).

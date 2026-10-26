@@ -11,6 +11,7 @@ import { getClientIp } from '@/lib/client-ip'
 import { hasPluginsAccess } from '@/lib/roles'
 import { canAccessSuspended, isPluginSuspended } from '@/lib/pluginVisibility'
 import { readInstallAnonId, generateInstallAnonId, setInstallAnonCookie } from '@/lib/installAnonId'
+import { isServicePlugin, SERVICE_BLOCK_MESSAGES } from '@/lib/servicePlugins/existingPaths'
 
 // משך חיי טוקן התקנה — מספיק להורדה + התקנה, קצר מספיק שלא להצטבר.
 const INSTALL_TOKEN_TTL_MS = 15 * 60 * 1000
@@ -32,9 +33,12 @@ export async function POST(request, { params }) {
     }
     await dbConnect()
 
-    const plugin = await Plugin.findById(id).select('isApproved isHidden isSuspended authorId version')
+    const plugin = await Plugin.findById(id).select('isApproved isHidden isSuspended authorId version hasService')
     if (!plugin || plugin.isHidden || !plugin.isApproved) {
       return NextResponse.json({ error: 'Plugin not found' }, { status: 404 })
+    }
+    if (isServicePlugin(plugin) && version && version !== plugin.version) {
+      return NextResponse.json({ error: SERVICE_BLOCK_MESSAGES.historicalInstall }, { status: 400 })
     }
 
     // הסשן נדרש לשני דברים: בדיקת הגישה לתוסף מושהה, וצירוף מזהה המשתמש
