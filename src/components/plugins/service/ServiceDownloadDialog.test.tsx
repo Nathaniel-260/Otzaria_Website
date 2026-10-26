@@ -97,7 +97,7 @@ describe('ServiceDownloadDialog', () => {
     expect(screen.queryByRole('heading', { name: /התקנת השירות/ })).toBeNull()
     expect(screen.getByRole('link', { name: /הורדת התוסף/ })).toHaveAttribute('href', '/api/service-plugins/p1/download/r2/plugin')
     await userEvent.click(screen.getByRole('button', { name: /התקנה באוצריא/ }))
-    expect(onInstall).toHaveBeenCalledOnce()
+    expect(onInstall).toHaveBeenCalledWith('/api/service-plugins/p1/download/r2/plugin')
   })
 
   it('שירות לא תואם — "נדרש עדכון של השירות" והמתקין', async () => {
@@ -177,7 +177,7 @@ describe('ServiceDownloadDialog', () => {
     expect(screen.queryByRole('heading', { name: /התקנת השירות/ })).toBeNull()
     expect(screen.getByRole('link', { name: /הורדת התוסף/ })).toHaveAttribute('href', '/api/plugins/p1/download')
     await userEvent.click(screen.getByRole('button', { name: /התקנה באוצריא/ }))
-    expect(onInstall).toHaveBeenCalledOnce()
+    expect(onInstall).toHaveBeenCalledWith('/api/plugins/p1/download')
     expect(fetchSpy.mock.calls.some(([u]) => String(u).startsWith('http://127.0.0.1'))).toBe(false)
   })
 

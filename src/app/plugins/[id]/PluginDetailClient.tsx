@@ -135,9 +135,9 @@ export default function PluginDetailClient({ initialPlugin }: PluginDetailClient
     loadPlugin()
   }, [params.id, router, initialPlugin])
 
-  const handleDirectInstall = () => {
+  const handleDirectInstall = (downloadUrl?: string) => {
     if (plugin && canDirectInstall(plugin)) {
-      install(plugin)
+      install(downloadUrl ? { ...plugin, downloadUrl } : plugin)
     }
   }
 

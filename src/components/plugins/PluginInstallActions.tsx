@@ -61,7 +61,7 @@ export default function PluginInstallActions({
 }: {
   plugin: InstallablePlugin
   installState: DirectInstallState
-  onInstall: () => void
+  onInstall: (downloadUrl?: string) => void
   emphasis?: Emphasis
   layout?: 'row' | 'stack'
   /** הטקסט של כפתור ההתקנה במצב רגיל (עמוד התוסף: "התקנה ישירה לאוצריא") */
@@ -100,7 +100,7 @@ export default function PluginInstallActions({
         <DirectInstallButton
           pluginId={plugin.id}
           installState={installState}
-          onInstall={onInstall}
+          onInstall={() => onInstall()}
           showIcons
           idleLabel={installLabel}
           // הגליפים ש-DirectInstallButton מרנדר (span של material-symbols) — בגודל אייקון הכפתור;

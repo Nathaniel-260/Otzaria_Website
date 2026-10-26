@@ -2,7 +2,11 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import PluginInstallActions, { canDirectInstall } from './PluginInstallActions'
+import { useDirectInstall } from './useDirectInstall'
+import { buildDirectPluginInstallUrl } from '@/lib/pluginInstall'
 import type { DirectInstallState } from './useDirectInstall'
+
+vi.mock('@/lib/pluginInstall', () => ({ buildDirectPluginInstallUrl: vi.fn(() => window.location.href) }))
 
 const idle: DirectInstallState = { phase: 'idle', pluginId: null, error: null, updated: false }
 
@@ -76,4 +80,30 @@ describe('PluginInstallActions — תוסף שירות', () => {
     expect(await screen.findByRole('link', { name: /הורדת התוסף/ })).toHaveAttribute('href', '/api/plugins/p1/download')
     expect(screen.queryByRole('button', { name: /התקנה באוצריא/ })).toBeNull()
   })
+})
+
+
+it('מעביר ל-hook ההתקנה את כתובת הגרסה מהחלון, גם אם כתובת הקטלוג מפנה לגרסה מתחלפת', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url) => {
+    if (String(url) === '/api/service-plugins/p1') return new Response(JSON.stringify({
+      pluginId: 'p1', pluginUid: 'org.example.svc', current: {
+        reviewId: 'r1', serviceVersion: '1.0.0', pluginVersion: '1.0.0', serviceRange: { min: '1.0.0', max: null },
+        pluginDownloadUrl: '/api/service-plugins/p1/download/r1/plugin', platforms: [],
+      },
+    }))
+    return new Response('{}', { status: 404 })
+  }))
+  const plugin = { id: 'p1', downloadUrl: '/api/plugins/p1/download', hasService: true, supportsDirectInstall: true }
+  function Harness() {
+    const { installState, install } = useDirectInstall()
+    return <PluginInstallActions plugin={plugin} installState={installState}
+      onInstall={(downloadUrl) => { void install({ ...plugin, downloadUrl: downloadUrl || plugin.downloadUrl }) }} />
+  }
+  try {
+    render(<Harness />)
+    await userEvent.click(screen.getByRole('button', { name: 'אפשרויות הורדה' }))
+    await userEvent.click(await screen.findByRole('button', { name: /התקנה באוצריא/ }))
+    await waitFor(() => expect(buildDirectPluginInstallUrl).toHaveBeenCalledWith(
+      '/api/service-plugins/p1/download/r1/plugin', window.location.origin, undefined))
+  } finally { vi.unstubAllGlobals() }
 })

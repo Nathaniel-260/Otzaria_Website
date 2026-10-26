@@ -47,7 +47,7 @@ function PluginFileActions({ plugin, href, primary, canInstall, installState, on
   primary: boolean
   canInstall: boolean
   installState: DirectInstallState
-  onInstall: () => void
+  onInstall: (downloadUrl: string) => void
 }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -58,7 +58,7 @@ function PluginFileActions({ plugin, href, primary, canInstall, installState, on
         <DirectInstallButton
           pluginId={plugin.id}
           installState={installState}
-          onInstall={onInstall}
+          onInstall={() => onInstall(href)}
           showIcons
           idleLabel="התקנה באוצריא"
           className={cx(
@@ -79,7 +79,7 @@ function PluginFileActions({ plugin, href, primary, canInstall, installState, on
 export default function ServiceDownloadDialog({ plugin, installState, onInstall, canInstall, onClose }: {
   plugin: ServiceDownloadPlugin
   installState: DirectInstallState
-  onInstall: () => void
+  onInstall: (downloadUrl: string) => void
   /** התקנה ישירה באוצריא זמינה לתוסף (canDirectInstall) */
   canInstall: boolean
   onClose: () => void
