@@ -178,4 +178,3 @@ export async function cleanupJobFiles(ctx) {
   await rm(ctx.paths.tmpDir, { recursive: true, force: true })
   await rm(ctx.paths.reviewDir, { recursive: true, force: true })
 }
-

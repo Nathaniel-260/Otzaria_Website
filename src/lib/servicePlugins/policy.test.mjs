@@ -252,3 +252,16 @@ test('missingReceipts: קבלת דחייה אינה נחשבת מעבר של ה�
   const receipts = REQUIRED_RECEIPTS.plugin.map((stage) => ({ stage, digest: 'd1', data: stage === 'clamav' ? { rejected: true, reason: 'x' } : {} }))
   assert.deepEqual(missingReceipts({ kind: 'plugin', manifestDigest: 'd1', receipts }), ['clamav'])
 })
+
+
+test('הוראות הסרה מקבלות שורות, CRLF וטאבים, אך דוחות תווי בקרה אחרים', () => {
+  for (const uninstall of ['1. עצירת השירות\n2. הסרת התוכנה', 'עצירה\r\n\tהסרה']) {
+    const result = validateDraftRequest(serviceBody({ uninstall }))
+    assert.equal(result.ok, true)
+    assert.equal(result.value.uninstall, uninstall.trim())
+  }
+  for (const uninstall of ['\n\t ', 'הסרה\0', 'הסרה\x1b[0m', 'א'.repeat(2001)]) {
+    assert.match(errorsOf(serviceBody({ uninstall })), /הוראות הסרה/)
+  }
+  assert.match(errorsOf(serviceBody({ assets: [asset({ minOs: 'Windows\n10' })] })), /מערכת מינימלית/)
+})

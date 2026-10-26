@@ -170,8 +170,9 @@ function isSafeName(value, max) {
     !value.includes('/') && !value.includes('\\') && value !== '.' && value !== '..'
 }
 
-function isSafeText(value, max) {
-  return typeof value === 'string' && value.trim().length > 0 && value.length <= max && !hasControlChars(value)
+function isSafeText(value, max, multiline = false) {
+  return typeof value === 'string' && value.trim().length > 0 && value.length <= max &&
+    !hasControlChars(multiline ? value.replace(/[\t\r\n]/g, '') : value)
 }
 
 /** נתיב יחסי בתוך המתקין, מופרד ב-'/', בלי '..' ובלי נתיב מוחלט. */
@@ -300,7 +301,7 @@ function validateServiceFields(body, ctx, publishedService, serviceRange, source
   }
   value.serviceVersion = serviceVersion
 
-  if (!isSafeText(body.uninstall, LIMITS.uninstallChars)) {
+  if (!isSafeText(body.uninstall, LIMITS.uninstallChars, true)) {
     errors.push(`יש לכתוב הוראות הסרה (עד ${LIMITS.uninstallChars} תווים)`)
   } else {
     value.uninstall = body.uninstall.trim()

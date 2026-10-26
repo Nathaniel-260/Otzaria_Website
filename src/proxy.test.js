@@ -145,4 +145,3 @@ describe('proxy — תוספי שירות', () => {
     expect(res.status).toBe(503)
   })
 })
-
