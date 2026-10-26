@@ -169,7 +169,9 @@ export async function getAdminView() {
         nextAttemptAt: r.nextAttemptAt ?? null,
         lastError: r.lastError ? { class: r.lastError.class, code: r.lastError.code, message: r.lastError.message } : null,
         decision: r.decision ?? null,
-        cooldown: cooldownState(s.lastServiceCycleStartedAt),
+        cooldown: r.status === 'pending_admin' && sameId(s.cycleStart?.reviewId, r._id)
+          ? { blocked: false, nextAllowedAt: null }
+          : cooldownState(s.lastServiceCycleStartedAt),
         adminException: !!s.adminException,
         canRollback: canRollback(plugin),
       }

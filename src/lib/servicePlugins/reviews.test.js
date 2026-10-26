@@ -27,6 +27,7 @@ import {
   createDraft, recordAssetUpload, sealDraft, cancelReview, adminStart, adminRetry, adminEmergency, rollback,
   claimNext, heartbeat, checkpoint, reportFailure, submitResult, maintenanceKeepList, openWorkerAsset, finalizeIfPublished,
 } from './reviews.js'
+import { getAdminView } from './views.js'
 import { runServicePluginCleanup } from './cleanup.js'
 import { writeReviewAssetStream } from './storage.js'
 import { REQUIRED_RECEIPTS, submissionDigest, LEASE_SECONDS } from './policy.js'
@@ -649,6 +650,40 @@ describe('תיקוני QA', () => {
 
 
 describe('תיקוני הסקירה: התאוששות ושריון פורטים', () => {
+  it('משלים הכנסה לתור אחרי כשל כתיבה, עם מועד וחריגה מקוריים', async () => {
+    const plugin = await makePlugin()
+    await adminEmergency({ plugin: await loadPlugin(plugin._id), admin, reason: 'תיקון דחוף' })
+    const review = await sealed(plugin, serviceBody())
+    const startedAt = new Date()
+    const spy = vi.spyOn(ServicePluginReview, 'updateOne').mockRejectedValueOnce(new Error('כשל כתיבה מדומה'))
+    try {
+      await expect(adminStart({ plugin: await loadPlugin(plugin._id), review, admin, now: startedAt })).rejects.toThrow('כשל כתיבה מדומה')
+    } finally { spy.mockRestore() }
+    expect((await loadReview(review._id)).status).toBe('pending_admin')
+    expect((await getAdminView()).reviews.find((r) => r.id === String(review._id)).cooldown.blocked).toBe(false)
+    // גם חריגה חדשה שניתנה בין הבקשות אינה נצרכת בהשלמת הפעולה המקורית.
+    await adminEmergency({ plugin: await loadPlugin(plugin._id), admin, reason: 'החריגה הבאה' })
+    const later = new Date(startedAt.getTime() + DAY)
+    expect(await adminStart({ plugin: await loadPlugin(plugin._id), review: await loadReview(review._id), admin: other, now: later }))
+      .toMatchObject({ ok: true, exceptionUsed: true })
+    const stored = await loadReview(review._id)
+    expect(stored.selectedAt).toEqual(startedAt)
+    expect(String(stored.selectedBy)).toBe(String(admin._id))
+    expect(stored.exceptionUsed.reason).toBe('תיקון דחוף')
+    const state = (await loadPlugin(plugin._id)).serviceState
+    expect(state.lastServiceCycleStartedAt).toEqual(startedAt)
+    expect(state.adminException.reason).toBe('החריגה הבאה')
+  })
+
+  it('שתי התחלויות מקבילות שומרות את אותה בחירה ומכניסות עבודה אחת לתור', async () => {
+    const plugin = await makePlugin()
+    const review = await sealed(plugin, serviceBody())
+    const snapshot = await loadPlugin(plugin._id)
+    const results = await Promise.all([adminStart({ plugin: snapshot, review, admin }), adminStart({ plugin: snapshot, review, admin: other })])
+    expect(results.filter((r) => r.ok)).toHaveLength(1)
+    expect((await loadReview(review._id)).status).toBe('queued')
+  })
+
   it('טיוטה שמעוכבת לפני ההוספה כבר מחזיקה בפורט; ביטול משחרר אותו', async () => {
     const a = await makePlugin()
     const b = await makePlugin()

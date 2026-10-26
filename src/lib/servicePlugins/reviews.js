@@ -301,39 +301,47 @@ export async function adminStart({ plugin, review, admin, now = new Date() }) {
   if (!sameId(s.activeReviewId, review._id)) return fail(409, 'lock_mismatch', 'ההגשה אינה ההגשה הפעילה של התוסף')
 
   const filter = { _id: plugin._id, 'serviceState.activeReviewId': review._id, 'serviceState.currentPluginReview': s.currentPluginReview ?? null }
-  const set = {}
-  let exceptionUsed = null
+  let start = { selectedBy: admin?._id ?? admin?.id ?? null, selectedAt: now, baseCurrentPluginReview: s.currentPluginReview ?? null, exceptionUsed: null }
   if (review.kind === 'service') {
-    const cooldown = cooldownState(s.lastServiceCycleStartedAt, now)
-    if (cooldown.blocked && !s.adminException) {
-      return fail(409, 'cooldown', `אפשר להתחיל בדיקת שירות חדשה רק מ-${formatHebrewDate(cooldown.nextAllowedAt)}, או בחריגת מנהל חד-פעמית עם סיבה`, {
-        extra: { nextAllowedAt: cooldown.nextAllowedAt },
-      })
+    if (sameId(s.cycleStart?.reviewId, review._id)) {
+      start = s.cycleStart
+    } else {
+      const cooldown = cooldownState(s.lastServiceCycleStartedAt, now)
+      if (cooldown.blocked && !s.adminException) {
+        return fail(409, 'cooldown', `אפשר להתחיל בדיקת שירות חדשה רק מ-${formatHebrewDate(cooldown.nextAllowedAt)}, או בחריגת מנהל חד-פעמית עם סיבה`, {
+          extra: { nextAllowedAt: cooldown.nextAllowedAt },
+        })
+      }
+      // הכוונה כוללת גם את החריגה והבוחר המקוריים: ניסיון חוזר משלים אותה בלי לצרוך שוב.
+      start = { ...start, reviewId: review._id,
+        exceptionUsed: s.adminException ? { reason: s.adminException.reason, grantedBy: s.adminException.grantedBy } : null }
+      filter['serviceState.lastServiceCycleStartedAt'] = s.lastServiceCycleStartedAt ?? null
+      filter['serviceState.cycleStart.reviewId'] = s.cycleStart?.reviewId ?? null
+      filter['serviceState.adminException.grantedAt'] = s.adminException?.grantedAt ?? null
+      const guard = await Plugin.updateOne(filter, { $set: {
+        'serviceState.lastServiceCycleStartedAt': now, 'serviceState.adminException': null, 'serviceState.cycleStart': start,
+      } })
+      if (guard.modifiedCount !== 1) {
+        // בקשה מקבילה יכולה כבר לשמור את אותה כוונה. אין לדרוס את הבחירה שלה.
+        const latest = await Plugin.findOne({ _id: plugin._id, 'serviceState.activeReviewId': review._id,
+          'serviceState.cycleStart.reviewId': review._id }).select('serviceState.cycleStart').lean()
+        if (!latest) return fail(409, 'conflict', 'מצב התוסף השתנה בזמן הפעולה; רעננו ונסו שוב')
+        start = latest.serviceState.cycleStart
+      }
     }
-    // החריגה נצרכת בהתחלת בדיקת השירות הבאה גם כשלא הייתה נחוצה (SPEC §4)
-    if (s.adminException) {
-      exceptionUsed = { reason: s.adminException.reason, grantedBy: s.adminException.grantedBy }
-      filter['serviceState.adminException.grantedAt'] = s.adminException.grantedAt
-      set['serviceState.adminException'] = null
-    }
-    filter['serviceState.lastServiceCycleStartedAt'] = s.lastServiceCycleStartedAt ?? null
-    set['serviceState.lastServiceCycleStartedAt'] = now
   } else {
     if (!s.currentServiceReview || !versionInRange(s.serviceVersion, review.serviceRange)) {
       return fail(409, 'service_mismatch', 'גרסת השירות המאושרת הנוכחית אינה בטווח שהוצהר בעדכון התוסף')
     }
     filter['serviceState.currentServiceReview'] = s.currentServiceReview
+    if (!await Plugin.exists(filter)) return fail(409, 'conflict', 'מצב התוסף השתנה בזמן הפעולה; רעננו ונסו שוב')
   }
-  const guard = Object.keys(set).length
-    ? (await Plugin.updateOne(filter, { $set: set })).modifiedCount === 1
-    : !!(await Plugin.exists(filter))
-  if (!guard) return fail(409, 'conflict', 'מצב התוסף השתנה בזמן הפעולה; רעננו ונסו שוב')
-
+  const { selectedBy, selectedAt, baseCurrentPluginReview, exceptionUsed } = start
   const res = await ServicePluginReview.updateOne(
     { _id: review._id, status: 'pending_admin' },
     {
       $set: {
-        status: 'queued', selectedBy: admin?._id ?? admin?.id ?? null, selectedAt: now, baseCurrentPluginReview: s.currentPluginReview ?? null,
+        status: 'queued', selectedBy, selectedAt, baseCurrentPluginReview,
         exceptionUsed, attempts: 0, unknownQuotaWaits: 0, nextAttemptAt: now, lastError: null,
       },
     },

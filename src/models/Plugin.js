@@ -162,6 +162,8 @@ const PluginSchema = new mongoose.Schema(
         publishedPluginVersions: [String],
         publishedServiceVersions: [String],
         lastServiceCycleStartedAt: { type: Date, default: null },
+        // כוונת התחלה שנשמרת יחד עם צריכת ההמתנה; מאפשרת השלמת התור אחרי כשל כתיבה.
+        cycleStart: { type: mongoose.Schema.Types.Mixed, default: null },
         adminException: {
           type: new mongoose.Schema({
             reason: String, grantedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, grantedAt: Date
