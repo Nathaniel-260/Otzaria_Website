@@ -11,7 +11,7 @@ import { computeContentHash, computeSignatureHash } from './hashes.js';
 import { redactEmails } from './redact.js';
 import { buildIssueTitle, buildIssueBody, buildMergeComment, issueLabels } from './issue-text.js';
 import { planPublication } from './merge.js';
-import { planClosureNotifications, closureKind, CLOSURE_TEXT_HE } from './state-change.js';
+import { planClosureNotifications, closureKind, CLOSURE_TEXT_HE, pickClosingComment, CLOSING_COMMENT_MAX_CHARS } from './state-change.js';
 import { createUnsubscribeToken, verifyUnsubscribeToken, buildUnsubscribeUrl } from './unsubscribe.js';
 import { getAppReportsConfig } from './config.js';
 import { verifyGithubSignature } from './webhook.js';
@@ -227,6 +227,25 @@ test('מיילי סגירה: רק עם מייל, לא הוסר, לא קיבל; �
     { reportId: 'f', reporterEmail: 'v@y.com' },
   ]);
   assert.deepEqual(plan.map((g) => [g.email, g.reports.map((r) => r.reportId)]), [['x@y.com', ['a', 'b']], ['v@y.com', ['f']]]);
+});
+
+test('תגובת הסגירה: האחרונה של מי שסגר, בחלון שלפני הסגירה, בלי הערות HTML', () => {
+  const close = { closedAt: '2026-10-20T12:00:00Z', closedBy: 'maint' };
+  const c = (author, created_at, body) => ({ author, created_at, body });
+  assert.equal(pickClosingComment([
+    c('maint', '2026-10-20T11:30:00Z', 'ישנה מדי'),
+    c('maint', '2026-10-20T11:58:00Z', 'קודמת'),
+    c('maint', '2026-10-20T11:59:59Z', 'תוקן בגרסה 2.5 <!-- app-signature: abc -->'),
+    c('otzaria-bot', '2026-10-20T12:00:00Z', 'תגובת בוט'),
+    c('maint', '2026-10-20T12:05:00Z', 'אחרי הסגירה'),
+  ], close), 'תוקן בגרסה 2.5');
+  assert.equal(pickClosingComment([c('other', '2026-10-20T11:59:59Z', 'לא של הסוגר')], close), null);
+  assert.equal(pickClosingComment([c('maint', '2026-10-20T11:59:59Z', '<!-- רק הערה -->')], close), null);
+  assert.equal(pickClosingComment([c('maint', '2026-10-20T11:59:59Z', 'x')], { closedAt: null, closedBy: 'maint' }), null);
+  assert.equal(pickClosingComment([c('maint', '2026-10-20T11:59:59Z', 'x')], { ...close, closedBy: null }), null);
+  const long = pickClosingComment([c('maint', '2026-10-20T11:59:59Z', 'א'.repeat(CLOSING_COMMENT_MAX_CHARS + 50))], close);
+  assert.equal(long.length, CLOSING_COMMENT_MAX_CHARS + 1);
+  assert.ok(long.endsWith('…'));
 });
 
 test('סיבת סגירה → סוג טקסט', () => {

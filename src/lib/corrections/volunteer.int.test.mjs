@@ -236,6 +236,30 @@ test('[T22] טקסט חוזר: רק השורה באינדקס; מקור חסר/�
   assert.equal(gh.readFile(r.publish.branch, renamed), FILE.replace(LINE, NEW));
 });
 
+test('בחירת מקור ידנית: בדיקת הנתיב לפני מספר השורה, ושגיאת שורה עם מספר השורות בקובץ', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const id = await ingest('t22c');
+  const ok = await act(users.a, id, { action: 'check_source_path', path: PATH });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.lineCount, 4);
+  const missing = await act(users.a, id, { action: 'check_source_path', path: PATH.replace('בראשית.txt', 'בראשיתת.txt') });
+  assert.equal(missing.status, 404);
+  assert.equal(missing.body.error, 'file_not_found');
+  assert.equal((await act(users.a, id, { action: 'check_source_path', path: '.github/workflows/deploy.yml' })).body.error, 'path_not_allowed');
+  assert.equal((await act(users.plain, id, { action: 'check_source_path', path: PATH })).status, 403);
+  const far = await act(users.a, id, { action: 'preview_source', path: PATH, lineIndex: 99 });
+  assert.equal(far.body.error, 'line_out_of_range');
+  assert.equal(far.body.lineCount, 4);
+});
+
+test('פרסום שנכשל אינו בתור הראשי — רק בלשונית "אושרו / בפרסום"', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const id = await ingest('t22d');
+  await ErrorReport.updateOne({ _id: id }, { $set: { state: 'open', 'manual.status': 'queued', 'publish.status': 'failed' } });
+  assert.equal((await listReports({ user: users.a, query: { view: 'queued' } })).body.items.some((r) => r.id === id), false);
+  assert.equal((await listReports({ user: users.a, query: { view: 'publishing' } })).body.items.some((r) => r.id === id), true);
+});
+
 test('[T23] תיקון שכבר הוחל: מתנדב מאשר → נסגר "כבר תוקן" בלי שום כתיבה ל-GitHub', async (t) => {
   if (db.skip) return t.skip(db.skip);
   gh = new FakeGitHub({ repo: REPO, files: { [PATH]: FILE.replace(LINE, NEW) } });
@@ -509,6 +533,10 @@ test('סינון לפי ספר (חלק מהשם, בלי פרשנות regex) וא
   assert.deepEqual(await byBook('כתר'), ['כתר ראש (גר"א)']);
   assert.deepEqual(await byBook('(גר"א)'), ['כתר ראש (גר"א)'], 'סוגריים כטקסט ולא כ-regex');
   assert.deepEqual(await byBook('.*'), []);
+  const hiding = (hideBooks, book) => listReports({ user: users.a, query: { view: 'queued', hideBooks, book } }).then((r) => r.body.items.map((i) => i.bookTitle).sort());
+  assert.deepEqual(await hiding(JSON.stringify(['בראשית'])), ['כתר ראש (גר"א)'], 'ספר מוסתר אינו ברשימה');
+  assert.deepEqual(await hiding(JSON.stringify(['כתר ראש (גר"א)']), 'כתר'), [], 'הסתרה משולבת עם סינון לפי שם');
+  assert.deepEqual(await hiding('not-json'), ['בראשית', 'כתר ראש (גר"א)'], 'קלט פגום — בלי הסתרה');
   const opts = await listFilterOptions({ user: users.a });
   assert.deepEqual(opts.body.sourceFolders, ['ToratEmetToOtzaria']);
   assert.deepEqual(opts.body.books, ['בראשית', 'כתר ראש (גר"א)']);
