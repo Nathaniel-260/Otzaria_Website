@@ -67,7 +67,18 @@ export async function currentRound(userId, section) {
 
 // סבב חדש. אם למתנדב יש פריטים פתוחים בחלק — מחזיר את הסבב הקיים (resumed) ולא תופס
 // עוד: "קח 30 נוספות" רק אחרי שסיים (ה-4).
-export async function takeRound(userId, section, { size = ROUND_SIZE, now = new Date() } = {}) {
+// בקשה שנייה של אותו מתנדב לאותו חלק, בזמן שהראשונה עוד תופסת, מקבלת את אותה תשובה
+// בדיוק (באותו תהליך). consolidate נשאר רשת-ביטחון לבקשות שמגיעות לתהליכים שונים.
+const taking = new Map();
+export function takeRound(userId, section, opts = {}) {
+  const key = `${userId}:${section}`;
+  if (taking.has(key)) return taking.get(key);
+  const p = takeRoundOnce(userId, section, opts).finally(() => taking.delete(key));
+  taking.set(key, p);
+  return p;
+}
+
+async function takeRoundOnce(userId, section, { size = ROUND_SIZE, now = new Date() } = {}) {
   if (!MARK_CHECKS[section]) return fail(400, 'חלק לא מוכר');
   const uid = oid(userId);
   const cur = await currentRound(userId, section);

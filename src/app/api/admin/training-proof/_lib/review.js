@@ -1,5 +1,7 @@
 import TrainingProofItem from '@/models/TrainingProofItem';
 import TrainingProofVolunteer from '@/models/TrainingProofVolunteer';
+import TrainingProofBook from '@/models/TrainingProofBook';
+import { checkFramesPage } from '@/components/trainingProof/frames/rules';
 import User from '@/models/User';
 import { SECTIONS } from '@/lib/trainingProof/vocab';
 import { MARK_CHECKS, sameResult } from '@/lib/trainingProof/marks';
@@ -142,6 +144,15 @@ export async function bulkApprove(section, kind, { vol = null, book = null, dry 
   return { count: res.modifiedCount };
 }
 
+// "תקן ואשר" בגלאי: אותה בדיקה של עמוד שהמתנדב מסמן (checkFramesPage), מול הזרמים של הספר.
+// המנהל מאשר עמוד מסומן או מדולג — לא טיוטה
+async function framesFixCheck(item) {
+  const book = await TrainingProofBook.findOne({ book: item.payload?.book ?? item.book }, { streams: 1 }).lean();
+  const streams = book?.streams || [];
+  return (payload, mark) =>
+    checkFramesPage(payload, { ...mark, status: mark?.status === 'skip' ? 'skip' : 'marked' }, { streams });
+}
+
 // "תקן ואשר" (ה-11): המנהל מתקן לפני האישור. mark — באותה צורה שהמתנדב שולח
 // ({action,text} / {label,bad,words}). תיקון זהה למה שהמתנדב סימן = אישור רגיל.
 // check — בדיקה לחלק (frames: מהגלאי, כשתהיה); ברירת-מחדל MARK_CHECKS.
@@ -149,7 +160,7 @@ export async function bulkApprove(section, kind, { vol = null, book = null, dry 
 export async function fixAndApprove(id, mark, by, now = new Date(), check = null) {
   const item = await TrainingProofItem.findOne({ _id: oid(id), status: 'submitted' }).lean();
   if (!item) return { ok: false, status: 409, error: 'הפריט כבר לא ממתין לאישור' };
-  const checker = check || MARK_CHECKS[item.section];
+  const checker = check || MARK_CHECKS[item.section] || (item.section === 'frames' ? await framesFixCheck(item) : null);
   if (!checker) return { ok: false, status: 400, error: 'תיקון בחלק הזה נעשה בעורך המסגרות' };
   const { result, error } = checker(item.payload, mark);
   if (error) return { ok: false, status: 400, error };

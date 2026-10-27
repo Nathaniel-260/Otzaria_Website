@@ -147,7 +147,7 @@ export async function step(token, { now = Date.now, budgetMs = CHUNK_MS, maxItem
   const m = chk.manifest;
 
   if (meta.done === 0 && chk.books) {
-    // ספרי-הגלאי: רשומה לכל ספר (הכינוי והזרמים מהקובץ הראשון שבו הופיע)
+    // ספרי-הגלאי: רשומה לכל ספר (הכינוי מהקובץ הראשון שבו הופיע)
     await TrainingProofBook.bulkWrite(
       [...chk.books.values()].map((b) => ({
         updateOne: {
@@ -160,6 +160,21 @@ export async function step(token, { now = Date.now, budgetMs = CHUNK_MS, maxItem
         },
       }))
     );
+    // אותו ספר בכמה קבצים: זרמים שעוד אין לספר נוספים (לפי id). לא דורסים זרם קיים —
+    // גם לא זרם שמתנדב הוסיף — ולא את מי שמחזיק את הספר
+    const known = new Map(
+      (await TrainingProofBook.find({ book: { $in: [...chk.books.keys()] } }, { book: 1, streams: 1 }).lean()).map((d) => [
+        d.book,
+        new Set((d.streams || []).map((s) => s.id)),
+      ])
+    );
+    const adds = [];
+    for (const b of chk.books.values()) {
+      const have = known.get(b.book) || new Set();
+      const missing = (b.streams || []).filter((s) => !have.has(s.id));
+      if (missing.length) adds.push({ updateOne: { filter: { book: b.book }, update: { $push: { streams: { $each: missing } } } } });
+    }
+    if (adds.length) await TrainingProofBook.bulkWrite(adds);
   }
 
   const start = now();

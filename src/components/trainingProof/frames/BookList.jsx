@@ -7,6 +7,7 @@ import Badge from '@/components/ui/Badge'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { useDialog } from '@/components/providers/DialogContext'
 import FramesGuide from './FramesGuide'
+import GuideBox from '../common/GuideBox'
 import { framesApi, formatUntil } from './api'
 
 // רשימת הספרים בגלאי האזורים: מצב לכל ספר — פנוי / אצלך / בעבודה אצל … / הופסק באמצע — N עמ' בידי … /
@@ -91,6 +92,7 @@ export default function BookList() {
         העבודה כאן היא לפי ספר, כי המסגרות והזרמים צריכים להיות עקביים לאורך הספר. כשלוקחים ספר — כל העמודים שלו שמורים לך
         ל-48 שעות. אם לא סיימת, הספר חוזר לרשימה, ומי שימשיך יראה את כל מה שכבר סימנת.
       </p>
+      <GuideBox section="frames" />
       <FramesGuide />
       {!books ? (
         <LoadingSpinner message="טוען את הספרים…" />

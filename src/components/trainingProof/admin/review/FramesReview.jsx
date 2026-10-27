@@ -110,6 +110,7 @@ function BookReview({ book, onBack, onChanged }) {
           </div>
           {FramesEditor ? (
             <FramesEditor
+              key={`${page.id}:${page.status}`}
               mode="review"
               page={page}
               streams={data.book?.streams || []}

@@ -221,6 +221,9 @@ export default function FramesEditor({
 
   const onPointerDown = (e) => {
     if (e.button !== 0 || imgError) return
+    // עבודה על העמוד מחזירה את המקלדת לעורך: כפתור שנלחץ קודם (עמוד ממוזער, תפקיד) לא "בולע" את Enter
+    const act = document.activeElement
+    if (act && act !== document.body && !isTyping(act)) act.blur()
     const p = toPage(e)
     const h = hitTest(framesRef.current, p, HIT_PX * p.k)
     if (!editable) {

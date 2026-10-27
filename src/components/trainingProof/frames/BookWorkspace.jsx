@@ -10,6 +10,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { useDialog } from '@/components/providers/DialogContext'
 import FramesEditor from './FramesEditor'
 import FramesGuide from './FramesGuide'
+import GuideBox from '../common/GuideBox'
 import { framesApi, formatUntil } from './api'
 import { checkFramesPage, isDoneState } from './rules'
 import { PAGE_STATE_LABELS } from './look'
@@ -327,6 +328,7 @@ export default function BookWorkspace({ bookKey }) {
             onSnapChange={setSnap}
             sideExtra={side}
           />
+          <GuideBox section="frames" />
           <FramesGuide />
         </div>
       </div>

@@ -318,10 +318,39 @@ describe('סקירה — גלאי האזורים', () => {
     expect(one.pages[0]).toMatchObject({ page: 1, status: 'submitted', changes: 1 })
     expect(one.book.streams).toHaveLength(2)
     expect((await framesGET(new Request(`${URL0}/review/frames?book=x`))).status).toBe(400)
-    // "תקן ואשר" בגלאי — רק דרך העורך
-    expect((await J(await fixPOST(jreq('POST', { id: String(pages[0]._id), mark: { status: 'marked', frames: [] } })))).status).toBe(400)
+    // "תקן ואשר" בגלאי — אותה בדיקה של עמוד (checkFramesPage) מול הזרמים של הספר
+    const bad = { ...pages[0].payload.frames[0], role: 'no-such-role' }
+    expect((await J(await fixPOST(jreq('POST', { id: String(pages[0]._id), mark: { frames: [bad] } })))).status).toBe(400)
+    const fixed = await J(await fixPOST(jreq('POST', { id: String(pages[0]._id), mark: { status: 'draft', frames: pages[0].payload.frames } })))
+    expect(fixed.status).toBe(200)
+    expect(fixed).toMatchObject({ fixed: true, item: { status: 'approved', adminFixed: true } })
+    const saved = await TrainingProofItem.findById(pages[0]._id).lean()
+    expect(saved.result.status).toBe('marked')
+    expect(saved.result.frames).toHaveLength(pages[0].payload.frames.length)
+    expect(saved.result.frames.every((f) => !('src' in f))).toBe(true)
+    expect(saved.volResult.frames).toHaveLength(pages[0].payload.frames.length - 1)
     const r = await J(await bulkPOST(jreq('POST', { section: 'frames', kind: 'book', book: 'b-a7f3310c6e' })))
-    expect(r.count).toBe(2)
+    expect(r.count).toBe(1)
+  })
+
+  it('אותו ספר בשני קבצים: זרם חדש נוסף, זרם קיים וזרם של מתנדב לא נדרסים, ומי שמחזיק את הספר נשאר', async () => {
+    const s1 = await upload('frames', sampleEntries('frames', { n: 1 }))
+    await ingest(s1.token)
+    const until = new Date(Date.now() + 3600e3)
+    await TrainingProofBook.updateOne(
+      { book: 'b-a7f3310c6e' },
+      { $set: { claimedBy: vol._id, claimedUntil: until }, $push: { streams: { id: 'x1', name: 'הגהות', role: 'commentary', added: true } } }
+    )
+    const e2 = sampleEntries('frames', { n: 1, manifest: { package_id: 'tp-20261028-00aa11bb' } })
+    const [b] = JSON.parse(new TextDecoder().decode(e2['books.json']))
+    b.streams = [{ id: 's1', name: 'שם אחר', role: 'body' }, ...b.streams.slice(1), { id: 's3', name: "פירוש ב'", role: 'commentary' }]
+    e2['books.json'] = new TextEncoder().encode(JSON.stringify([b]))
+    const s2 = await upload('frames', e2)
+    expect((await ingest(s2.token)).finished).toBe(true)
+    const book = await TrainingProofBook.findOne({ book: 'b-a7f3310c6e' }).lean()
+    expect(book.streams.map((x) => x.id)).toEqual(['s1', 's2', 'x1', 's3'])
+    expect(book.streams[0].name).toBe('פנים')
+    expect(String(book.claimedBy)).toBe(String(vol._id))
   })
 })
 

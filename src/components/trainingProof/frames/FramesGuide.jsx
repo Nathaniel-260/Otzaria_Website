@@ -2,7 +2,7 @@ import AppIcon from '@/components/ui/AppIcon'
 import { KEY_HELP } from './look'
 
 // ההסבר הקצר שבעורך: מה עושים, המוסכמות, והמקשים. ההוראות המלאות שהמנהל עורך (TrainingProofGuide) —
-// בדף הבית של ההגהה.
+// מוצגות מעליו (GuideBox section="frames").
 export default function FramesGuide({ open = false }) {
   return (
     <details className="rounded-card bg-surface-container-low px-4 py-2" open={open} data-testid="frames-guide">
