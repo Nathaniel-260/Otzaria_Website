@@ -178,6 +178,7 @@ export default function CorrectionReportPage() {
         <div className="text-xs text-on-surface/60 flex flex-wrap gap-x-4">
           <span>{report.kind === 'text_correction' ? 'הצעת תיקון' : 'דיווח חופשי'}</span>
           <span dir="ltr">{report.sourceFolder}</span>
+          {Number.isSafeInteger(report.location?.lineIndex) && <span>שורה {report.location.lineIndex + 1} (לפי הדיווח)</span>}
           <span>גרסת ספרייה: {report.location?.libraryBuildId || report.libraryVersion}</span>
           {report.manual?.handoffLabel && <span>סיבת העברה: {report.manual.handoffLabel}</span>}
           <span>נקלט: {new Date(report.createdAt).toLocaleString('he-IL')}</span>
