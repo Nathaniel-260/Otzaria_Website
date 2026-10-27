@@ -14,6 +14,7 @@ import HistoryPanel from '@/components/corrections/HistoryPanel'
 import { committedNewLine } from '@/lib/corrections/unified-diff'
 import { errorText } from '@/lib/corrections/error-text'
 import { githubFileUrl } from '@/lib/corrections/github-link'
+import { reportedLinePick } from '@/lib/corrections/reported-line'
 
 const SOURCE_STATUS = {
   exact: 'אותר בדיוק',
@@ -140,6 +141,8 @@ export default function CorrectionReportPage() {
   const githubUrl = source?.path && !fileDiff
     ? githubFileUrl({ repo: source.repo, ref: source.ref, path: source.path, lineIndex: source.lineIndex ?? report.location?.lineIndex ?? null })
     : null
+  // מספר השורה שנשלח בדיווח (בתוסף תיקוני ספרים — בדרך כלל מדויק): טעינה ישירה מהמקור, בלי חיפוש בגיטהאב
+  const reportedPick = reportedLinePick({ report, source, located: Boolean(fileDiff) })
   const expandContext = () => {
     setExpanding(true)
     setContextLines((source?.context?.contextLines ?? 3) + 10)
@@ -224,11 +227,26 @@ export default function CorrectionReportPage() {
               </div>
             )}
           />
-          {githubUrl && (
-            <a href={githubUrl} target="_blank" rel="noopener noreferrer" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-primary hover:underline">
-              <span className="material-symbols-outlined text-base">open_in_new</span>
-              מיקום השורה לא אותר בוודאות — פתיחת הספר בגיטהאב{githubUrl.includes('#L') ? ' (סביב השורה שדווחה)' : ''} לחיפוש הטקסט
-            </a>
+          {(reportedPick || githubUrl) && (
+            <div className="glass rounded-xl p-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+              <span>מיקום השורה לא אותר בוודאות.</span>
+              {reportedPick && report.state === 'open' && (
+                <button
+                  type="button"
+                  onClick={() => setSourcePick({ ...reportedPick, key: Date.now() })}
+                  className="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-medium flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-base">find_in_page</span>
+                  הצגת שורה {reportedPick.lineIndex + 1} שדווחה, מהמקור
+                </button>
+              )}
+              {githubUrl && (
+                <a href={githubUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline">
+                  <span className="material-symbols-outlined text-base">open_in_new</span>
+                  פתיחת הספר בגיטהאב{githubUrl.includes('#L') ? ' (סביב השורה שדווחה)' : ''}
+                </a>
+              )}
+            </div>
           )}
           {source?.candidates?.length > 0 && (
             <section className="glass rounded-xl p-4">
