@@ -67,6 +67,14 @@ test('frames: כל המסגרות, status, streams_added, book/page מה-payload
   assert.equal(l.page, p.page);
   assert.equal(l.scale, 1);
   assert.equal(checkReturnLine('frames', l), null);
+  // בגלאי admin_fixed הוא רשות (§5.3), בזיהוי ובנתב — חובה
+  const { admin_fixed: _drop, ...noFlag } = l;
+  assert.equal(checkReturnLine('frames', noFlag), null);
+  const ocrLine = resultLine(approved('ocr', ocrItem(0), { action: 'ok' }));
+  delete ocrLine.admin_fixed;
+  assert.match(checkReturnLine('ocr', ocrLine), /admin_fixed/);
+  // export_id של האתר הוא tpx-YYYYMMDD-xxxxxx; הבדיקה מקבלת כל tpx- (גם קובצי-הדוגמה של התחנה)
+  assert.equal(checkReturnManifest({ contract: 'tp/1', direction: 'to-station', section: 'frames', export_id: 'tpx-sample-frames', station_ids: ['st-b863b68a'], packages: [], counts: { items: 0 } }), null);
 });
 
 test('buildReturnZip: manifest + results.jsonl בלבד, נפתח ונבדק', () => {

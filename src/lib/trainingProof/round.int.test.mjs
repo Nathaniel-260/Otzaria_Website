@@ -74,6 +74,22 @@ test('שני מתנדבים במקביל — אין פריט אצל שניהם; 
   assert.equal(ids.length, 40);
 });
 
+test('שתי בקשות "סבב חדש" במקביל מאותו מתנדב — סבב אחד, עד 30, העודף חוזר למאגר', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  await seed('ocr', 15);
+  const [r1, r2] = await Promise.all([takeRound(A, 'ocr'), takeRound(A, 'ocr')]);
+  assert.equal(r1.round, r2.round);
+  assert.equal(r1.items.length, 15);
+  assert.equal(new Set((await TrainingProofItem.find({ heldBy: A }).lean()).map((d) => d.round)).size, 1);
+
+  await db.reset();
+  await seed('ocr', 80);
+  const [x, y, z] = await Promise.all([takeRound(A, 'ocr'), takeRound(A, 'ocr'), takeRound(A, 'ocr')]);
+  assert.equal(new Set([x.round, y.round, z.round]).size, 1);
+  assert.equal(await TrainingProofItem.countDocuments({ heldBy: A, status: 'held' }), ROUND_SIZE);
+  assert.equal(await TrainingProofItem.countDocuments({ status: 'available' }), 80 - ROUND_SIZE);
+});
+
 test('חבילה מושהית — לא מחולקת; חלק אחר — לא מתערבב', async (t) => {
   if (db.skip) return t.skip(db.skip);
   await seed('ocr', 10, { part: 1, open: false });

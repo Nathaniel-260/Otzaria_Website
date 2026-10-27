@@ -35,6 +35,7 @@ import {
 
 // לא מציפים את המנהל: אחרי כמה שגיאות מפסיקים למנות ומסכמים
 export const MAX_ERRORS = 25;
+const PTYPE_RE = /^[a-z][a-z0-9_-]{0,23}$/;
 const MAX_LABEL = 200;
 const MAX_TEXT = 4000;
 
@@ -145,7 +146,8 @@ function checkFrames(it, books) {
   const book = books.get(it.book);
   if (!book) return `הספר ${it.book} לא מופיע ב-books.json`;
   if (!(isInt(it.page) && it.page >= 0)) return 'מספר עמוד חסר';
-  if (it.ptype !== undefined && it.ptype !== null && !PAGE_TYPES.includes(it.ptype)) return `סוג-עמוד (ptype) לא מוכר: ${it.ptype}`;
+  // ptype — צורת-העמוד בתחנה (scan, cols, around…); רק לתצוגה ולסינון, ולכן כל מילה קצרה
+  if (it.ptype !== undefined && it.ptype !== null && !PTYPE_RE.test(String(it.ptype))) return `סוג-עמוד (ptype) לא תקין: ${it.ptype}`;
   if (it.status !== undefined && it.status !== null && !FRAMES_PAGE_STATUS_IN.includes(it.status)) return `מצב (status) לא מוכר: ${it.status}`;
   if (it.scale !== undefined && it.scale !== null && !(typeof it.scale === 'number' && it.scale > 0 && it.scale <= 10)) return 'scale לא תקין';
   if (!Array.isArray(it.frames) || it.frames.length > 500) return 'רשימת המסגרות (frames) חסרה';

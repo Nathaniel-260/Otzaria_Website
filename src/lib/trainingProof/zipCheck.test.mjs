@@ -116,6 +116,11 @@ test('frames: ספר שאינו ב-books.json, זרם לא מוכר, אוביי�
   assert.match(checkBooks([{ book: 'b-a7f3310c6e' }, { book: 'b-a7f3310c6e' }]), /כפול/);
 });
 
+test('frames: ptype הוא מילה קצרה כלשהי מהתחנה (scan, cols…) — רק לתצוגה', () => {
+  assert.equal(checkToSiteZip(sampleEntries('frames', { items: [framesItem(0, { ptype: 'cols' })] })).ok, true);
+  assert.match(checkToSiteZip(sampleEntries('frames', { items: [framesItem(0, { ptype: 'שני טורים' })] })).errors.join(), /ptype/);
+});
+
 test('frames: עד 40 עמודים בקובץ', () => {
   const items = Array.from({ length: 41 }, (_, i) => framesItem(i));
   assert.match(checkToSiteZip(sampleEntries('frames', { items })).errors.join(), /40/);

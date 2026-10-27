@@ -115,7 +115,25 @@ export async function takeRound(userId, section, { size = ROUND_SIZE, now = new 
       if (doc) claimed.push(doc);
     }
   }
-  return { ok: true, resumed: false, round: claimed.length ? round : null, items: claimed, open: claimed.length, done: claimed.length === 0 };
+  if (!claimed.length) return { ok: true, resumed: false, round: null, items: [], open: 0, done: true };
+  await consolidate(uid, section, size);
+  return { ok: true, resumed: false, ...(await currentRound(userId, section)) };
+}
+
+// שתי בקשות "סבב חדש" במקביל מאותו מתנדב (לחיצה כפולה, שתי לשוניות) — כל אחת תופסת
+// סבב משלה. כאן הן מתאחדות: כל הפתוחים של המתנדב בחלק עוברים לסבב של הפריט שנתפס
+// ראשון, נשארים רק `size` הראשונים, והשאר חוזרים למאגר. אותה תוצאה בכל אחת מהבקשות
+// (מיון קבוע לפי heldAt ו-_id), ולכן אין משנה מי מסיימת אחרונה.
+async function consolidate(uid, section, size) {
+  const open = await TrainingProofItem.find({ heldBy: uid, section, status: 'held' }, { round: 1, heldAt: 1 })
+    .sort({ heldAt: 1, _id: 1 })
+    .lean();
+  if (new Set(open.map((d) => d.round)).size <= 1 && open.length <= size) return;
+  const round = open[0].round;
+  const keep = open.slice(0, size).map((d) => d._id);
+  const extra = open.slice(size).map((d) => d._id);
+  await TrainingProofItem.updateMany({ _id: { $in: keep }, heldBy: uid, status: 'held' }, { $set: { round } });
+  if (extra.length) await TrainingProofItem.updateMany({ _id: { $in: extra }, heldBy: uid, status: 'held' }, { $set: RELEASE });
 }
 
 // הדופק: מאריך את כל מה שפתוח אצל המתנדב בחלק. מחזיר כמה פריטים פתוחים.

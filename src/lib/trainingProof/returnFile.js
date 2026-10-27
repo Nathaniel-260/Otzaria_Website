@@ -16,7 +16,6 @@ import {
   FRAMES_PAGE_STATUS_OUT,
   SIG_RE,
   PACKAGE_ID_RE,
-  EXPORT_ID_RE,
   VOL_RE,
   STATION_ID_RE,
   uidFitsSection,
@@ -123,7 +122,8 @@ export function checkReturnLine(section, l) {
   if (!SIG_RE.test(String(l.sig || ''))) return 'sig לא תקין';
   if (!PACKAGE_ID_RE.test(String(l.package_id || ''))) return 'package_id לא תקין';
   if (l.vol !== null && !VOL_RE.test(String(l.vol || ''))) return 'vol לא תקין';
-  if (typeof l.admin_fixed !== 'boolean') return 'admin_fixed חסר';
+  // admin_fixed — חובה בזיהוי ובנתב (§5.1–§5.2); בגלאי הוא רשות (§5.3)
+  if (section !== 'frames' && typeof l.admin_fixed !== 'boolean') return 'admin_fixed חסר';
   if (section === 'ocr') {
     if (!OCR_RETURN_ACTIONS.includes(l.action)) return 'action לא תקין';
     if (l.action === 'fixed' && (typeof l.text !== 'string' || !l.text)) return 'fixed בלי טקסט';
@@ -145,7 +145,8 @@ export function checkReturnLine(section, l) {
 export function checkReturnManifest(m) {
   if (!m || m.contract !== CONTRACT || m.direction !== DIR_TO_STATION) return 'חוזה או כיוון לא תקינים';
   if (!SECTIONS.includes(m.section)) return 'חלק לא מוכר';
-  if (!EXPORT_ID_RE.test(String(m.export_id || ''))) return 'export_id לא תקין';
+  // האתר כותב tpx-YYYYMMDD-xxxxxx (newExportId); בבדיקה מספיק שהמזהה מתחיל ב-tpx-
+  if (!/^tpx-[A-Za-z0-9-]{1,40}$/.test(String(m.export_id || ''))) return 'export_id לא תקין';
   if (!Array.isArray(m.station_ids) || !m.station_ids.every((s) => STATION_ID_RE.test(s))) return 'station_ids לא תקין';
   if (!Array.isArray(m.packages) || !Number.isInteger(m.counts?.items)) return 'packages/counts חסרים';
   return null;
