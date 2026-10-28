@@ -8,6 +8,8 @@ import { useReview } from './useReview'
 import { BulkBar, Pager } from './BulkBar'
 import OcrRow from './OcrRow'
 import VolunteerPicker from './VolunteerPicker'
+import { useHandles, useRowKeys } from './rowKeys'
+import KeyHint, { Kbd } from './KeyHint'
 
 const ACTION_FILTER = { ok: 'סימן: נכון', fixed: 'תיקן', seg: 'חיתוך גרוע', bad: 'לא קריא', router: 'הכתב שגוי' }
 const select = 'rounded-md border border-surface-variant bg-surface px-2 py-1 text-sm'
@@ -24,6 +26,16 @@ export default function OcrReview({ onChanged }) {
   const stats = R.data?.stats
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
   const okInView = items.filter((x) => x.status === 'submitted' && x.result?.action === 'ok').length
+  const H = useHandles()
+  // 1 אשר · 2 תקן ואשר (עריכה במקום; Enter שומר, Esc מבטל) · 3 / Delete דחה
+  const K = useRowKeys(items, (key, it) => {
+    if (it.status !== 'submitted' || R.busy) return false
+    if (key === '1') R.decide([it.id], 'approve')
+    else if (key === '2') H.get(it.id)?.edit()
+    else if (key === '3' || key === 'Delete') R.decide([it.id], 'reject')
+    else return false
+    return true
+  })
 
   return (
     <div className="flex flex-col gap-3">
@@ -98,6 +110,11 @@ export default function OcrReview({ onChanged }) {
         </div>
       )}
 
+      <KeyHint>
+        <Kbd>1</Kbd> אשר · <Kbd>2</Kbd> תקן ואשר (<Kbd>Enter</Kbd> שומר, <Kbd>Esc</Kbd> מבטל) · <Kbd>3</Kbd> או <Kbd>Delete</Kbd> דחה ·{' '}
+        <Kbd>↓</Kbd>/<Kbd>↑</Kbd> שורה אחרת
+      </KeyHint>
+
       <BulkBar
         items={items}
         sel={R.sel}
@@ -112,10 +129,13 @@ export default function OcrReview({ onChanged }) {
         {R.data?.error && <Empty>{R.data.error}</Empty>}
         {R.data && !items.length && !R.data.error && <Empty>אין שורות בתצוגה הזו</Empty>}
         {!R.data && <Empty>טוען…</Empty>}
-        {items.map((it) => (
+        {items.map((it, i) => (
           <OcrRow
             key={it.id}
             item={it}
+            current={i === K.cur}
+            onPick={() => K.setCur(i)}
+            handle={H.ref(it.id)}
             busy={R.busy}
             selected={R.sel.has(it.id)}
             onToggle={R.toggle}

@@ -49,6 +49,8 @@ import { purges } from './_lib/exporter'
 import { GET as volsGET, POST as volsPOST } from './volunteers/route'
 import { POST as volPOST } from './volunteers/[userId]/route'
 import { GET as guideGET, PUT as guidePUT } from './guide/route'
+import { GET as correctionsGET } from './volunteers/[userId]/corrections/route'
+import { trimCorrections } from '@/lib/trainingProof/corrections'
 import { GET as legacyGET, POST as legacyPOST } from './legacy/route'
 
 vi.setConfig({ testTimeout: 60000 })
@@ -506,5 +508,73 @@ describe('הוראות ההגהה והדף הישן', () => {
     expect(d).toMatchObject({ deleted: { books: 1 }, files: 1 })
     expect(fs.existsSync(path.join(TMP, 'page-proof'))).toBe(false)
     expect(fs.existsSync(path.join(TMP, 'books', 's', 'page.1.jpg'))).toBe(true)
+  })
+})
+
+describe('התיקונים של המנהל, לפי מתנדב', () => {
+  const corrections = async (sec = '') =>
+    J(await correctionsGET(new Request(`${URL0}/volunteers/${vol._id}/corrections${sec ? `?section=${sec}` : ''}`), P({ userId: String(vol._id) })))
+  const volRow = async () => (await J(await volsGET())).approved.find((v) => v.userId === String(vol._id))
+
+  it('"תקן ואשר" נרשם למתנדב; תיקון זהה — לא; "החזר לממתינות" מוחק; המונה והיומן שורדים את ההורדה; קובץ-ההחזרה לא משתנה', async () => {
+    const s = await upload('ocr', sampleEntries('ocr', { n: 4 }))
+    await ingest(s.token)
+    const marked = await volunteerMarks('ocr', [{ action: 'ok' }, { action: 'fixed', text: 'נוסח המתנדב' }, { action: 'ok' }, { action: 'ok' }])
+    const [a, b, c, d] = marked.map((x) => String(x._id))
+    // a: המנהל תיקן טקסט · b: "תיקן" לאותו נוסח = אישור רגיל · c: תיקון שבוטל אחר-כך · d: אישור רגיל
+    expect((await J(await fixPOST(jreq('POST', { id: a, mark: { action: 'fixed', text: 'נוסח המנהל' } })))).fixed).toBe(true)
+    expect((await J(await fixPOST(jreq('POST', { id: b, mark: { action: 'fixed', text: 'נוסח המתנדב' } })))).fixed).toBe(false)
+    expect((await J(await fixPOST(jreq('POST', { id: c, mark: { action: 'bad' } })))).fixed).toBe(true)
+    await decidePOST(jreq('POST', { section: 'ocr', ids: [d], decision: 'approve' }))
+    expect((await corrections()).items).toHaveLength(2)
+    await decidePOST(jreq('POST', { section: 'ocr', ids: [c], decision: 'unapprove' }))
+
+    let log = await corrections()
+    expect(log.items).toHaveLength(1)
+    const it0 = await TrainingProofItem.findById(a).lean()
+    expect(log.items[0]).toMatchObject({
+      section: 'ocr',
+      alias: it0.payload.alias,
+      before: { action: 'ok', text: it0.payload.text },
+      after: { action: 'fixed', text: 'נוסח המנהל' },
+    })
+    expect(JSON.stringify(log.items[0])).not.toMatch(/img|png|jpg|webp/)
+    let row = await volRow()
+    expect(row.stats.corrected).toBe(1)
+    expect(row.stats.bySection.ocr).toMatchObject({ approved: 3, unchanged: 2, corrected: 1 })
+
+    // ההורדה לתחנה: הפריטים נמחקים — המונה והיומן נשארים; קובץ-ההחזרה כמו קודם
+    const res = await exportPOST(jreq('POST'), P({ section: 'ocr' }))
+    const files = unzipSync(new Uint8Array(await res.arrayBuffer()))
+    await purges.get('ocr')
+    expect(Object.keys(files).sort()).toEqual(['manifest.json', 'results.jsonl'])
+    const lines = strFromU8(files['results.jsonl']).trim().split('\n').map((l) => JSON.parse(l))
+    expect(lines.map((l) => checkReturnLine('ocr', l))).toEqual([null, null, null])
+    expect(lines.find((l) => l.admin_fixed)).toMatchObject({ action: 'fixed', text: 'נוסח המנהל' })
+    expect(await TrainingProofItem.countDocuments({ _id: a })).toBe(0)
+    log = await corrections()
+    expect(log.items).toHaveLength(1)
+    row = await volRow()
+    expect(row.stats.bySection.ocr).toMatchObject({ approved: 3, unchanged: 2, corrected: 1 })
+    expect((await corrections('router')).items).toEqual([])
+  })
+
+  it('נתב: הגרסה של המתנדב ← של המנהל; החדשים קודם; רק האחרונים נשמרים', async () => {
+    const s = await upload('router', sampleEntries('router', { items: Array.from({ length: 3 }, (_, i) => routerItem(i)) }))
+    await ingest(s.token)
+    const marked = await volunteerMarks('router', [{ label: 'square' }, { label: 'rashi' }, { label: 'latin' }])
+    await fixPOST(jreq('POST', { id: String(marked[0]._id), mark: { label: 'rashi' } }))
+    await fixPOST(jreq('POST', { id: String(marked[1]._id), mark: { bad: true } }))
+    const log = await corrections()
+    expect(log.items.map((x) => [x.before, x.after])).toEqual([
+      [{ label: 'rashi', words: null }, { bad: true }],
+      [{ label: 'square', words: null }, { label: 'rashi', words: null }],
+    ])
+    expect((await volRow()).stats.bySection.router.corrected).toBe(2)
+    expect(await trimCorrections(String(vol._id), 1)).toBe(1)
+    expect((await corrections()).items.map((x) => x.after)).toEqual([{ bad: true }])
+    expect((await J(await correctionsGET(new Request('http://x'), P({ userId: 'nope' })))).status).toBe(400)
+    as(vol)
+    expect((await J(await correctionsGET(new Request('http://x'), P({ userId: String(vol._id) })))).status).toBe(403)
   })
 })
