@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { OCR_ACTION_LABELS } from '@/lib/trainingProof/vocab'
 import { wordDiff } from '../wordDiff'
 import { ago } from '../api'
@@ -29,7 +29,7 @@ function Diff({ from, to, dir }) {
   )
 }
 
-export default function OcrRow({ item, selected, onToggle, onApprove, onReject, onFix, onUnapprove, busy }) {
+export default function OcrRow({ item, selected, onToggle, onApprove, onReject, onFix, onUnapprove, busy, current = false, onPick, handle }) {
   const r = item.result || {}
   const action = r.action
   const volText = action === 'fixed' ? r.text : action === 'ok' ? item.text : ''
@@ -54,8 +54,15 @@ export default function OcrRow({ item, selected, onToggle, onApprove, onReject, 
   }
 
   const pending = item.status === 'submitted'
+  // המקש 2 בסקירה — "תקן ואשר" (עריכה במקום)
+  useImperativeHandle(handle, () => ({ edit: () => pending && !busy && startEdit() }))
   return (
-    <div className={`grid grid-cols-[auto_1fr] gap-3 border-b border-surface-variant p-3 sm:grid-cols-[auto_1fr_auto] ${selected ? 'bg-info-100/40' : ''}`} data-item={item.id}>
+    <div
+      className={`grid scroll-mt-32 grid-cols-[auto_1fr] gap-3 border-b border-surface-variant p-3 sm:grid-cols-[auto_1fr_auto] ${selected ? 'bg-info-100/40' : ''} ${current ? 'shadow-[inset_4px_0_0_var(--color-primary)] ring-2 ring-inset ring-primary/40' : ''}`}
+      data-item={item.id}
+      aria-current={current ? 'true' : undefined}
+      onClick={(e) => !e.target.closest('button, input, a') && onPick?.()}
+    >
       <input type="checkbox" aria-label="סמן שורה" checked={selected} onChange={() => onToggle(item.id)} className="mt-1 h-4 w-4" disabled={!pending && !onUnapprove} />
       <div className="flex min-w-0 flex-col gap-2">
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -69,7 +76,7 @@ export default function OcrRow({ item, selected, onToggle, onApprove, onReject, 
             {item.vol?.name || '—'} · {ago(item.submittedAt)} · {item.alias} {item.page != null ? `עמ' ${item.page}` : ''}
             {item.conf != null && ` · ביטחון ${Math.round(item.conf)}`}
           </span>
-          <ContextButton ctx={item.ctx} />
+          <ContextButton ctx={item.ctx} alias={item.alias} page={item.page} />
         </div>
         <LineImage src={item.img} w={item.w} h={item.h} />
         <div className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1 text-base">

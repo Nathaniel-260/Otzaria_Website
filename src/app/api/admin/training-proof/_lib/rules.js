@@ -121,6 +121,7 @@ export function adminItem(d, names = new Map()) {
       words: Array.isArray(p.words)
         ? p.words.map((w) => ({ k: w.k, box: w.box, pred: w.pred || null, text: w.text || '' })).sort((a, b) => a.k - b.k)
         : null,
+      ctx: d.ctxPath && p.ctx?.bbox ? { img: adminCtxUrl(id), bbox: p.ctx.bbox } : null,
       agrees: routerAgrees(p, d.result),
     };
   }

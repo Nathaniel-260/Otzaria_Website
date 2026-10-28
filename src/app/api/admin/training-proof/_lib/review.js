@@ -6,8 +6,9 @@ import User from '@/models/User';
 import { SECTIONS } from '@/lib/trainingProof/vocab';
 import { MARK_CHECKS, sameResult } from '@/lib/trainingProof/marks';
 import { volunteerStats } from '@/lib/trainingProof/stats';
+import { logCorrection, dropCorrections } from '@/lib/trainingProof/corrections';
 import { oid } from './http';
-import { PAGE_SIZE, adminItem, approveSet, rejectUpdate, unapproveUpdate, reviewFilter, routerAgrees, matchPct } from './rules';
+import { PAGE_SIZE, adminItem, approveSet, rejectUpdate, unapproveUpdate, reviewFilter, routerAgrees, matchPct, framesChanges } from './rules';
 
 // הסקירה והאישור (docs/75 ה-11; docs/76 §8.2): רשימה עם מסננים, אישור/דחייה לפי
 // מזהים, אישור גורף על כל התור ("כל ה'נכון' שלא שונו", "הכול ממתנדב", "מה שהמתנדב
@@ -122,6 +123,8 @@ export async function unapproveIds(section, ids) {
   const res = await TrainingProofItem.bulkWrite(
     docs.map((d) => ({ updateOne: { filter: { _id: d._id, status: 'approved' }, update: unapproveUpdate(d) } }))
   );
+  // התיקון של המנהל בוטל — וגם הרשומה שלו ביומן
+  await dropCorrections(docs.filter((d) => d.adminFixed).map((d) => d._id));
   return res.modifiedCount;
 }
 
@@ -175,6 +178,11 @@ export async function fixAndApprove(id, mark, by, now = new Date(), check = null
     { returnDocument: 'after', lean: true }
   );
   if (!doc) return { ok: false, status: 409, error: 'הפריט השתנה בינתיים — רעננו את הרשימה' };
+  // יומן התיקונים של המנהל, לפי מתנדב (שורד את מחיקת הפריט בהורדה)
+  if (!same) {
+    const changes = item.section === 'frames' ? framesChanges(item.result?.frames, result.frames) : null;
+    await logCorrection(doc, { by, at: now, changes });
+  }
   const names = await namesOf([doc.vol]);
   return { ok: true, item: adminItem(doc, names), fixed: !same };
 }
