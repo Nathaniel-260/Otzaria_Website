@@ -28,6 +28,7 @@ export const PROTECTED_PREFIXES = [
   '/api/ocr-training',
   '/api/ocr-lines',
   '/api/page-proof',
+  '/api/training-proof',
   '/api/tzurat-hadaf',
   '/api/library/book-info',
   '/api/library/book-acronyms',

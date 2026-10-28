@@ -28,7 +28,7 @@ export const MAIN_NAV_LINKS = [
       { href: '/library/upload', label: 'העלה ספר חדש', icon: 'upload_file' },
       { href: '/library/acronyms', label: 'הוסף כינויים וראשי תיבות', icon: 'short_text' },
       { href: '/library/info', label: 'הוסף מידע על ספרים', icon: 'info' },
-      { href: '/library/page-proof/books', label: 'השתתף בהגהת עמודים', icon: 'fact_check' },
+      { href: '/library/page-proof', label: 'הגהה לאימון המודלים', icon: 'fact_check' },
       { href: '/library/tzurat-hadaf', label: 'צורת הדף — השוואה לדפוס', icon: 'auto_stories' },
       { href: '/library', label: 'דרכים נוספות לסיוע', more: true }
     ]

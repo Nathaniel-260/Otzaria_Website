@@ -1,0 +1,116 @@
+'use client'
+
+import { memo } from 'react'
+import AppIcon from '@/components/ui/AppIcon'
+import Button from '@/components/ui/Button'
+import { OCR_ACTION_LABELS } from '@/lib/trainingProof/vocab'
+import ScriptTag from '../common/ScriptTag'
+import Kbd from '../common/Kbd'
+import OcrTextEditor, { TEXT_CLASS, TEXT_STYLE } from './OcrTextEditor'
+
+// פס-הצבע בצד הכרטיס לפי מה שסומן — כמו מסך ההגהה בתחנה
+const EDGE = {
+  ok: 'border-s-success',
+  fixed: 'border-s-info',
+  seg: 'border-s-error',
+  bad: 'border-s-error',
+  router: 'border-s-feature-600',
+  skip: 'border-s-outline-variant opacity-70',
+}
+
+const BUTTONS = [
+  { action: 'ok', label: 'נכון', icon: 'check', key: '1', variant: 'tonal' },
+  { action: 'fixed', label: 'תקן', icon: 'edit', key: '2', variant: 'outlined' },
+  { action: 'seg', label: 'חיתוך גרוע', icon: 'content_cut', key: '3', variant: 'outlined' },
+  { action: 'skip', label: 'דלג', icon: 'redo', key: '4', variant: 'text' },
+  { action: 'bad', label: 'לא קריא', icon: 'block', key: '5', variant: 'text' },
+  {
+    action: 'router',
+    label: 'הכתב שגוי',
+    icon: 'call_split',
+    key: '6',
+    variant: 'text',
+    title: 'השורה תצא מההגהה ותחזור לנתב הכתב. אחרי שייקבע הכתב הנכון — היא תחזור להגהה',
+  },
+]
+
+const shownText = (item) => (item.result?.action === 'fixed' ? item.result.text : item.text)
+
+// שורה אחת בזיהוי-הטקסט: התמונה, הטקסט (מוגה כולו — בלי מילה-מילה, ה-6), וששת הכפתורים.
+// "תקן" (2, או לחיצה כפולה על הטקסט) פותח עריכה במקום: Enter שומר, Esc מבטל.
+function OcrLineCard({ item, index, total, current, saving, editing, onSelect, onMark, onEdit, onCancelEdit, onShowCtx }) {
+  const action = item.skipped ? 'skip' : item.status === 'submitted' ? item.result?.action : null
+  const ltr = item.track === 'latin'
+
+  // סיום העריכה: ריק או בלי שינוי בשורה שכבר סומנה — ביטול; אחרת "תוקן" (השרת הופך זהה ל"נכון")
+  const commit = (v) => {
+    if (!v || (v === shownText(item) && action)) return onCancelEdit()
+    onMark('fixed', v)
+  }
+
+  return (
+    <article
+      id={`tp-line-${item.id}`}
+      aria-current={current ? 'true' : undefined}
+      onClick={(e) => {
+        if (!e.target.closest('button,a,textarea')) onSelect()
+      }}
+      className={`scroll-mt-32 rounded-2xl border border-outline-variant border-s-[5px] bg-(--card-bg) px-4 py-3 shadow-sm ${
+        action ? EDGE[action] : 'border-s-outline-variant'
+      } ${current ? 'outline-2 outline-primary' : ''}`}
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-label-md text-on-surface-variant">
+        <span>
+          שורה {index + 1} מתוך {total}
+        </span>
+        <ScriptTag script={item.track} />
+        <span>{item.source === 'synth' ? 'שורה סינתטית — התמלול ידוע, בדקו שהתמונה תואמת' : 'זיהוי המודל'}</span>
+        {saving ? (
+          <span>שומר…</span>
+        ) : action ? (
+          <span className="inline-flex items-center gap-1 text-success">
+            <AppIcon name="check_circle" className="text-base" />
+            {action === 'skip' ? 'דילגתם — השורה חזרה למאגר' : `נשמר באתר: ${OCR_ACTION_LABELS[action]} · ממתין לאישור המנהל`}
+          </span>
+        ) : (
+          <span className="rounded-md bg-surface-container-highest px-2">ממתינה</span>
+        )}
+        {item.ctx ? (
+          <button type="button" className="text-primary underline-offset-2 hover:underline" onClick={onShowCtx}>
+            הצג בעמוד המלא
+          </button>
+        ) : null}
+      </div>
+
+      <div className="my-2 inline-block max-w-full overflow-hidden rounded border border-outline-variant bg-white leading-none">
+        <img src={item.img} alt={`תמונת שורה ${index + 1}`} className="block h-auto max-w-full" style={{ maxWidth: Math.min(item.w || 900, 900) }} draggable={false} />
+      </div>
+
+      {editing ? (
+        <OcrTextEditor initial={shownText(item)} ltr={ltr} onCommit={commit} onCancel={onCancelEdit} />
+      ) : (
+        <p dir={ltr ? 'ltr' : 'rtl'} className={`min-h-[1.5em] cursor-text ${TEXT_CLASS} ${ltr ? 'text-left' : ''}`} style={TEXT_STYLE} onDoubleClick={() => !item.skipped && onEdit()}>
+          {shownText(item)}
+        </p>
+      )}
+
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {BUTTONS.map((b) => (
+          <Button
+            key={b.action}
+            size="sm"
+            variant={action === b.action ? 'filled' : b.variant}
+            icon={b.icon}
+            title={b.title}
+            disabled={item.skipped || saving}
+            onClick={() => (b.action === 'fixed' ? onEdit() : onMark(b.action))}
+          >
+            {b.label} <Kbd>{b.key}</Kbd>
+          </Button>
+        ))}
+      </div>
+    </article>
+  )
+}
+
+export default memo(OcrLineCard)
