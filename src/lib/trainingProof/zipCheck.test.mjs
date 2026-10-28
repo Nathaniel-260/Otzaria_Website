@@ -88,15 +88,58 @@ test('ocr: track/source חובה, conf בטווח, ctx עם תמונה ותיב�
   assert.match(badCtx.errors.join(), /ctx\.bbox/);
 });
 
-test('router: מילים — k ייחודי, תיבה בתוך התמונה, כתב-מילה מוכר', () => {
+test('router: מילים — k ייחודי וכתב-מילה מוכר (שגיאה לקובץ)', () => {
   const dupK = routerItem(0, { words: [{ k: 0, box: [1, 0, 50, 54] }, { k: 0, box: [60, 0, 90, 54] }] });
   assert.match(checkToSiteZip(sampleEntries('router', { items: [dupK] })).errors.join(), /k/);
-  const outside = routerItem(0, { words: [{ k: 0, box: [500, 0, 900, 54] }] });
-  assert.match(checkToSiteZip(sampleEntries('router', { items: [outside] })).errors.join(), /מחוץ לתמונה/);
   const badPred = routerItem(0, { words: [{ k: 0, box: [1, 0, 50, 54], pred: 'mixed' }] });
   assert.match(checkToSiteZip(sampleEntries('router', { items: [badPred] })).errors.join(), /לא מוכרת/);
   const noWords = routerItem(2);
   assert.equal(checkToSiteZip(sampleEntries('router', { items: [noWords] })).ok, true);
+});
+
+test('router: תיבת-מילה פגומה — אזהרה לשורה, לא דחיית הקובץ; השורה נקלטת בלי words', () => {
+  // כמו בקובץ של בעל הפרויקט (2026-10-28): מילה בלי רוחב, x0 == x1
+  const zero = (i) => routerItem(i, { words: [{ k: 0, box: [450, 0, 540, 54] }, { k: 1, box: [335, 15, 335, 50], pred: 'rashi' }] });
+  const outside = routerItem(3, { words: [{ k: 0, box: [500, 0, 900, 54] }] });
+  const items = [routerItem(0), zero(1), routerItem(2), outside, zero(4)];
+  const r = checkToSiteZip(unzipSync(zipSync(sampleEntries('router', { items }))));
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.ok, true);
+  assert.equal(r.items.length, 5);
+  assert.deepEqual(r.wordBoxLines, [2, 4, 5]);
+  assert.deepEqual(r.warnings, ['3 שורות: תיבות-המילים לא תקינות — יחולקו לפי הדיו (שורות 2, 4, 5 בקובץ)']);
+  const byUid = new Map(r.items.map((it) => [it.uid, it]));
+  assert.equal(byUid.get(zero(1).uid).words, undefined);
+  assert.equal(byUid.get(outside.uid).words, undefined);
+  assert.equal(byUid.get(routerItem(0).uid).words.length, 4); // שורה תקינה — כמות-שהיא
+  assert.equal(byUid.get(zero(1).uid).pred, zero(1).pred); // שאר השדות נשמרים
+  // מסמך-המסד: גם בו אין words — המתנדב מקבל חלוקה לפי הדיו
+  assert.equal(itemDoc(r.manifest, byUid.get(zero(4).uid)).payload.words, undefined);
+});
+
+test('router: שורה אחת עם תיבה פגומה — "שורה אחת"; ושגיאה אמיתית באותה שורה עדיין דוחה', () => {
+  const one = routerItem(0, { words: [{ k: 0, box: [10, 0, 10, 54] }] });
+  const r = checkToSiteZip(sampleEntries('router', { items: [one] }));
+  assert.equal(r.ok, true);
+  assert.match(r.warnings[0], /^שורה אחת: תיבות-המילים לא תקינות — יחולקו לפי הדיו \(שורה 1 בקובץ\)$/);
+  const alsoBadSig = routerItem(0, { sig: 'nope', words: [{ k: 0, box: [10, 0, 10, 54] }] });
+  const r2 = checkToSiteZip(sampleEntries('router', { items: [alsoBadSig] }));
+  assert.equal(r2.ok, false);
+  assert.deepEqual(r2.wordBoxLines, []);
+});
+
+test('router: ctx — אותה צורה כמו ב-ocr (§4.2); תמונת-ההקשר נכתבת ונשמרת במסמך', () => {
+  const ctx = { img: 'img/ctx-b-a7f3310c6e-p3.jpg', bbox: [118.5, 880, 1265.5, 994] };
+  const r = checkToSiteZip(sampleEntries('router', { items: [routerItem(0, { ctx }), routerItem(1, { ctx })] }));
+  assert.equal(r.ok, true);
+  assert.equal(r.images.size, 3);
+  const doc = itemDoc(r.manifest, r.items[0]);
+  assert.equal(doc.ctxPath, storageRel(r.manifest.package_id, ctx.img));
+  const missing = sampleEntries('router', { items: [routerItem(0, { ctx })] });
+  delete missing[ctx.img];
+  assert.match(checkToSiteZip(missing).errors.join(), /תמונת-ההקשר חסרה/);
+  const bad = checkToSiteZip(sampleEntries('router', { items: [routerItem(0, { ctx: { img: ctx.img, bbox: [5, 5, 1, 1] } })] }));
+  assert.match(bad.errors.join(), /ctx\.bbox/);
 });
 
 test('frames: ספר שאינו ב-books.json, זרם לא מוכר, אובייקט בלי סוג, books.json חסר', () => {

@@ -42,6 +42,7 @@ import { POST as bulkPOST } from './review/bulk/route'
 import { GET as framesGET } from './review/frames/route'
 import { GET as summaryGET } from './summary/route'
 import { GET as imageGET } from './items/[id]/image/route'
+import { GET as ctxGET } from './items/[id]/ctx/route'
 import { GET as exportGET } from './export/route'
 import { POST as exportPOST } from './export/[section]/route'
 import { purges } from './_lib/exporter'
@@ -292,6 +293,29 @@ describe('סקירה — נתב הכתב', () => {
     const b = await J(await bulkPOST(jreq('POST', { section: 'router', kind: 'router-agree' })))
     expect(b.count).toBe(1)
     expect(await TrainingProofItem.countDocuments({ section: 'router', status: 'approved' })).toBe(2)
+  })
+
+  it('תיבת-מילה פגומה (x0 == x1) — הקובץ נקלט עם אזהרה, השורה בלי מילים ומתחלקת באתר; עמוד מלא לנתב', async () => {
+    const ctx = { img: 'img/ctx-b-a7f3310c6e-p3.jpg', bbox: [100, 400, 640, 454] }
+    const bad = routerItem(1, { words: [{ k: 0, box: [450, 0, 540, 54] }, { k: 1, box: [335, 15, 335, 50] }], ctx })
+    const s = await upload('router', sampleEntries('router', { items: [routerItem(0, { ctx }), bad, routerItem(2)] }))
+    expect(s.success).toBe(true)
+    expect(s.warnings).toEqual(['שורה אחת: תיבות-המילים לא תקינות — יחולקו לפי הדיו (שורה 2 בקובץ)'])
+    expect((await ingest(s.token)).inserted).toBe(3)
+    const doc = await TrainingProofItem.findOne({ uid: bad.uid }).lean()
+    expect(doc.payload.words).toBeUndefined()
+    expect(doc.ctxPath).toMatch(/ctx-b-a7f3310c6e-p3\.jpg$/)
+    expect(fs.existsSync(path.join(TMP, doc.ctxPath.replace('/uploads/', '')))).toBe(true)
+
+    // סקירה: לנתב יש עמוד (אותו נתיב מוגן של הניהול)
+    const res = await ctxGET(new Request(`${URL0}/items/${doc._id}/ctx`), P({ id: String(doc._id) }))
+    expect(res.status).toBe(200)
+    // המתנדב מסמן "מעורבת" עם חלוקה משלו — words_src: "site"
+    await takeRound(String(vol._id), 'router')
+    const words = [{ k: 0, box: [300, 0, 540, 54], label: 'square' }, { k: 1, box: [0, 0, 290, 54], label: 'rashi' }]
+    const m = await markItem(String(vol._id), doc._id, { label: 'mixed', words })
+    expect(m.error).toBeUndefined()
+    expect((await TrainingProofItem.findById(doc._id).lean()).result.words_src).toBe('site')
   })
 })
 

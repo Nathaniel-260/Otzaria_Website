@@ -10,6 +10,7 @@ import RoundEnd from '../common/RoundEnd'
 import RoundStates, { LostNotice } from '../common/RoundStates'
 import GuideBox from '../common/GuideBox'
 import Kbd from '../common/Kbd'
+import FullPageDialog from '../common/FullPageDialog'
 import RouterLineCard from './RouterLineCard'
 import {
   initDraft,
@@ -51,6 +52,8 @@ function RouterRound({ round }) {
     return first && isMixed(initDraft(first), first) ? 'words' : 'line'
   })
   const [wsel, setWsel] = useState(0)
+  // "הצג בעמוד המלא" — הפריט שהעמוד שלו פתוח; כל עוד החלון פתוח, המקשים לא מסמנים
+  const [ctxOf, setCtxOf] = useState(null)
   const scrollNext = useRef(false)
   const { items } = round
   const { done, total } = progress(items)
@@ -137,7 +140,7 @@ function RouterRound({ round }) {
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(e.target)) return
+      if (e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(e.target) || ctxOf) return
       const it = items[cur]
       if (!it) return
       const d = draftOf(it)
@@ -170,7 +173,7 @@ function RouterRound({ round }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [cur, items, focus, draftOf, goTo, accept, bad, lineLabel, wordLabel])
+  }, [cur, items, focus, draftOf, goTo, accept, bad, lineLabel, wordLabel, ctxOf])
 
   const goHome = async () => {
     await round.release()
@@ -221,10 +224,15 @@ function RouterRound({ round }) {
               setFocus(f)
             }}
             onInkWords={(boxes) => setDrafts((m) => ({ ...m, [it.id]: withInkWords(m[it.id] || initDraft(it), boxes) }))}
+            onShowCtx={() => {
+              if (i !== cur) goTo(i, { scroll: false })
+              setCtxOf(it)
+            }}
           />
         ))}
       </div>
       <RoundEnd done={done} total={total} onMore={round.take} onStop={goHome} />
+      {ctxOf?.ctx ? <FullPageDialog ctx={ctxOf.ctx} alias={ctxOf.alias} page={ctxOf.page} onClose={() => setCtxOf(null)} /> : null}
     </div>
   )
 }

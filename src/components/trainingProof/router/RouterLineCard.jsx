@@ -70,6 +70,7 @@ export default function RouterLineCard({
   onPickWord,
   onFocus,
   onInkWords,
+  onShowCtx,
 }) {
   const mixed = isMixed(draft, item)
   const needInk = mixed && !draft.words?.length
@@ -122,6 +123,11 @@ export default function RouterLineCard({
           </>
         )}
         {mixed && missing && !draft.bad ? <span className="text-warning">עוד לא נשמר — חסר כתב ל-{missing} מילים</span> : null}
+        {item.ctx ? (
+          <button type="button" className="text-primary underline-offset-2 hover:underline" onClick={onShowCtx}>
+            הצג בעמוד המלא
+          </button>
+        ) : null}
       </div>
 
       <div className={`relative my-2 inline-block max-w-full rounded border border-outline-variant bg-white leading-none ${mixed ? 'mt-8' : 'overflow-hidden'}`}>

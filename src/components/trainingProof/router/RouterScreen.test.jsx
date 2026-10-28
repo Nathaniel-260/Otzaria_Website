@@ -156,4 +156,38 @@ describe('RouterScreen', () => {
       })
     )
   })
+
+  it('"הצג בעמוד המלא": העמוד נפתח והשורה מסומנת בו; כל עוד החלון פתוח המקשים לא מסמנים', async () => {
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true }) // reduced-motion: הסגירה מיידית
+    const ctx = { img: '/api/training-proof/items/r1/ctx', bbox: [100, 400, 640, 454] }
+    const { calls } = api([routerPublic(0), routerPublic(1, { ctx })])
+    const user = userEvent.setup()
+    render(<RouterScreen />)
+    await screen.findByText('שורה 1 מתוך 2')
+    // רק לשורה שיש לה עמוד
+    expect(within(document.getElementById('tp-line-r0')).queryByRole('button', { name: 'הצג בעמוד המלא' })).toBeNull()
+    await user.click(within(document.getElementById('tp-line-r1')).getByRole('button', { name: 'הצג בעמוד המלא' }))
+    const dialog = await screen.findByRole('dialog', { name: 'השורה בעמוד המלא' })
+    expect(dialog).toHaveAccessibleDescription('ספר 7 · עמוד 1')
+    const img = within(dialog).getByRole('img', { name: 'העמוד המלא' })
+    expect(img).toHaveAttribute('src', ctx.img)
+    Object.defineProperty(img, 'naturalWidth', { value: 1000 })
+    Object.defineProperty(img, 'naturalHeight', { value: 2000 })
+    img.dispatchEvent(new Event('load'))
+    const mark = await within(dialog).findByTestId('tp-fullpage-mark')
+    expect(mark.style.left).toBe('10%')
+    expect(mark.style.top).toBe('20%')
+    expect(mark.style.width).toBe('54%')
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+    // השורה של העמוד נבחרה, והמקשים לא מסמנים מאחורי החלון
+    expect(document.getElementById('tp-line-r1')).toHaveAttribute('aria-current', 'true')
+    await user.keyboard('1')
+    expect(marks(calls, 'r1')).toEqual([])
+    await user.click(within(dialog).getByRole('button', { name: 'הגדל (הגודל המקורי)' }))
+    expect(img.className).toMatch(/max-w-none/)
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await user.keyboard('1')
+    await waitFor(() => expect(marks(calls, 'r1')).toEqual([{ label: 'square' }]))
+  })
 })

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { LINE_SCRIPTS, SCRIPT_LABELS } from '@/lib/trainingProof/vocab'
 import { ago } from '../api'
 import { BTN, ScriptTag, Tag } from '../bits'
-import { LineImage } from './LineImage'
+import { LineImage, ContextButton } from './LineImage'
 import WordBoxes, { nextScript } from './WordBoxes'
 
 // שורה אחת בסקירת הנתב. אפשר לתקן לפני האישור (ה-11): כתב-השורה בכפתורים, ובשורה
@@ -60,6 +60,7 @@ export default function RouterRow({ item, selected, onToggle, onApprove, onRejec
           {item.adminFixed && <Tag tone="info">תיקנת</Tag>}
           {changed && <Tag tone="info">תיקון שלך — עוד לא נשמר</Tag>}
           {item.status === 'approved' && <Tag tone="ok">אושר</Tag>}
+          <ContextButton ctx={item.ctx} alias={item.alias} page={item.page} />
         </div>
         {st.label === 'mixed' && canMixed ? (
           <WordBoxes src={item.img} w={item.w} h={item.h} words={st.words} onCycle={pending ? cycle : null} />

@@ -69,7 +69,7 @@ export default function OcrRow({ item, selected, onToggle, onApprove, onReject, 
             {item.vol?.name || '—'} · {ago(item.submittedAt)} · {item.alias} {item.page != null ? `עמ' ${item.page}` : ''}
             {item.conf != null && ` · ביטחון ${Math.round(item.conf)}`}
           </span>
-          <ContextButton ctx={item.ctx} />
+          <ContextButton ctx={item.ctx} alias={item.alias} page={item.page} />
         </div>
         <LineImage src={item.img} w={item.w} h={item.h} />
         <div className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1 text-base">
