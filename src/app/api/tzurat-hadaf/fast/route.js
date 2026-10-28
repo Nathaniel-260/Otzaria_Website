@@ -1,6 +1,7 @@
 import { requireTzuratSession } from '@/lib/tzuratHadaf/session';
 import { sampleFastItem, fastItemFor, fastStats, parseExclude, hasPractice } from '@/lib/tzuratHadaf/items';
-import { json, badRequest, serverError } from '@/lib/tzuratHadaf/respond';
+import { json, badRequest, errorJson, serverError } from '@/lib/tzuratHadaf/respond';
+import { itemsPaused, PAUSED_MSG } from '@/lib/tzuratHadaf/pause';
 
 // GET ?exclude=id,id&kind=any|g|r|t — שאלה אחת למסלול המהיר ← {item: FastItem|null, stats, needPractice, practiceDone}.
 // עד שהמתנדב סיים את התרגול (כשיש תרגול) — needPractice ו-item: null.
@@ -10,6 +11,7 @@ const KINDS = ['any', 'g', 'r', 't'];
 export async function GET(request) {
   const g = await requireTzuratSession();
   if (g.error) return g.error;
+  if (itemsPaused(g)) return errorJson(503, PAUSED_MSG, 'paused');
   try {
     const sp = new URL(request.url).searchParams;
     const kind = sp.get('kind') || 'any';

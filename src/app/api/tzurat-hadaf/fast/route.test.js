@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // שער המתנדב של צורת הדף (requireTzuratSession): 401 בלי session, 403 בלי אימות, מנהל המודול עובר גם בלי אימות.
-const { getServerSessionMock, findByIdMock, sampleMock } = vi.hoisted(() => ({
+const { getServerSessionMock, findByIdMock, sampleMock, pause } = vi.hoisted(() => ({
   getServerSessionMock: vi.fn(),
   findByIdMock: vi.fn(),
   sampleMock: vi.fn(),
+  pause: { on: false },
 }))
 
 vi.mock('@/lib/db', () => ({ default: vi.fn().mockResolvedValue(undefined) }))
@@ -12,6 +13,7 @@ vi.mock('next-auth', () => ({ getServerSession: getServerSessionMock }))
 vi.mock('@/app/api/auth/[...nextauth]/route', () => ({ authOptions: {} }))
 vi.mock('@/models/User', () => ({ default: { findById: findByIdMock } }))
 vi.mock('@/lib/tzuratHadaf/tokenAuth', () => ({ getTzuratSession: vi.fn() }))
+vi.mock('@/lib/tzuratHadaf/pause', () => ({ PAUSED_MSG: 'מושהה', itemsPaused: (g) => pause.on && !g?.isAdmin }))
 vi.mock('@/lib/tzuratHadaf/items', () => ({
   sampleFastItem: sampleMock,
   fastItemFor: vi.fn(),
@@ -30,6 +32,7 @@ describe('GET /api/tzurat-hadaf/fast', () => {
     getServerSessionMock.mockReset()
     findByIdMock.mockReset()
     sampleMock.mockReset()
+    pause.on = false
     findByIdMock.mockReturnValue({ lean: () => Promise.resolve({ tzuratPracticeDone: false }) })
   })
 
@@ -83,4 +86,17 @@ it('counts statistics only when explicitly requested, not for every next questio
   expect(fastStats).not.toHaveBeenCalled()
   expect((await (await GET(req('?stats=1'))).json()).stats).toEqual({ open: 3, mine: 0, mineAgreed: 0 })
   expect(fastStats).toHaveBeenCalledTimes(1)
+})
+
+it('שאלות מושהות — 503 למתנדב, ומנהל המודול עובר', async () => {
+  pause.on = true
+  getServerSessionMock.mockResolvedValue({ user: { id: USER_ID, role: 'user', isVerified: true } })
+  findByIdMock.mockReturnValue({ lean: () => Promise.resolve({ tzuratPracticeDone: true }) })
+  sampleMock.mockResolvedValue(null)
+  const res = await GET(req())
+  expect(res.status).toBe(503)
+  expect(await res.json()).toMatchObject({ code: 'paused' })
+  getServerSessionMock.mockResolvedValue({ user: { id: USER_ID, role: 'admin', isVerified: true } })
+  expect((await GET(req())).status).toBe(200)
+  pause.on = false
 })
