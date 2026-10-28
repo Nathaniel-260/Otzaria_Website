@@ -8,6 +8,7 @@ import { zipSync, unzipSync } from 'fflate';
 import { checkToSiteZip, checkManifest, checkZipSize, checkBooks } from './zipCheck.js';
 import { sampleEntries, ocrItem, routerItem, framesItem, manifestOf } from './testFixtures.js';
 import { itemDoc, storageRel } from './storage.js';
+import { unzipTrainingZip } from './zipArchive.js';
 
 test('קובץ תקין בכל אחד משלושת החלקים — עובר, כולל דרך ZIP אמיתי', () => {
   for (const section of ['ocr', 'router', 'frames']) {
@@ -156,6 +157,11 @@ test('גודל הקובץ', () => {
   assert.equal(checkZipSize(1000), null);
   assert.match(checkZipSize(0), /ריק/);
   assert.match(checkZipSize(41 * 1024 * 1024), /40MB/);
+});
+
+test('ZIP bomb: גודל התוכן המחולץ מוגבל לפני החילוץ', () => {
+  const bomb = zipSync({ 'huge.bin': new Uint8Array(2048) }, { level: 9 });
+  assert.throws(() => unzipTrainingZip(bomb, { maxBytes: 1024 }), /מחולץ|גדול מדי/);
 });
 
 test('itemDoc: נתיבי התמונה תחת תיקיית החבילה, המסלול והספר', () => {

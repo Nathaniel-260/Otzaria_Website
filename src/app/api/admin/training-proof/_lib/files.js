@@ -24,13 +24,36 @@ async function removeRel(rel) {
 // נמחקת רק כשאין עוד פריט שמשתמש בה. מחזיר כמה קבצים נמחקו
 export async function removeItemFiles(docs) {
   let n = 0;
-  for (const d of docs) if (await removeRel(d.imagePath)) n++;
+  for (const rel of new Set(docs.map((d) => d.imagePath).filter(inRoot))) {
+    if (await TrainingProofItem.exists({ imagePath: rel })) continue;
+    if (await removeRel(rel)) n++;
+  }
   const ctx = [...new Set(docs.map((d) => d.ctxPath).filter(inRoot))];
   for (const rel of ctx) {
     if (await TrainingProofItem.exists({ ctxPath: rel })) continue;
     if (await removeRel(rel)) n++;
   }
   return n;
+}
+
+// Deletes with the condition re-checked atomically for every document and only
+// removes files belonging to documents that MongoDB actually deleted. A state
+// transition between the initial scan and deletion therefore cannot orphan a
+// live item from its image.
+export async function deleteMatchingItems(filter, projection = {}, { removeFiles = true } = {}) {
+  const candidates = await TrainingProofItem.find(filter, projection).lean();
+  const deleted = [];
+  const batchSize = 50;
+  for (let i = 0; i < candidates.length; i += batchSize) {
+    const rows = await Promise.all(
+      candidates.slice(i, i + batchSize).map((candidate) =>
+        TrainingProofItem.findOneAndDelete({ ...filter, _id: candidate._id }, { projection, lean: true })
+      )
+    );
+    deleted.push(...rows.filter(Boolean));
+  }
+  const files = removeFiles ? await removeItemFiles(deleted) : 0;
+  return { deleted, files };
 }
 
 // חבילות שלא נשאר בהן פריט נמחקות; תיקיית-התמונות של package_id נמחקת כשלא נשאר

@@ -2,7 +2,7 @@ import TrainingProofPackage from '@/models/TrainingProofPackage';
 import TrainingProofItem from '@/models/TrainingProofItem';
 import { PACKAGE_ID_RE } from '@/lib/trainingProof/vocab';
 import { adminGate, ok, fail, jsonBody, crash } from '../../../_lib/http';
-import { removeItemFiles, dropEmptyPackages, dropEmptyBooks } from '../../../_lib/files';
+import { deleteMatchingItems, dropEmptyPackages, dropEmptyBooks } from '../../../_lib/files';
 
 // חבילה אחת (package_id + part) בטבלת החבילות.
 // PATCH {open} — השהה/פתח למתנדבים. פריטים שכבר בידי מתנדב נשארים אצלו.
@@ -42,14 +42,12 @@ export async function DELETE(_request, { params }) {
   try {
     if (!(await TrainingProofPackage.exists(key))) return fail(404, 'החבילה לא נמצאה');
     const gone = { ...key, status: { $in: ['available', 'held'] } };
-    const docs = await TrainingProofItem.find(gone, { imagePath: 1, ctxPath: 1, book: 1, section: 1 }).lean();
-    const del = await TrainingProofItem.deleteMany({ _id: { $in: docs.map((d) => d._id) }, status: { $in: ['available', 'held'] } });
-    await removeItemFiles(docs);
+    const { deleted: docs } = await deleteMatchingItems(gone, { imagePath: 1, ctxPath: 1, book: 1, section: 1 });
     const kept = await TrainingProofItem.countDocuments(key);
     if (kept) await TrainingProofPackage.updateOne(key, { $set: { open: false } });
     const dropped = await dropEmptyPackages([key]);
     await dropEmptyBooks(docs.filter((d) => d.section === 'frames').map((d) => d.book));
-    return ok({ deleted: del.deletedCount, kept, dropped: dropped.length > 0 });
+    return ok({ deleted: docs.length, kept, dropped: dropped.length > 0 });
   } catch (e) {
     return crash('package delete', e, 'המחיקה נכשלה');
   }

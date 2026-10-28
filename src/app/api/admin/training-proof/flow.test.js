@@ -25,12 +25,15 @@ import TrainingProofPackage from '@/models/TrainingProofPackage'
 import TrainingProofVolunteer from '@/models/TrainingProofVolunteer'
 import TrainingProofBook from '@/models/TrainingProofBook'
 import TrainingProofExportLog from '@/models/TrainingProofExportLog'
+import TrainingProofExportLock from '@/models/TrainingProofExportLock'
 import PageProofBook from '@/models/PageProofBook'
 import { startMongo } from '@/lib/corrections/testing/mongo.js'
 import { sampleEntries, ocrItem, routerItem } from '@/lib/trainingProof/testFixtures'
 import { takeRound, markItem } from '@/lib/trainingProof/round'
 import { checkReturnLine, checkReturnManifest, volId } from '@/lib/trainingProof/returnFile'
 import { volunteerStats } from '@/lib/trainingProof/stats'
+import { applyArchive } from '@/lib/trainingProof/stats'
+import { deleteMatchingItems } from './_lib/files'
 import { POST as uploadPOST } from './upload/route'
 import { POST as stepPOST } from './upload/[token]/route'
 import { GET as packagesGET } from './packages/route'
@@ -44,7 +47,7 @@ import { GET as summaryGET } from './summary/route'
 import { GET as imageGET } from './items/[id]/image/route'
 import { GET as exportGET } from './export/route'
 import { POST as exportPOST } from './export/[section]/route'
-import { purges } from './_lib/exporter'
+import { purges, purgeExported } from './_lib/exporter'
 import { GET as volsGET, POST as volsPOST } from './volunteers/route'
 import { POST as volPOST } from './volunteers/[userId]/route'
 import { GET as guideGET, PUT as guidePUT } from './guide/route'
@@ -119,6 +122,21 @@ describe('שער-הגישה', () => {
 })
 
 describe('העלאת חומר', () => {
+  it('מחיקת קבצים מתבצעת רק למסמכים שנמחקו בפועל', async () => {
+    const s = await upload('ocr', sampleEntries('ocr', { n: 2 }))
+    await ingest(s.token)
+    const docs = await TrainingProofItem.find().sort({ uid: 1 }).lean()
+    await TrainingProofItem.updateOne({ _id: docs[0]._id }, { $set: { status: 'submitted' } })
+    const r = await deleteMatchingItems(
+      { _id: { $in: docs.map((d) => d._id) }, status: { $in: ['available', 'held'] } },
+      { imagePath: 1, ctxPath: 1, book: 1, section: 1, packageId: 1, part: 1 }
+    )
+    expect(r.deleted).toHaveLength(1)
+    expect(await TrainingProofItem.findById(docs[0]._id)).toBeTruthy()
+    expect(fs.existsSync(path.join(TMP, docs[0].imagePath.replace('/uploads/', '')))).toBe(true)
+    expect(fs.existsSync(path.join(TMP, docs[1].imagePath.replace('/uploads/', '')))).toBe(false)
+  })
+
   it('קובץ של חלק אחר — הודעה ברורה ושום דבר לא נכתב', async () => {
     const r = await upload('router', sampleEntries('ocr', { n: 3 }))
     expect(r.status).toBe(400)
@@ -355,6 +373,27 @@ describe('סקירה — גלאי האזורים', () => {
 })
 
 describe('הורדה לתחנה', () => {
+  it('ארכוב מונים הוא idempotent לפי exportId', async () => {
+    const delta = new Map([[String(vol._id), { ocr: { approved: 2, unchanged: 1, rejected: 0 } }]])
+    await applyArchive(delta, 'tpx-20261028-aabbcc')
+    await applyArchive(delta, 'tpx-20261028-aabbcc')
+    const saved = await TrainingProofVolunteer.findOne({ userId: vol._id }).lean()
+    expect(saved.stats.archived.ocr).toMatchObject({ approved: 2, unchanged: 1 })
+  })
+
+  it('נעילת ייצוא במסד חוסמת גם מופע שרת אחר', async () => {
+    const s = await upload('ocr', sampleEntries('ocr', { n: 1 }))
+    await ingest(s.token)
+    await TrainingProofItem.updateMany({}, { $set: { status: 'approved', result: { action: 'ok' }, vol: vol._id } })
+    await TrainingProofExportLock.create({
+      section: 'ocr',
+      exportId: 'tpx-20261028-locked',
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+    expect((await J(await exportPOST(jreq('POST'), P({ section: 'ocr' })))).status).toBe(409)
+    expect(await TrainingProofItem.countDocuments()).toBe(1)
+  })
+
   it('ZIP לפי החוזה, רק מה שאושר; המחיקה רק אחרי שהשרת סיים לשלוח; יומן; מונים לארכיון', async () => {
     const items = Array.from({ length: 4 }, (_, i) => ocrItem(i, i < 2 ? { ctx: { img: 'img/ctx-shared.jpg', bbox: [1, 1, 50, 20] } } : {}))
     const s = await upload('ocr', sampleEntries('ocr', { items }))
@@ -400,6 +439,8 @@ describe('הורדה לתחנה', () => {
     // המונים של המתנדב שורדים את המחיקה
     const st = await volunteerStats(String(vol._id))
     expect(st.ocr).toMatchObject({ approved: 2, unchanged: 2 })
+    await purgeExported({ section: 'ocr', exportId, ids: approvedIds, packages: ['tp-20261027-1f3a9c2e'], by: admin._id })
+    expect((await volunteerStats(String(vol._id))).ocr).toMatchObject({ approved: 2, unchanged: 2 })
     const sum1 = await J(await exportGET())
     expect(sum1.sections.ocr.count).toBe(0)
     expect(sum1.log[0]).toMatchObject({ exportId, count: 2, by: 'מנהלת' })
