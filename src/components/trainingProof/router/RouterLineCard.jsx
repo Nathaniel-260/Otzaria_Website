@@ -88,6 +88,7 @@ export default function RouterLineCard({
   return (
     <article
       id={`tp-line-${item.id}`}
+      tabIndex={-1}
       aria-current={current ? 'true' : undefined}
       onClick={(e) => {
         if (!e.target.closest('button')) onSelect()

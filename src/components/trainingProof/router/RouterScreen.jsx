@@ -36,12 +36,21 @@ const HOME = '/library/page-proof'
 export default function RouterScreen() {
   const round = useRound('router')
   const router = useRouter()
+  // "קח 30 שורות נוספות" נלחץ למטה, בסוף הרשימה — הסבב החדש מביא את המתנדב לשורה הראשונה
+  const jumpTopRef = useRef(false)
+  const take = useCallback(() => {
+    jumpTopRef.current = true
+    return round.take()
+  }, [round])
   if (round.status !== 'ready') return <RoundStates round={round} onHome={() => router.push(HOME)} />
   // key — סבב חדש מתחיל ממצב נקי (השורה הנוכחית, הטיוטות)
-  return <RouterRound key={round.round} round={round} />
+  return <RouterRound key={round.round} round={round} take={take} jumpTopRef={jumpTopRef} />
 }
 
-function RouterRound({ round }) {
+// הגלילה החלקה — רק כשהמשתמש לא ביקש "פחות תנועה"
+const smooth = () => (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth')
+
+function RouterRound({ round, take, jumpTopRef }) {
   const router = useRouter()
   const { showAlert } = useDialog()
   const [cur, setCur] = useState(0)
@@ -64,8 +73,20 @@ function RouterRound({ round }) {
     if (!scrollNext.current) return
     scrollNext.current = false
     const id = items[cur]?.id
-    if (id) document.getElementById(`tp-line-${id}`)?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+    if (id) document.getElementById(`tp-line-${id}`)?.scrollIntoView?.({ block: 'center', behavior: smooth() })
   }, [cur, items])
+
+  // סבב חדש אחרי "קח 30 שורות נוספות": לראש הרשימה, והשורה הראשונה בפוקוס — המקשים עובדים מיד
+  useEffect(() => {
+    if (!jumpTopRef?.current) return
+    jumpTopRef.current = false
+    const first = items[0] && document.getElementById(`tp-line-${items[0].id}`)
+    if (!first) return
+    first.scrollIntoView?.({ block: 'start', behavior: smooth() })
+    first.focus?.({ preventScroll: true })
+    // רק בהרכבה של הסבב החדש
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // מעבר לשורה: במעורבת המקשים חלים על המילים, מהמילה הראשונה שלא סומנה
   const goTo = useCallback(
@@ -183,7 +204,7 @@ function RouterRound({ round }) {
   return (
     <div className="flex flex-col gap-3">
       <RoundHeader title="נתב הכתב" done={done} total={total} onHome={goHome} />
-      {round.lost ? <LostNotice onRetake={round.take} /> : null}
+      {round.lost ? <LostNotice onRetake={take} /> : null}
       <p className="text-body-sm leading-8 text-on-surface-variant">
         <Kbd>1</Kbd> מרובע · <Kbd>2</Kbd> רש&quot;י · <Kbd>3</Kbd> לועזית · <Kbd>4</Kbd> מעורבת · <Kbd>Enter</Kbd> ההצעה נכונה · <Kbd>0</Kbd> פסול ·{' '}
         <Kbd>↓</Kbd>/<Kbd>↑</Kbd> שורה אחרת. <b>בשורה מעורבת</b> המקשים חלים על המילה המסומנת (<Kbd>4</Kbd> = ניטרלי), <Kbd>←</Kbd>/<Kbd>→</Kbd> מילה
@@ -231,7 +252,7 @@ function RouterRound({ round }) {
           />
         ))}
       </div>
-      <RoundEnd done={done} total={total} onMore={round.take} onStop={goHome} />
+      <RoundEnd done={done} total={total} onMore={take} onStop={goHome} />
       {ctxOf?.ctx ? <FullPageDialog ctx={ctxOf.ctx} alias={ctxOf.alias} page={ctxOf.page} onClose={() => setCtxOf(null)} /> : null}
     </div>
   )
