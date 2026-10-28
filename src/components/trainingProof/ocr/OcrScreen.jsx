@@ -13,12 +13,13 @@ import GuideBox from '../common/GuideBox'
 import FullPageDialog from '../common/FullPageDialog'
 import Kbd from '../common/Kbd'
 import OcrLineCard from './OcrLineCard'
+import { revealCard } from './calmScroll'
 
 const HOME = '/library/page-proof'
 
 // זיהוי-הטקסט (docs/75 §2): 30 שורות מכל הספרים והכתבים, כמו מסך ההגהה בתחנה.
 // מקשים: 1 נכון · 2 תקן · 3 חיתוך גרוע · 4 דלג · 5 לא קריא · 6 הכתב שגוי · ↑↓ שורה.
-// כל סימון נשמר מיד; אחריו עוברים לשורה הבאה שלא טופלה.
+// כל סימון נשמר מיד; אחריו עוברים לשורה הבאה שלא טופלה — בלי לגלול כשהיא כבר נראית (calmScroll).
 export default function OcrScreen() {
   const round = useRound('ocr')
   const router = useRouter()
@@ -34,6 +35,7 @@ function OcrRound({ round }) {
   const [editing, setEditing] = useState(null)
   const [ctxOf, setCtxOf] = useState(null)
   const scrollNext = useRef(false)
+  const top = useRef(null)
   const { items } = round
   const { done, total } = progress(items)
 
@@ -41,7 +43,9 @@ function OcrRound({ round }) {
     if (!scrollNext.current) return
     scrollNext.current = false
     const id = items[cur]?.id
-    if (id) document.getElementById(`tp-line-${id}`)?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+    // הכותרות הדביקות: של האתר, ושל הסבב (RoundHeader — הילד הראשון כאן)
+    const stickies = [...document.querySelectorAll('header'), top.current?.firstElementChild]
+    if (id) revealCard(document.getElementById(`tp-line-${id}`), { stickies })
   }, [cur, items])
 
   const move = useCallback((i) => {
@@ -89,7 +93,7 @@ function OcrRound({ round }) {
   const summary = `${by.ok || 0} נכונות · ${by.fixed || 0} תוקנו · ${(by.seg || 0) + (by.bad || 0)} חיתוך גרוע / לא קריא · ${by.skip || 0} דילגתם · ${by.router || 0} חזרו לנתב`
 
   return (
-    <div className="flex flex-col gap-3">
+    <div ref={top} className="flex flex-col gap-3">
       <RoundHeader title="זיהוי טקסט" done={done} total={total} onHome={goHome} />
       {round.lost ? <LostNotice onRetake={round.take} /> : null}
       <p className="text-body-sm leading-8 text-on-surface-variant">
