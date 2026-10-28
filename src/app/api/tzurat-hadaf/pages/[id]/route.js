@@ -13,7 +13,7 @@ export async function GET(request, { params }) {
   try {
     const { id } = await params;
     const r = await pageDetail(id, g.userId);
-    return fromResult(r.ok && itemsPaused(g) ? { ...r, items: [] } : r);
+    return fromResult(r.ok && itemsPaused() ? { ...r, items: [] } : r);
   } catch (e) {
     console.error('tzurat page', e);
     return serverError();

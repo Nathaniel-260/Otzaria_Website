@@ -11,7 +11,7 @@ const KINDS = ['any', 'g', 'r', 't'];
 export async function GET(request) {
   const g = await requireTzuratSession();
   if (g.error) return g.error;
-  if (itemsPaused(g)) return errorJson(503, PAUSED_MSG, 'paused');
+  if (itemsPaused()) return errorJson(503, PAUSED_MSG, 'paused');
   try {
     const sp = new URL(request.url).searchParams;
     const kind = sp.get('kind') || 'any';

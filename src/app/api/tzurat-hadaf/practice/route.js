@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const g = await requireTzuratSession();
   if (g.error) return g.error;
-  if (itemsPaused(g)) return errorJson(503, PAUSED_MSG, 'paused');
+  if (itemsPaused()) return errorJson(503, PAUSED_MSG, 'paused');
   try {
     return json({ items: await practiceItems(g.userId) });
   } catch (e) {
@@ -22,7 +22,7 @@ export async function GET() {
 export async function POST(request) {
   const g = await requireTzuratSession();
   if (g.error) return g.error;
-  if (itemsPaused(g)) return errorJson(503, PAUSED_MSG, 'paused');
+  if (itemsPaused()) return errorJson(503, PAUSED_MSG, 'paused');
   try {
     const { body, tooBig } = await readJsonBody(request, 64 * 1024);
     if (tooBig) return tooBigResponse();

@@ -14,7 +14,7 @@ export async function POST(request, { params }) {
     if (tooBig) return tooBigResponse();
     if (!body || typeof body !== 'object') return badRequest('גוף הבקשה חסר');
     // כשהשאלות מושהות — תשובות לשאלות (מדף שנפתח לפני ההשהיה) אינן נשמרות; השורות והדיווחים כן
-    const r = await submitPage(id, g.user, itemsPaused(g) ? { ...body, itemAnswers: [] } : body);
+    const r = await submitPage(id, g.user, itemsPaused() ? { ...body, itemAnswers: [] } : body);
     if (!r.ok) return fromResult(r);
     return json({ submission: r.submission, points: r.points, warnings: r.warnings || [] });
   } catch (e) {

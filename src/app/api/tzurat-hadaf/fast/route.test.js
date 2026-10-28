@@ -13,7 +13,7 @@ vi.mock('next-auth', () => ({ getServerSession: getServerSessionMock }))
 vi.mock('@/app/api/auth/[...nextauth]/route', () => ({ authOptions: {} }))
 vi.mock('@/models/User', () => ({ default: { findById: findByIdMock } }))
 vi.mock('@/lib/tzuratHadaf/tokenAuth', () => ({ getTzuratSession: vi.fn() }))
-vi.mock('@/lib/tzuratHadaf/pause', () => ({ PAUSED_MSG: 'מושהה', itemsPaused: (g) => pause.on && !g?.isAdmin }))
+vi.mock('@/lib/tzuratHadaf/pause', () => ({ PAUSED_MSG: 'מושהה', itemsPaused: () => pause.on }))
 vi.mock('@/lib/tzuratHadaf/items', () => ({
   sampleFastItem: sampleMock,
   fastItemFor: vi.fn(),
@@ -88,7 +88,7 @@ it('counts statistics only when explicitly requested, not for every next questio
   expect(fastStats).toHaveBeenCalledTimes(1)
 })
 
-it('שאלות מושהות — 503 למתנדב, ומנהל המודול עובר', async () => {
+it('שאלות מושהות — 503, גם למנהל המודול', async () => {
   pause.on = true
   getServerSessionMock.mockResolvedValue({ user: { id: USER_ID, role: 'user', isVerified: true } })
   findByIdMock.mockReturnValue({ lean: () => Promise.resolve({ tzuratPracticeDone: true }) })
@@ -97,6 +97,6 @@ it('שאלות מושהות — 503 למתנדב, ומנהל המודול עוב
   expect(res.status).toBe(503)
   expect(await res.json()).toMatchObject({ code: 'paused' })
   getServerSessionMock.mockResolvedValue({ user: { id: USER_ID, role: 'admin', isVerified: true } })
-  expect((await GET(req())).status).toBe(200)
+  expect((await GET(req())).status).toBe(503)
   pause.on = false
 })

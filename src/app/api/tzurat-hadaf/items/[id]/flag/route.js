@@ -9,7 +9,7 @@ import { itemsPaused, PAUSED_MSG } from '@/lib/tzuratHadaf/pause';
 export async function POST(request, { params }) {
   const g = await requireTzuratSession();
   if (g.error) return g.error;
-  if (itemsPaused(g)) return errorJson(503, PAUSED_MSG, 'paused');
+  if (itemsPaused()) return errorJson(503, PAUSED_MSG, 'paused');
   try {
     if (!checkRateLimit(`user:${g.userId}`, 'tzurat-flag', 10, 'minute')) return errorJson(429, 'יותר מדי סימונים — נסו שוב בעוד דקה');
     const { id } = await params;
