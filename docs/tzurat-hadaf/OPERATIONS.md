@@ -80,7 +80,10 @@ location /api/admin/tzurat-hadaf/ {
 ## 5. ייצוא וסנכרון
 
 - `GET /api/admin/tzurat-hadaf/export?since=<iso>&types=decision,anchor,check,report,contributor` (גם `parts=`) — NDJSON
-  זורם. `since` לפי `updatedAt`. הגשות מאושרות מסומנות `exportedAt` אטומית **לפני** פליטת anchor/check ראשון, ורק אם עדיין מאושרות. מרגע הסימון אי אפשר לדחות.
+  זורם. `since` לפי `updatedAt`. ייצוא שכולל `anchor` או `check` מחזיר בשורת ה־meta גם `exportId`.
+  לאחר שהלקוח קיבל את כל הקובץ הוא שולח `POST /api/admin/tzurat-hadaf/export` עם `{exportId}`;
+  רק ה־ACK מסמן `exportedAt`, ורק להגשות שעדיין מאושרות ואינן בתהליך דחייה. ניתוק לפני קבלת הקובץ
+  אינו נועל הגשות. עבודת ACK שלא הושלמה פגה אוטומטית אחרי 24 שעות.
   ניתוק הזרם אחרי הסימון עשוי לנעול דחייה גם לפני קבלת השורה אצל הצרכן; הייצוא ניתן להרצה חוזרת ללא אובדן הנתונים.
 - `POST /api/admin/tzurat-hadaf/sync` `{reports:[{id, status, note, buildId}], pages:[{slug, dafKey, action:'reopen'|'close'}]}`.
   דיווח `fixed` מזכה את המדווח ב-2 נקודות (פעם אחת).
@@ -109,6 +112,10 @@ location /api/admin/tzurat-hadaf/ {
 שצריך לנסות שוב אחרי עד 10 דקות. עד אז `409 processing` מונע שני עובדים במקביל. אין צורך ב-replica set
 או בטרנזקציות מרובות מסמכים. תשובות לשאלות שנסגרו או השתנו בזמן העיבוד נשמרות עם אזהרה מפורשת
 למנהל (`answerIssues` והקלט המקורי `input`), במקום להתעלם מהן.
+
+אישור ודחייה משתמשים ב־`reviewAction`/`reviewData` ובמזהי אירוע אטומיים במסמכי המשתמש והעמוד.
+הסטטוס הסופי נכתב רק אחרי כל תופעות הלוואי; אם התהליך נעצר, שליחת אותה פעולה שוב ממשיכה מהקלט
+שהוקפא בלי להכפיל נקודות או מונים. אין למחוק ידנית `reviewAction` תקוע — ניסיון חוזר הוא מנגנון ההתאוששות.
 
 אינדקסי תור המסלול המהיר כוללים את כל המיון (`status,kind,score,_id` וגם `status,score,_id` למסננים
 על כמה סוגים). הם נוצרים עם המודל ב-autoIndex הרגיל; בסביבה עם autoIndex כבוי יש להריץ

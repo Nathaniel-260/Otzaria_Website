@@ -12,11 +12,13 @@ import TzuratBatch from '../../models/TzuratBatch.js';
 import TzuratSubmission from '../../models/TzuratSubmission.js';
 import TzuratReport from '../../models/TzuratReport.js';
 import TzuratDraft from '../../models/TzuratDraft.js';
+import TzuratExportJob from '../../models/TzuratExportJob.js';
 import { startMongo } from '../corrections/testing/mongo.js';
 import { claimPage, releasePage, saveDraft as saveDraftRaw, pageDetail, bookPages, MAX_HELD } from './pages.js';
 import { submitPage as submitPageRaw, approveSubmission, rejectSubmission } from './submissions.js';
 import { applySync } from './reports.js';
 import { exportRowsStream } from './exportStream.js';
+import { acknowledgeExport } from './exportAck.js';
 import { reviewVersion } from './shapes.js';
 import { answerChoice as answerChoiceRaw } from './items.js';
 import { optionsFor } from './questions.js';
@@ -531,4 +533,70 @@ test('a question closed during submission keeps its original answer for the revi
   assert.equal(sub.input.itemAnswers[0].verdict, 'print');
   assert.deepEqual(sub.input.itemAnswers[0].print, ['ב']);
   assert.equal((await TzuratItem.findById(item._id).lean()).answers.length, 0);
+});
+
+test('approval resumes after a crash without duplicating points or page counters', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const result = await submitPage(pages[0]._id, user(u1), {});
+  const update = TzuratPage.updateOne;
+  let failOnce = true;
+  t.mock.method(TzuratPage, 'updateOne', async function (...args) {
+    const value = await update.apply(this, args);
+    if (failOnce && Array.isArray(args[1]) && args[1][0]?.$set?.approvalEvents) {
+      failOnce = false;
+      throw new Error('crash after approval counter');
+    }
+    return value;
+  });
+  await assert.rejects(approveSubmission(result.submission, adminUser()));
+  let sub = await TzuratSubmission.findById(result.submission).lean();
+  assert.deepEqual([sub.status, sub.reviewAction], ['submitted', 'approve']);
+  assert.equal((await User.findById(u1._id).lean()).points, 10);
+  assert.ok((await approveSubmission(result.submission, adminUser())).ok);
+  sub = await TzuratSubmission.findById(result.submission).lean();
+  assert.equal(sub.status, 'approved');
+  assert.equal((await User.findById(u1._id).lean()).points, 10);
+  assert.equal((await TzuratPage.findById(pages[0]._id).lean()).approvedCount, 1);
+});
+
+test('rejection resumes after a crash and reverses each effect once', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const item = await TzuratItem.create({ sourceKey: 'berakhot|g|R|77|rep', slug: 'berakhot', dafKey: pages[0].dafKey, page: pages[0]._id, otz: ['א'], print: ['ב'] });
+  const result = await submitPage(pages[0]._id, user(u1), { itemAnswers: [{ item: String(item._id), choice: 'a' }] });
+  await approveSubmission(result.submission, adminUser());
+  const update = TzuratPage.updateOne;
+  let failOnce = true;
+  t.mock.method(TzuratPage, 'updateOne', async function (...args) {
+    if (failOnce && Array.isArray(args[1]) && args[1][0]?.$set?.releaseEvents) {
+      failOnce = false;
+      throw new Error('crash before release counter');
+    }
+    return update.apply(this, args);
+  });
+  await assert.rejects(rejectSubmission(result.submission, adminUser()));
+  let sub = await TzuratSubmission.findById(result.submission).lean();
+  assert.deepEqual([sub.status, sub.reviewAction], ['approved', 'reject']);
+  assert.equal((await TzuratItem.findById(item._id).lean()).answers.length, 0);
+  assert.ok((await rejectSubmission(result.submission, adminUser())).ok);
+  assert.equal((await User.findById(u1._id).lean()).points, 0);
+  const page = await TzuratPage.findById(pages[0]._id).lean();
+  assert.deepEqual([page.activeCount, page.approvedCount, page.status], [0, 0, 'open']);
+});
+
+test('export ACK locks only delivered approved submissions and is idempotent', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const first = await submitPage(pages[0]._id, user(u1), { lineOps: [{ op: 'confirm', block: 'g', line: 1 }] });
+  await approveSubmission(first.submission, adminUser());
+  const second = await submitPage(pages[1]._id, user(u1), {});
+  await approveSubmission(second.submission, adminUser());
+  const job = await TzuratExportJob.create({
+    status: 'ready', submissions: [first.submission, second.submission],
+    readyAt: new Date(), expiresAt: new Date(Date.now() + 60000),
+  });
+  assert.ok((await rejectSubmission(second.submission, adminUser())).ok);
+  assert.ok((await acknowledgeExport(job._id)).ok);
+  assert.ok((await TzuratSubmission.findById(first.submission).lean()).exportedAt);
+  assert.equal((await TzuratSubmission.findById(second.submission).lean()).exportedAt, null);
+  assert.ok((await acknowledgeExport(job._id)).ok);
+  assert.equal((await rejectSubmission(first.submission, adminUser())).status, 409);
 });

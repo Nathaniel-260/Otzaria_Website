@@ -287,3 +287,28 @@ test('reimporting a legacy unanswered question invalidates the displayed revisio
   assert.equal(r.code, 'stale');
   assert.equal((await TzuratItem.findById(old._id).lean()).answers.length, 0);
 });
+
+test('a database write failure marks the upload failed and a retry completes it explicitly', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  const first = await upload(await buildZip({ pages: [pageRec('002a')], items: [itemRec(1, '002a')] }));
+  await processUpload(first);
+  const second = await upload(await buildZip({ buildId: 'b2', pages: [pageRec('002a', { changed: true })], items: [itemRec(1, '002a'), itemRec(2, '002a')] }));
+  const bulkWrite = TzuratItem.bulkWrite;
+  let failOnce = true;
+  t.mock.method(TzuratItem, 'bulkWrite', async function (...args) {
+    if (failOnce) { failOnce = false; throw new Error('simulated partial bulk failure'); }
+    return bulkWrite.apply(this, args);
+  });
+  await processUpload(second);
+  let state = await TzuratUpload.findById(second).lean();
+  assert.equal(state.status, 'failed');
+  assert.match(state.errorList.join('\n'), /שמירת החלטות נכשלה/);
+  assert.equal((await TzuratBatch.findOne({ slug: 'berakhot' }).lean()).buildId, 'b1');
+  assert.ok((await requeueUpload(second)).ok);
+  await processUpload(second);
+  state = await TzuratUpload.findById(second).lean();
+  assert.equal(state.status, 'done', JSON.stringify(state.errorList));
+  assert.equal((await TzuratBatch.findOne({ slug: 'berakhot' }).lean()).buildId, 'b2');
+  assert.equal(await TzuratItem.countDocuments({ status: { $ne: 'obsolete' } }), 2);
+  assert.equal((await TzuratPage.findOne({ dafKey: '002a' }).lean()).round, 2);
+});

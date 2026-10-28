@@ -9,6 +9,11 @@ import { imageFsPath, cropsDir, writeIntoPlace } from './storage.js';
 import { fnv1a } from './common.js';
 
 const MIME = { png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+const CROP_CACHE_MAX_FILES = 5000;
+const CROP_CACHE_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+const CROP_PRUNE_INTERVAL_MS = 10000;
+let lastCropPrune = 0;
+let cropPrunePromise = null;
 const mimeOf = (p) => MIME[path.extname(p).slice(1).toLowerCase()] || 'application/octet-stream';
 
 async function readOrNull(p) {
@@ -18,6 +23,43 @@ async function readOrNull(p) {
     if (e?.code === 'ENOENT') return null;
     throw e;
   }
+}
+
+async function cropFiles(dir) {
+  const out = [];
+  for (const entry of await fs.readdir(/*turbopackIgnore: true*/ dir, { withFileTypes: true }).catch((e) => {
+    if (e?.code === 'ENOENT') return [];
+    throw e;
+  })) {
+    const p = path.join(/*turbopackIgnore: true*/ dir, entry.name);
+    if (entry.isDirectory()) out.push(...await cropFiles(p));
+    else if (entry.isFile()) {
+      const stat = await fs.stat(/*turbopackIgnore: true*/ p);
+      out.push({ p, size: stat.size, mtimeMs: stat.mtimeMs });
+    }
+  }
+  return out;
+}
+
+async function pruneCropCache() {
+  const files = (await cropFiles(cropsDir())).sort((a, b) => a.mtimeMs - b.mtimeMs);
+  let bytes = files.reduce((sum, file) => sum + file.size, 0);
+  let count = files.length;
+  for (const file of files) {
+    if (count <= CROP_CACHE_MAX_FILES && bytes <= CROP_CACHE_MAX_BYTES) break;
+    await fs.rm(/*turbopackIgnore: true*/ file.p, { force: true });
+    count--;
+    bytes -= file.size;
+  }
+}
+
+function scheduleCropPrune() {
+  const now = Date.now();
+  if (cropPrunePromise || now - lastCropPrune < CROP_PRUNE_INTERVAL_MS) return;
+  lastCropPrune = now;
+  cropPrunePromise = pruneCropCache()
+    .catch((e) => console.error('tzurat crop prune', e?.code || e?.name))
+    .finally(() => { cropPrunePromise = null; });
 }
 
 /** הקובץ המקורי כמו שהוא ← {buffer, type} או null */
@@ -57,6 +99,7 @@ export async function itemCrop(item, page, { ctx = false } = {}) {
   };
   const buffer = await img.extract(region).webp({ quality: 85 }).toBuffer();
   await writeIntoPlace(cached, buffer).catch((e) => console.error('tzurat crop cache', e?.code || e?.name));
+  scheduleCropPrune();
   return { buffer, type: 'image/webp' };
 }
 
@@ -93,5 +136,6 @@ export async function pageImage(page, side, params) {
   if (thumb) img = img.resize({ width: THUMB_W, withoutEnlargement: true });
   const buffer = await img.webp({ quality: thumb ? 70 : 85 }).toBuffer();
   await writeIntoPlace(cached, buffer).catch((e) => console.error('tzurat page crop cache', e?.code || e?.name));
+  scheduleCropPrune();
   return { buffer, type: 'image/webp' };
 }

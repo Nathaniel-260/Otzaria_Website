@@ -30,7 +30,9 @@ import { requiredFor } from './common.js';
 
 const TEXT_ENTRIES = new Set(Object.values(ENTRY));
 const MAX_MANIFEST = 1024 * 1024;
-const MAX_JSONL = 400 * 1024 * 1024;
+const MAX_JSONL = 64 * 1024 * 1024;
+const MAX_UNPACKED = 512 * 1024 * 1024;
+const MAX_IMAGE = 200 * 1024 * 1024;
 const BEAT_MS = 5000;
 const BULK = 500;
 export const PRACTICE_PREFIX = 'practice:';
@@ -50,12 +52,12 @@ export async function unzipToStaging(zipPath, staging, { onBeat = async () => {}
   await fs.mkdir(/*turbopackIgnore: true*/ staging, { recursive: true });
   const texts = new Map();
   const images = new Set();
-  const ready = [];
+  const writes = [];
+  let unpacked = 0;
   let ignored = 0;
   let error = null;
 
-  const collect = (file, cap, done) => {
-    const parts = [];
+  const consume = (file, cap, onChunk, done) => {
     let size = 0;
     file.ondata = (err, data, final) => {
       if (error) return;
@@ -64,13 +66,14 @@ export async function unzipToStaging(zipPath, staging, { onBeat = async () => {}
         return;
       }
       size += data.length;
-      if (size > cap) {
-        error = new ImportError(`קובץ גדול מדי בחבילה: ${file.name.slice(0, 80)}`);
+      unpacked += data.length;
+      if (size > cap || unpacked > MAX_UNPACKED) {
+        error = new ImportError(unpacked > MAX_UNPACKED ? 'החבילה גדולה מדי לאחר פריסה' : `קובץ גדול מדי בחבילה: ${file.name.slice(0, 80)}`);
         file.terminate();
         return;
       }
-      if (data.length) parts.push(data);
-      if (final) done(Buffer.concat(parts.map((p) => Buffer.from(p.buffer, p.byteOffset, p.byteLength))));
+      if (data.length) onChunk(data);
+      if (final) done();
     };
     file.start();
   };
@@ -79,12 +82,28 @@ export async function unzipToStaging(zipPath, staging, { onBeat = async () => {}
     if (error) return;
     const name = file.name;
     if (TEXT_ENTRIES.has(name)) {
-      collect(file, name === ENTRY.manifest ? MAX_MANIFEST : MAX_JSONL, (buf) => texts.set(name, buf));
+      const parts = [];
+      consume(file, name === ENTRY.manifest ? MAX_MANIFEST : MAX_JSONL,
+        (data) => parts.push(Buffer.from(data.buffer, data.byteOffset, data.byteLength)),
+        () => texts.set(name, Buffer.concat(parts)));
       return;
     }
     const img = imageEntry(name);
     if (img) {
-      collect(file, 200 * 1024 * 1024, (buf) => ready.push({ fileName: `${img.dafKey}.${img.side}.${img.ext}`, buf }));
+      const fileName = `${img.dafKey}.${img.side}.${img.ext}`;
+      const dest = path.join(/*turbopackIgnore: true*/ staging, fileName);
+      let handlePromise;
+      let chain = Promise.resolve();
+      consume(file, MAX_IMAGE, (data) => {
+        handlePromise ||= fs.open(/*turbopackIgnore: true*/ dest, 'w');
+        const chunk = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+        chain = chain.then(() => handlePromise).then((handle) => handle.write(chunk));
+        writes.push(chain);
+      }, () => {
+        handlePromise ||= fs.open(/*turbopackIgnore: true*/ dest, 'w');
+        const closing = chain.then(() => handlePromise).then((handle) => handle.close());
+        writes.push(closing.then(() => images.add(fileName)));
+      });
       return;
     }
     ignored++;
@@ -93,11 +112,9 @@ export async function unzipToStaging(zipPath, staging, { onBeat = async () => {}
   uz.register(UnzipInflate);
 
   const flush = async () => {
-    while (ready.length) {
-      const { fileName, buf } = ready.shift();
-      await fs.writeFile(/*turbopackIgnore: true*/ path.join(/*turbopackIgnore: true*/ staging, fileName), buf);
-      images.add(fileName);
-    }
+    if (!writes.length) return;
+    const pending = writes.splice(0);
+    await Promise.all(pending);
   };
 
   let last = Date.now();
@@ -167,7 +184,10 @@ async function importPage(ctx, rec) {
     const r = await TzuratPage.updateOne(
       { ...key, buildId: prev.buildId },
       {
-        $set: { ...fields, buildId: manifest.buildId, status: 'open', activeCount: 0, approvedCount: 0, submitters: [], changedInRound: true },
+        $set: {
+          ...fields, buildId: manifest.buildId, status: 'open', activeCount: 0, approvedCount: 0,
+          submitters: [], approvalEvents: [], releaseEvents: [], changedInRound: true,
+        },
         $inc: { round: 1 },
       }
     );
@@ -200,7 +220,7 @@ async function importItems(ctx, records, { practice = false } = {}) {
     try {
       await TzuratItem.bulkWrite(batch, { ordered: false });
     } catch (e) {
-      pushError(ctx.errors, `שמירת החלטות נכשלה בחלקה: ${e?.message?.slice(0, 120) || e?.name}`);
+      throw new ImportError(`שמירת החלטות נכשלה בחלקה: ${e?.message?.slice(0, 120) || e?.name}`);
     }
   };
   for (let k = 0; k < records.length; k++) {
@@ -385,7 +405,7 @@ export async function processUpload(uploadId, { now = () => new Date(), keepStag
       try {
         await importPage(ctx, p.value);
       } catch (e) {
-        pushError(errors, `pages.jsonl שורה ${l.line}: ${e instanceof ImportError ? e.message : e?.message || e?.name}`);
+        throw new ImportError(`pages.jsonl שורה ${l.line}: ${e instanceof ImportError ? e.message : e?.message || e?.name}`);
       }
       await beat();
     }

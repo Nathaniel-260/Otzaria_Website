@@ -16,7 +16,7 @@ import TzuratReport from '../../models/TzuratReport.js';
 import User from '../../models/User.js';
 import { normalizeLineOps, applyLineOps, deriveAnchors, flattenBlock } from './lineOps.js';
 import { normalizeChecks, normalizeReport, MAX_REPORTS_PER_SUBMISSION } from './reportRules.js';
-import { addAnswer, settle, award, POINTS_AGREED } from './items.js';
+import { addAnswer, settle, POINTS_AGREED } from './items.js';
 import { dropDraft } from './pages.js';
 import { reviewVersion } from './shapes.js';
 import { CHOICES, choiceToVerdict } from './questions.js';
@@ -31,6 +31,25 @@ const CTX = 3;
 
 const oid = (v) => new mongoose.Types.ObjectId(String(v));
 const fail = (status, error, code) => ({ ok: false, status, error, ...(code ? { code } : {}) });
+
+async function applyPointEvent(userId, event, points) {
+  await User.updateOne(
+    { _id: userId },
+    [{
+      $set: {
+        points: {
+          $cond: [
+            { $in: [event, { $ifNull: ['$tzuratPointEvents', []] }] },
+            { $ifNull: ['$points', 0] },
+            { $add: [{ $ifNull: ['$points', 0] }, points] },
+          ],
+        },
+        tzuratPointEvents: { $setUnion: [{ $ifNull: ['$tzuratPointEvents', []] }, [event]] },
+      },
+    }],
+    { updatePipeline: true }
+  );
+}
 
 // ---------- בדיקת הקלט ----------
 
@@ -225,26 +244,6 @@ export async function submitPage(pageId, user, body, { canRashi = false, now = n
   }
   const { lineOps, anchors } = opsAndAnchors(page.model, input.ops);
 
-  const claimed = await TzuratPage.findOneAndUpdate(
-    {
-      _id: page._id,
-      status: 'open',
-      round: page.round || 1,
-      buildId: page.buildId || '',
-      submitters: { $ne: uid },
-      $expr: { $lt: ['$activeCount', '$required'] },
-      $or: [{ leasedBy: uid }, { leasedUntil: null }, { leasedUntil: { $lt: now } }],
-    },
-    { $inc: { activeCount: 1 }, $push: { submitters: uid } },
-    { returnDocument: 'after', lean: true }
-  );
-  if (!claimed) {
-    const p = await TzuratPage.findById(page._id, { status: 1, round: 1, buildId: 1, submitters: 1 }).lean();
-    if (p && reviewVersion(p) !== reviewVersion(page)) return fail(409, 'העמוד עודכן מאז שנפתח — טענו אותו מחדש', 'stale');
-    if ((p?.submitters || []).some((s) => String(s) === String(uid))) return fail(409, 'כבר הגשתם את העמוד הזה', 'submitted');
-    return fail(409, 'העמוד כבר הוגש או נלקח בידי מתנדב אחר', 'taken');
-  }
-
   let sub;
   try {
     sub = await TzuratSubmission.create({
@@ -261,14 +260,45 @@ export async function submitPage(pageId, user, body, { canRashi = false, now = n
       anchors,
       note: input.note,
       status: 'processing',
+      reservationClaimed: false,
       input: { ...input, page: { _id: page._id, slug: page.slug, masechet: page.masechet, daf: page.daf, dafKey: page.dafKey, buildId: page.buildId },
         reports: input.reports.map((r) => ({ ...r, _id: new mongoose.Types.ObjectId() })) },
     });
   } catch (e) {
-    // ביטול תפיסת המקום — אחרת העמוד "תקוע" עם מונה שאין מאחוריו הגשה
-    await TzuratPage.updateOne({ _id: page._id, round: page.round || 1, submitters: uid }, { $inc: { activeCount: -1 }, $pull: { submitters: uid } });
+    if (e?.code === 11000) {
+      const existing = await TzuratSubmission.findOne({ page: page._id, user: uid, round: page.round || 1, status: 'processing' }).lean();
+      if (existing) return finishSubmission(existing, user, { canRashi, now });
+    }
     throw e;
   }
+
+  const claimed = await TzuratPage.findOneAndUpdate(
+    {
+      _id: page._id,
+      status: 'open',
+      round: page.round || 1,
+      buildId: page.buildId || '',
+      submitters: { $ne: uid },
+      $expr: { $lt: ['$activeCount', '$required'] },
+      $or: [{ leasedBy: uid }, { leasedUntil: null }, { leasedUntil: { $lt: now } }],
+    },
+    { $inc: { activeCount: 1 }, $push: { submitters: uid } },
+    { returnDocument: 'after', lean: true }
+  );
+  if (!claimed) {
+    await TzuratSubmission.deleteOne({ _id: sub._id, status: 'processing', reservationClaimed: false });
+    const p = await TzuratPage.findById(page._id, { status: 1, round: 1, buildId: 1, submitters: 1 }).lean();
+    if (p && reviewVersion(p) !== reviewVersion(page)) return fail(409, 'העמוד עודכן מאז שנפתח — טענו אותו מחדש', 'stale');
+    if ((p?.submitters || []).some((s) => String(s) === String(uid))) return fail(409, 'כבר הגשתם את העמוד הזה', 'submitted');
+    return fail(409, 'העמוד כבר הוגש או נלקח בידי מתנדב אחר', 'taken');
+  }
+
+  const marked = await TzuratSubmission.updateOne(
+    { _id: sub._id, status: 'processing' },
+    { $set: { reservationClaimed: true } }
+  );
+  if (!marked.matchedCount) throw new Error('Submission disappeared after reservation');
+  sub.reservationClaimed = true;
 
   return finishSubmission(sub.toObject(), user, { canRashi, now });
 }
@@ -277,6 +307,35 @@ export async function submitPage(pageId, user, body, { canRashi = false, now = n
 // idempotent (answers carry the submission ID; report IDs are allocated in the saved input).
 const PROCESSING_MS = 10 * 60 * 1000;
 async function finishSubmission(sub, user, { canRashi, now }) {
+  if (!sub.reservationClaimed) {
+    const uid = oid(user.id);
+    const page = sub.input?.page;
+    const current = await TzuratPage.findById(sub.page, { round: 1, buildId: 1, submitters: 1 }).lean();
+    if (current && (current.round || 1) === (sub.round || 1) && (current.buildId || '') === (sub.buildId || '') &&
+        (current.submitters || []).some((id) => String(id) === String(uid))) {
+      await TzuratSubmission.updateOne({ _id: sub._id, status: 'processing' }, { $set: { reservationClaimed: true } });
+      sub.reservationClaimed = true;
+    } else {
+      const claimed = await TzuratPage.findOneAndUpdate(
+        {
+          _id: sub.page, status: 'open', round: sub.round || 1, buildId: sub.buildId || '',
+          submitters: { $ne: uid }, $expr: { $lt: ['$activeCount', '$required'] },
+          $or: [{ leasedBy: uid }, { leasedUntil: null }, { leasedUntil: { $lt: now } }],
+        },
+        { $inc: { activeCount: 1 }, $push: { submitters: uid } },
+        { returnDocument: 'after', lean: true }
+      );
+      if (!claimed) {
+        await TzuratSubmission.deleteOne({ _id: sub._id, status: 'processing', reservationClaimed: false });
+        if (page && current && ((current.round || 1) !== (sub.round || 1) || (current.buildId || '') !== (sub.buildId || ''))) {
+          return fail(409, 'העמוד עודכן מאז שנפתח — טענו אותו מחדש', 'stale');
+        }
+        return fail(409, 'העמוד כבר הוגש או נלקח בידי מתנדב אחר', 'taken');
+      }
+      await TzuratSubmission.updateOne({ _id: sub._id, status: 'processing' }, { $set: { reservationClaimed: true } });
+      sub.reservationClaimed = true;
+    }
+  }
   const token = randomUUID();
   const lock = { _id: sub._id, status: 'processing', processingToken: token };
   const claimed = await TzuratSubmission.findOneAndUpdate(
@@ -347,10 +406,13 @@ const reviewerOf = (admin, note, now) => ({
 /** אישור. lineOps (אופציונלי) — הפעולות אחרי תיקון המנהל. ← {ok, submission} */
 export async function approveSubmission(subId, admin, { note = '', lineOps } = {}, now = new Date()) {
   if (!isObjectId(String(subId))) return fail(404, 'ההגשה לא נמצאה');
-  const sub = await TzuratSubmission.findById(subId).lean();
+  let sub = await TzuratSubmission.findById(subId).lean();
   if (!sub) return fail(404, 'ההגשה לא נמצאה');
-  if (sub.status !== 'submitted') return fail(409, 'ההגשה כבר טופלה', 'reviewed');
-  const set = { status: 'approved', pointsAwarded: true, ...reviewerOf(admin, note, now) };
+  if (sub.status === 'approved' && !sub.reviewAction) return fail(409, 'ההגשה כבר טופלה', 'reviewed');
+  if (sub.status !== 'submitted' || (sub.reviewAction && sub.reviewAction !== 'approve')) {
+    return fail(409, 'ההגשה כבר טופלה', 'reviewed');
+  }
+  const set = { ...reviewerOf(admin, note, now) };
   if (lineOps !== undefined) {
     const ops = normalizeLineOps(lineOps);
     if (ops.error) return fail(400, ops.error);
@@ -364,16 +426,44 @@ export async function approveSubmission(subId, admin, { note = '', lineOps } = {
     set.anchors = r.anchors;
     set.reviewerEdited = true;
   }
-  const prev = await TzuratSubmission.findOneAndUpdate({ _id: sub._id, status: 'submitted' }, { $set: set }, { returnDocument: 'before', lean: true });
-  if (!prev) return fail(409, 'ההגשה כבר טופלה', 'reviewed');
-  if (!prev.pointsAwarded) await User.updateOne({ _id: prev.user }, { $inc: { points: POINTS_APPROVED } });
-  const r = await TzuratPage.updateOne({ _id: sub.page, round: sub.round || 1 }, { $inc: { approvedCount: 1 } });
-  if (r.matchedCount) {
-    await TzuratPage.updateOne(
-      { _id: sub.page, round: sub.round || 1, status: 'open', $expr: { $gte: ['$approvedCount', '$required'] } },
-      { $set: { status: 'done', leasedBy: null, leasedUntil: null } }
+  if (!sub.reviewAction) {
+    const claimed = await TzuratSubmission.findOneAndUpdate(
+      { _id: sub._id, status: 'submitted', reviewAction: null },
+      { $set: { reviewAction: 'approve', reviewData: { set } } },
+      { returnDocument: 'after', lean: true }
     );
+    if (!claimed) {
+      sub = await TzuratSubmission.findById(sub._id).lean();
+      if (sub?.reviewAction !== 'approve') return fail(409, 'ההגשה כבר מטופלת בפעולה אחרת', 'processing');
+    } else sub = claimed;
   }
+  const frozenSet = sub.reviewData?.set || set;
+  await applyPointEvent(sub.user, `submission:${sub._id}:approved`, POINTS_APPROVED);
+  await TzuratPage.updateOne(
+    { _id: sub.page, round: sub.round || 1 },
+    [{
+      $set: {
+        approvedCount: {
+          $cond: [
+            { $in: [sub._id, { $ifNull: ['$approvalEvents', []] }] },
+            { $ifNull: ['$approvedCount', 0] },
+            { $add: [{ $ifNull: ['$approvedCount', 0] }, 1] },
+          ],
+        },
+        approvalEvents: { $setUnion: [{ $ifNull: ['$approvalEvents', []] }, [sub._id]] },
+      },
+    }],
+    { updatePipeline: true }
+  );
+  await TzuratPage.updateOne(
+    { _id: sub.page, round: sub.round || 1, status: 'open', $expr: { $gte: ['$approvedCount', '$required'] } },
+    { $set: { status: 'done', leasedBy: null, leasedUntil: null } }
+  );
+  const done = await TzuratSubmission.updateOne(
+    { _id: sub._id, status: 'submitted', reviewAction: 'approve' },
+    { $set: { status: 'approved', pointsAwarded: true, ...frozenSet, reviewAction: null, reviewData: null } }
+  );
+  if (!done.matchedCount) return fail(409, 'ההגשה כבר טופלה', 'reviewed');
   return { ok: true, submission: await TzuratSubmission.findById(sub._id).lean() };
 }
 
@@ -382,30 +472,46 @@ export async function approveSubmission(subId, admin, { note = '', lineOps } = {
  * בזכותה — חוזר לפתוח, הנקודות שחולקו עליו מוחזרות, ונבדק מחדש עם התשובות שנשארו. פריט ידני שנשאר בלי
  * תשובות ← obsolete. הכרעת מנהל (resolved) נשארת.
  */
-async function undoPageAnswers(sub, now) {
+async function rejectionPlan(sub) {
   const ids = [...new Set([...(sub.itemAnswers || []).map((a) => String(a.item)), ...(sub.manualItems || []).map(String)])];
-  for (const id of ids) {
-    try {
-      const item = await TzuratItem.findById(id, { status: 1, answers: 1, manual: 1, pointsAwarded: 1 }).lean();
-      if (!item || !['open', 'agreed', 'disputed'].includes(item.status)) continue;
-      if (!(item.answers || []).some((a) => String(a.user) === String(sub.user) && a.via === 'page' && (!a.submission || String(a.submission) === String(sub._id)))) continue;
-      const after = await TzuratItem.findOneAndUpdate(
+  const rows = ids.length
+    ? await TzuratItem.find({ _id: { $in: ids.map(oid) } }, { status: 1, answers: 1, manual: 1, pointsAwarded: 1 }).lean()
+    : [];
+  return rows.map((item) => ({
+    item: item._id,
+    manual: Boolean(item.manual),
+    rollbackUsers: item.status === 'agreed' && item.pointsAwarded ? consensus(item.answers).agreers : [],
+  }));
+}
+
+async function undoPageAnswers(sub, plan, now) {
+  for (const step of plan) {
+    const item = await TzuratItem.findById(step.item, { status: 1, answers: 1, manual: 1, pointsAwarded: 1 }).lean();
+    if (!item) continue;
+    const hasAnswer = (item.answers || []).some((a) =>
+      String(a.user) === String(sub.user) && a.via === 'page' && (!a.submission || String(a.submission) === String(sub._id))
+    );
+    if (hasAnswer && ['open', 'agreed', 'disputed'].includes(item.status)) {
+      await TzuratItem.updateOne(
         { _id: item._id, status: item.status, answers: { $size: (item.answers || []).length } },
         {
           $pull: { answers: { user: sub.user, via: 'page', $or: [{ submission: sub._id }, { submission: null }] } },
           $set: { status: 'open', decision: null, pointsAwarded: item.status === 'agreed' ? false : item.pointsAwarded },
-        },
-        { returnDocument: 'after', lean: true }
+        }
       );
-      if (!after) continue;
-      if (item.status === 'agreed' && item.pointsAwarded) await award(consensus(item.answers).agreers, -POINTS_AGREED);
-      if (item.manual && !(after.answers || []).length) {
-        await TzuratItem.updateOne({ _id: item._id, status: 'open', answers: { $size: 0 } }, { $set: { status: 'obsolete' } });
-      } else {
-        await settle(item._id, after, now);
-      }
-    } catch (e) {
-      console.error('tzurat reject undo answer', e?.name);
+    }
+    const after = await TzuratItem.findById(item._id).lean();
+    if (!after) continue;
+    if ((after.answers || []).some((a) =>
+      String(a.user) === String(sub.user) && a.via === 'page' && (!a.submission || String(a.submission) === String(sub._id))
+    )) throw new Error('Submission answer changed concurrently during rejection');
+    for (const userId of step.rollbackUsers || []) {
+      await applyPointEvent(userId, `submission:${sub._id}:reject:item:${item._id}:user:${userId}`, -POINTS_AGREED);
+    }
+    if ((step.manual || after.manual) && !(after.answers || []).length) {
+      await TzuratItem.updateOne({ _id: item._id, status: 'open', answers: { $size: 0 } }, { $set: { status: 'obsolete' } });
+    } else if (after.status === 'open') {
+      await settle(item._id, after, now);
     }
   }
 }
@@ -413,26 +519,68 @@ async function undoPageAnswers(sub, now) {
 /** דחייה (מהגשה ממתינה, או ממאושרת שעוד לא יצאה בייצוא). ← {ok, submission} */
 export async function rejectSubmission(subId, admin, { note = '' } = {}, now = new Date()) {
   if (!isObjectId(String(subId))) return fail(404, 'ההגשה לא נמצאה');
-  const prev = await TzuratSubmission.findOneAndUpdate(
-    { _id: oid(subId), $or: [{ status: 'submitted' }, { status: 'approved', exportedAt: null }] },
-    { $set: { status: 'rejected', pointsAwarded: false, ...reviewerOf(admin, note, now) } },
-    { returnDocument: 'before', lean: true }
-  );
-  if (!prev) {
+  let prev = await TzuratSubmission.findById(subId).lean();
+  if (!prev) return fail(404, 'ההגשה לא נמצאה');
+  if (!['submitted', 'approved'].includes(prev.status) || (prev.status === 'approved' && prev.exportedAt) ||
+      (prev.reviewAction && prev.reviewAction !== 'reject')) {
     return (await TzuratSubmission.exists({ _id: oid(subId) })) ? fail(409, 'אי אפשר לדחות את ההגשה הזו', 'reviewed') : fail(404, 'ההגשה לא נמצאה');
   }
-  const wasApproved = prev.status === 'approved';
-  await undoPageAnswers(prev, now);
-  if (wasApproved && prev.pointsAwarded) await User.updateOne({ _id: prev.user }, { $inc: { points: -POINTS_APPROVED } });
-  const r = await TzuratPage.updateOne(
+  if (!prev.reviewAction) {
+    const data = {
+      wasApproved: prev.status === 'approved',
+      pointsAwarded: Boolean(prev.pointsAwarded),
+      reviewer: reviewerOf(admin, note, now),
+      undoPlan: await rejectionPlan(prev),
+    };
+    const claimed = await TzuratSubmission.findOneAndUpdate(
+      { _id: prev._id, status: prev.status, reviewAction: null, ...(prev.status === 'approved' ? { exportedAt: null } : {}) },
+      { $set: { reviewAction: 'reject', reviewData: data } },
+      { returnDocument: 'after', lean: true }
+    );
+    if (!claimed) {
+      prev = await TzuratSubmission.findById(prev._id).lean();
+      if (prev?.reviewAction !== 'reject') return fail(409, 'ההגשה כבר מטופלת בפעולה אחרת', 'processing');
+    } else prev = claimed;
+  }
+  const data = prev.reviewData;
+  await undoPageAnswers(prev, data.undoPlan || [], now);
+  if (data.wasApproved && data.pointsAwarded) {
+    await applyPointEvent(prev.user, `submission:${prev._id}:rejected`, -POINTS_APPROVED);
+  }
+  await TzuratPage.updateOne(
     { _id: prev.page, round: prev.round || 1 },
-    { $inc: { activeCount: -1, ...(wasApproved ? { approvedCount: -1 } : {}) }, $pull: { submitters: prev.user } }
+    [{
+      $set: {
+        activeCount: {
+          $cond: [
+            { $in: [prev._id, { $ifNull: ['$releaseEvents', []] }] },
+            { $ifNull: ['$activeCount', 0] },
+            { $max: [0, { $subtract: [{ $ifNull: ['$activeCount', 0] }, 1] }] },
+          ],
+        },
+        approvedCount: {
+          $cond: [
+            { $or: [{ $in: [prev._id, { $ifNull: ['$releaseEvents', []] }] }, { $eq: [data.wasApproved, false] }] },
+            { $ifNull: ['$approvedCount', 0] },
+            { $max: [0, { $subtract: [{ $ifNull: ['$approvedCount', 0] }, 1] }] },
+          ],
+        },
+        submitters: { $setDifference: [{ $ifNull: ['$submitters', []] }, [prev.user]] },
+        releaseEvents: { $setUnion: [{ $ifNull: ['$releaseEvents', []] }, [prev._id]] },
+      },
+    }],
+    { updatePipeline: true }
   );
-  if (r.matchedCount && wasApproved) {
+  if (data.wasApproved) {
     await TzuratPage.updateOne(
       { _id: prev.page, round: prev.round || 1, status: 'done', $expr: { $lt: ['$approvedCount', '$required'] } },
       { $set: { status: 'open' } }
     );
   }
+  const done = await TzuratSubmission.updateOne(
+    { _id: prev._id, reviewAction: 'reject', status: { $in: ['submitted', 'approved'] } },
+    { $set: { status: 'rejected', pointsAwarded: false, ...data.reviewer, reviewAction: null, reviewData: null } }
+  );
+  if (!done.matchedCount) return fail(409, 'ההגשה כבר טופלה', 'reviewed');
   return { ok: true, submission: await TzuratSubmission.findById(prev._id).lean() };
 }

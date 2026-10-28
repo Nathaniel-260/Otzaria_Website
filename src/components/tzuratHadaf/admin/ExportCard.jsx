@@ -51,6 +51,19 @@ export default function ExportCard() {
         throw new Error(d?.error || `הייצוא נכשל (${res.status})`)
       }
       const blob = await res.blob()
+      const firstLine = (await blob.slice(0, Math.min(blob.size, 8192)).text()).split('\n', 1)[0]
+      const meta = JSON.parse(firstLine)
+      if (meta.exportId) {
+        const ack = await fetch(`${API}/export`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exportId: meta.exportId }),
+        })
+        if (!ack.ok) {
+          const d = await ack.json().catch(() => null)
+          throw new Error(d?.error || 'הקובץ התקבל, אך אישור הקבלה נכשל; אפשר להוריד שוב בבטחה')
+        }
+      }
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
       a.download = `tzurat-hadaf-export-${new Date().toISOString().slice(0, 10)}${useSince && since ? `-since-${since}` : ''}.ndjson`

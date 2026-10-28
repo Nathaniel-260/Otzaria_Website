@@ -29,6 +29,9 @@ const TzuratSubmissionSchema = new mongoose.Schema(
     answerIssues: { type: [String], default: [] },
     processingToken: { type: String, default: null },
     processingUntil: { type: Date, default: null },
+    reservationClaimed: { type: Boolean, default: false },
+    reviewAction: { type: String, enum: ['approve', 'reject', null], default: null },
+    reviewData: { type: mongoose.Schema.Types.Mixed, default: null },
     pointsAwarded: { type: Boolean, default: false },
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     reviewedByName: { type: String, default: '' },
@@ -44,5 +47,9 @@ TzuratSubmissionSchema.index({ status: 1, createdAt: 1 });
 TzuratSubmissionSchema.index({ page: 1, round: 1 });
 TzuratSubmissionSchema.index({ user: 1, createdAt: -1 });
 TzuratSubmissionSchema.index({ updatedAt: 1, _id: 1 });
+TzuratSubmissionSchema.index(
+  { page: 1, user: 1, round: 1 },
+  { unique: true, partialFilterExpression: { status: 'processing' } }
+);
 
 export default mongoose.models.TzuratSubmission || mongoose.model('TzuratSubmission', TzuratSubmissionSchema);

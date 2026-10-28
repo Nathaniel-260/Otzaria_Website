@@ -8,6 +8,8 @@ const UserSchema = new mongoose.Schema({
   password: { type: String },
   role: { type: String, enum: ['user', 'admin', 'admin_plugins', 'admin_books', 'admin_books_only', 'admin_ocr', 'model_trainer', 'developer'], default: 'user' },
   points: { type: Number, default: 0 },
+  // מזהי תופעות לוואי של צורת הדף — מאפשרים ניקוד idempotent ללא transaction מרובת מסמכים.
+  tzuratPointEvents: { type: [String], default: [] },
   acceptReminders: { type: Boolean, default: false },
   resetPasswordToken: { type: String },
   resetPasswordExpires: { type: Date },

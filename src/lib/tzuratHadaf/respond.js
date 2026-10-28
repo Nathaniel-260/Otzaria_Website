@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { readJsonBody as readJsonBodyStream } from './requestBody.js';
 
 // צורת הדף — תגובות HTTP של הראוטים (/api/tzurat-hadaf/**, /api/admin/tzurat-hadaf/**). הכול תלוי-בצופה או ניהולי —
 // private, no-store (חוץ מתמונות). שגיאה: {error: "<עברית>", code?} (CONTRACT.md "צורות התגובה").
@@ -31,16 +32,7 @@ export const notFound = (error = 'לא נמצא') => errorJson(404, error);
 
 // גוף JSON עם תקרת-גודל: {body} (null אם אינו JSON) או {tooBig:true}
 export async function readJsonBody(request, max = MAX_BODY_BYTES) {
-  const len = Number(request?.headers?.get?.('content-length'));
-  if (Number.isFinite(len) && len > max) return { tooBig: true };
-  const raw = await request.text().catch(() => null);
-  if (raw == null) return { body: null };
-  if (raw.length > max) return { tooBig: true };
-  try {
-    return { body: JSON.parse(raw) };
-  } catch {
-    return { body: null };
-  }
+  return readJsonBodyStream(request, max);
 }
 
 export const tooBigResponse = () => errorJson(413, 'הבקשה גדולה מדי');

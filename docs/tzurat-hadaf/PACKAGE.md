@@ -104,7 +104,7 @@ images/<dafKey>.ours.webp   צילום העמוד שלנו מהבנייה (או 
 ## 3. ייצוא (האתר → צורת הדף): NDJSON, רשומה לשורה עם `type`
 
 ```
-{"type":"meta","format":"tzurat-review-export/1","exportedAt":"…","since":null}
+{"type":"meta","format":"tzurat-review-export/1","exportedAt":"…","since":null,"exportId":"…"}
 {"type":"decision","sourceKey":"…","slug":"berakhot","masechet":"ברכות","daf":"ב.","dafKey":"002a","kind":"g",
  "ref":"…","wi":4,"n":1,"otz":["…"],"print":["…"],"verdict":"print","text":null,"status":"agreed",
  "manual":false,"box":{…},"answers":[{"who":"otz-<id>","verdict":"print","text":null,"via":"fast","at":"…"}],

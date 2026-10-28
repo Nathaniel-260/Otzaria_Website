@@ -29,6 +29,9 @@ const TzuratPageSchema = new mongoose.Schema(
     activeCount: { type: Number, default: 0 },
     approvedCount: { type: Number, default: 0 },
     submitters: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+    // נשמרים רק לסבב הנוכחי ומתאפסים בבנייה חדשה; מונעים כפל מונים בחידוש review.
+    approvalEvents: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+    releaseEvents: { type: [mongoose.Schema.Types.ObjectId], default: [] },
     leasedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     leasedUntil: { type: Date, default: null },
     changedInRound: { type: Boolean, default: false },

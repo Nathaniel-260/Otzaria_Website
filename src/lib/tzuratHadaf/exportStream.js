@@ -57,9 +57,9 @@ export async function contributors() {
 }
 
 /** שורות הייצוא לפי הסדר: meta, decision, anchor+check, report, contributor */
-export async function* exportRowsStream({ types, since = null, now = new Date(), markExported = true } = {}) {
+export async function* exportRowsStream({ types, since = null, now = new Date(), markExported = true, exportId = null, onSubmission = null } = {}) {
   const want = new Set(types);
-  yield metaRow(since, now);
+  yield { ...metaRow(since, now), ...(exportId ? { exportId: String(exportId) } : {}) };
   if (want.has('decision')) {
     const q = TzuratItem.find({ practice: { $ne: true }, status: { $in: ['agreed', 'resolved'] }, ...sinceFilter(since) }).sort({ _id: 1 }).lean();
     for await (const item of cursorOf(q)) {
@@ -96,6 +96,7 @@ export async function* exportRowsStream({ types, since = null, now = new Date(),
           )
         : await TzuratSubmission.findOne({ _id: candidate._id, status: 'approved' }).lean();
       if (!sub) continue;
+      if (onSubmission) await onSubmission(sub._id);
       const page = await pageOf(sub.page);
       if (want.has('anchor')) for (const r of anchorRows(sub, page)) yield r;
       if (want.has('check')) for (const r of checkRows(sub, page)) yield r;
