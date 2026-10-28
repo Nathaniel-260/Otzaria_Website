@@ -31,6 +31,9 @@ jobs:
   # שלב 0: האם יש מה לפרוס. push והפעלה ידנית רצים תמיד; ב-cron משווים
   # את ה-SHA של תגית v1 לזה שכבר נפרס, וזהות = אין מה לעשות.
   gate:
+    # רק במאגר הראשי: בפורקים אין סודות SSH, והפריסה נכשלת ב-"missing server
+    # host". כישלון כזה גם לא רושם סמן, כך שכל cron היה מנסה ונכשל שוב.
+    if: github.repository == 'Otzaria/Otzaria_Website'
     runs-on: ubuntu-latest
     outputs:
       deploy: ${{ steps.decide.outputs.deploy }}
