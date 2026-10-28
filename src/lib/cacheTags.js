@@ -73,6 +73,8 @@ export const CACHE_TAGS = {
   DICTA_BOOKS_ADMIN_LIST: 'dicta-books-admin-list',
   // דף ההנחיות להגהת עמודים (/docs/page-proof) — ציבורי, זהה לכל צופה; נערך בדף הניהול (lib/pageProof/guideStore)
   PAGE_PROOF_GUIDE: 'page-proof-guide',
+  // דף ההנחיות של צורת הדף (/docs/tzurat-hadaf) — ציבורי, זהה לכל צופה; נערך בדף הניהול (lib/tzuratHadaf/guideStore)
+  TZURAT_GUIDE: 'tzurat-hadaf-guide',
 }
 
 /**

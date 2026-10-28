@@ -79,3 +79,29 @@ describe('proxy — תפקיד מאמן מודלים', () => {
     expect(passed(await call('/api/search-feedback/events'))).toBe(true)
   })
 })
+
+describe('proxy — צורת הדף', () => {
+  const PAGES = ['/library/admin/tzurat-hadaf']
+  const APIS = ['/api/admin/tzurat-hadaf/stats', '/api/admin/tzurat-hadaf/uploads/64b7f0c2a1b2c3d4e5f60001/chunks/0']
+
+  it('מנהל כללי ומנהל ספרים — הניהול פתוח', async () => {
+    for (const role of ['admin', 'admin_books']) {
+      for (const path of [...PAGES, ...APIS]) expect(passed(await call(path, role)), `${role} ${path}`).toBe(true)
+    }
+  })
+
+  it('מנהל OCR, מנהל ספרים-בלבד, מאמן מודלים, מנהל תוספים — חסומים', async () => {
+    for (const role of ['admin_ocr', 'admin_books_only', 'model_trainer', 'admin_plugins', 'user']) {
+      for (const path of [...PAGES, ...APIS]) expect(denied(await call(path, role)), `${role} ${path}`).toBe(true)
+    }
+  })
+
+  it('אזור המתנדב דורש התחברות; עם session עובר לראוט (שבודק אימות)', async () => {
+    for (const path of ['/library/tzurat-hadaf', '/library/tzurat-hadaf/fast', '/api/tzurat-hadaf/fast']) {
+      const anon = await call(path)
+      expect(anon.status, path).toBe(307)
+      expect(anon.headers.get('location')).toMatch(/\/auth\/login/)
+      expect(passed(await call(path, 'user')), path).toBe(true)
+    }
+  })
+})
