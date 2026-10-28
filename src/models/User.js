@@ -8,6 +8,8 @@ const UserSchema = new mongoose.Schema({
   password: { type: String },
   role: { type: String, enum: ['user', 'admin', 'admin_plugins', 'admin_books', 'admin_books_only', 'admin_ocr', 'model_trainer', 'developer'], default: 'user' },
   points: { type: Number, default: 0 },
+  // מזהי תופעות לוואי של צורת הדף — מאפשרים ניקוד idempotent ללא transaction מרובת מסמכים.
+  tzuratPointEvents: { type: [String], default: [] },
   acceptReminders: { type: Boolean, default: false },
   resetPasswordToken: { type: String },
   resetPasswordExpires: { type: Date },
@@ -56,6 +58,11 @@ const UserSchema = new mongoose.Schema({
 
   // מתנדב תיקוני טקסט: רשאי לטפל ולאשר תיקונים (נפרד מהרשאות ניהול המערכת)
   isCorrectionsVolunteer: { type: Boolean, default: false },
+
+  // צורת הדף (docs/tzurat-hadaf/CONTRACT.md): המתנדב סימן "אני קורא כתב רש"י" — מקבל שאלות רש"י ותוספות;
+  // וסיים את התרגול של המסלול המהיר
+  tzuratRashi: { type: Boolean, default: false },
+  tzuratPracticeDone: { type: Boolean, default: false },
 }, { timestamps: true });
 
 const User = mongoose.models.User || mongoose.model('User', UserSchema);

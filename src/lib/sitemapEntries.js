@@ -17,6 +17,7 @@ export const STATIC_PATHS = [
   '/docs/development',
   '/docs/dicta',
   '/docs/page-proof',
+  '/docs/tzurat-hadaf',
   '/plugins',
   '/plugins/all',
   '/library',

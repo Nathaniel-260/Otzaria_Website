@@ -1,11 +1,11 @@
 import fs from 'fs-extra';
 import { randomBytes } from 'node:crypto';
-import { unzipSync } from 'fflate';
 import TrainingProofItem from '@/models/TrainingProofItem';
 import TrainingProofPackage from '@/models/TrainingProofPackage';
 import TrainingProofBook from '@/models/TrainingProofBook';
 import { resolveImageFsPath } from '@/lib/ocr/images';
 import { checkToSiteZip, checkZipSize } from '@/lib/trainingProof/zipCheck';
+import { unzipTrainingZip } from '@/lib/trainingProof/zipArchive';
 import { itemDoc, storageRel, TP_IMAGE_ROOT } from '@/lib/trainingProof/storage';
 import { oid } from './http';
 
@@ -27,11 +27,12 @@ const STAGING = `${TP_IMAGE_ROOT}/_staging`;
 const STALE_MS = 24 * 60 * 60 * 1000;
 const TOKEN_RE = /^[0-9a-f]{24}$/;
 
-const stagingPath = (token, ext) => resolveImageFsPath(`${STAGING}/${token}.${ext}`);
+const stagingDir = (token) => resolveImageFsPath(`${STAGING}/${token}`);
+const stagingPath = (token, name) => `${stagingDir(token)}/${name}`;
 
 async function readMeta(token) {
   if (!TOKEN_RE.test(String(token || ''))) return null;
-  return fs.readJson(stagingPath(token, 'json')).catch(() => null);
+  return fs.readJson(stagingPath(token, 'meta.json')).catch(() => null);
 }
 
 // קבצי-המתנה ישנים (קליטה שננטשה באמצע) נמחקים
@@ -63,9 +64,9 @@ export async function stage(bytes, { expectSection, userId, fileName = '' }) {
   if (sizeErr) return { error: sizeErr };
   let entries;
   try {
-    entries = unzipSync(bytes);
-  } catch {
-    return { error: 'קובץ ה-ZIP פגום' };
+    entries = unzipTrainingZip(bytes);
+  } catch (e) {
+    return { error: e?.message || 'קובץ ה-ZIP פגום' };
   }
   const chk = checkToSiteZip(entries, { expectSection });
   if (!chk.ok) {
@@ -99,7 +100,6 @@ export async function stage(bytes, { expectSection, userId, fileName = '' }) {
   }
 
   const token = randomBytes(12).toString('hex');
-  await fs.outputFile(stagingPath(token, 'zip'), bytes);
   const meta = {
     token,
     section: m.section,
@@ -112,7 +112,22 @@ export async function stage(bytes, { expectSection, userId, fileName = '' }) {
     userId: userId ? String(userId) : null,
     fileName: String(fileName).slice(0, 200),
   };
-  await fs.outputJson(stagingPath(token, 'json'), meta);
+  const dir = stagingDir(token);
+  try {
+    await fs.ensureDir(dir);
+    await fs.outputJson(stagingPath(token, 'data.json'), {
+      manifest: m,
+      items: chk.items,
+      books: chk.books ? [...chk.books.values()] : null,
+      counts: chk.counts,
+      base: chk.base,
+    });
+    await fs.outputFile(stagingPath(token, 'upload.zip'), bytes);
+    await fs.outputJson(stagingPath(token, 'meta.json'), meta);
+  } catch (e) {
+    await fs.remove(dir).catch(() => {});
+    throw e;
+  }
   return {
     token,
     section: m.section,
@@ -132,19 +147,26 @@ async function writeImage(manifest, entries, base, rel, written) {
   written.add(store);
   const fsPath = resolveImageFsPath(store);
   if (await fs.pathExists(fsPath)) return;
-  await fs.outputFile(fsPath, entries[base + rel]);
+  const bytes = entries[base + rel];
+  if (!bytes) throw new Error(`תמונה חסרה בקובץ-ההמתנה: ${rel}`);
+  await fs.outputFile(fsPath, bytes);
 }
 
 // מנה אחת. מחזיר {error} או {done, total, inserted, skipped, finished}
 export async function step(token, { now = Date.now, budgetMs = CHUNK_MS, maxItems = CHUNK_ITEMS } = {}) {
   const meta = await readMeta(token);
   if (!meta) return { error: 'הקליטה הזו לא נמצאה (אולי כבר הסתיימה או בוטלה) — העלו את הקובץ שוב' };
-  const bytes = await fs.readFile(stagingPath(token, 'zip')).catch(() => null);
-  if (!bytes) return { error: 'קובץ-ההמתנה חסר — העלו את הקובץ שוב' };
-  const entries = unzipSync(new Uint8Array(bytes));
-  const chk = checkToSiteZip(entries, { expectSection: meta.section });
-  if (!chk.ok) return { error: chk.errors[0] || 'הקובץ לא תקין' };
-  const m = chk.manifest;
+  const data = await fs.readJson(stagingPath(token, 'data.json')).catch(() => null);
+  if (!data?.manifest || !Array.isArray(data.items)) return { error: 'קובץ-ההמתנה חסר — העלו את הקובץ שוב' };
+  const zipBytes = await fs.readFile(stagingPath(token, 'upload.zip')).catch(() => null);
+  if (!zipBytes) return { error: 'קובץ-ההמתנה חסר — העלו את הקובץ שוב' };
+  const m = data.manifest;
+  const chk = {
+    manifest: m,
+    items: data.items,
+    books: data.books ? new Map(data.books.map((b) => [b.book, b])) : null,
+    counts: data.counts,
+  };
 
   if (meta.done === 0 && chk.books) {
     // ספרי-הגלאי: רשומה לכל ספר (הכינוי מהקובץ הראשון שבו הופיע)
@@ -179,6 +201,13 @@ export async function step(token, { now = Date.now, budgetMs = CHUNK_MS, maxItem
 
   const start = now();
   const written = new Set();
+  const upcoming = chk.items.slice(meta.done, meta.done + maxItems);
+  const wanted = new Set();
+  for (const it of upcoming) {
+    wanted.add(data.base + it.img);
+    if (it.ctx?.img) wanted.add(data.base + it.ctx.img);
+  }
+  const entries = unzipTrainingZip(new Uint8Array(zipBytes), { include: (file) => wanted.has(file.name) });
   let processed = 0;
   while (meta.done < meta.total && processed < maxItems && now() - start < budgetMs) {
     const batch = chk.items.slice(meta.done, meta.done + Math.min(BATCH, maxItems - processed));
@@ -187,8 +216,8 @@ export async function step(token, { now = Date.now, budgetMs = CHUNK_MS, maxItem
     );
     const fresh = batch.filter((it) => !have.has(it.uid));
     for (const it of fresh) {
-      await writeImage(m, entries, chk.base, it.img, written);
-      if (it.ctx?.img) await writeImage(m, entries, chk.base, it.ctx.img, written);
+      await writeImage(m, entries, data.base, it.img, written);
+      if (it.ctx?.img) await writeImage(m, entries, data.base, it.ctx.img, written);
     }
     if (fresh.length) {
       try {
@@ -212,7 +241,7 @@ export async function step(token, { now = Date.now, budgetMs = CHUNK_MS, maxItem
     await TrainingProofPackage.updateOne({ packageId: m.package_id, part: m.part }, { $set: set });
     await cancel(token);
   } else {
-    await fs.outputJson(stagingPath(token, 'json'), meta);
+    await fs.outputJson(stagingPath(token, 'meta.json'), meta);
   }
   return { done: meta.done, total: meta.total, inserted: meta.inserted, skipped: meta.done - meta.inserted, finished };
 }
@@ -220,7 +249,6 @@ export async function step(token, { now = Date.now, budgetMs = CHUNK_MS, maxItem
 // ביטול קליטה באמצע: קובצי-ההמתנה נמחקים. מה שכבר נקלט נשאר (והחבילה החדשה — מושהית)
 export async function cancel(token) {
   if (!TOKEN_RE.test(String(token || ''))) return false;
-  await fs.remove(stagingPath(token, 'zip')).catch(() => {});
-  await fs.remove(stagingPath(token, 'json')).catch(() => {});
+  await fs.remove(stagingDir(token)).catch(() => {});
   return true;
 }

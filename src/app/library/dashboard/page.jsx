@@ -413,6 +413,11 @@ export default function DashboardPage() {
                 <span className="font-medium text-on-surface">שליחת ספרים</span>
               </Link>
 
+              <Link href="/library/tzurat-hadaf" prefetch={false} className="flex flex-col items-center gap-3 p-6 bg-primary-container rounded-xl hover:bg-primary/20 transition-all">
+                <span className="material-symbols-outlined text-4xl text-primary">auto_stories</span>
+                <span className="font-medium text-on-surface">צורת הדף — השוואה לדפוס</span>
+              </Link>
+
               <button 
                 onClick={() => setShowMessageForm(true)}
                 className="flex flex-col items-center gap-3 p-6 bg-primary-container rounded-xl hover:bg-primary/20 transition-all"

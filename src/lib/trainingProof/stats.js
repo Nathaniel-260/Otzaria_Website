@@ -34,14 +34,22 @@ export function archiveDelta(items) {
 }
 
 // מוסיף את archiveDelta למונים השמורים של כל מתנדב (לפני מחיקת הפריטים)
-export async function applyArchive(delta) {
+export async function applyArchive(delta, exportId = null) {
   const ops = [];
   for (const [userId, bySection] of delta) {
     const inc = {};
     for (const [section, c] of Object.entries(bySection)) {
       for (const [k, v] of Object.entries(c)) if (v) inc[`stats.archived.${section}.${k}`] = v;
     }
-    if (Object.keys(inc).length) ops.push({ updateOne: { filter: { userId: oid(userId) }, update: { $inc: inc } } });
+    if (Object.keys(inc).length) {
+      const filter = { userId: oid(userId) };
+      const update = { $inc: inc };
+      if (exportId) {
+        filter.archivedExports = { $ne: exportId };
+        update.$addToSet = { archivedExports: exportId };
+      }
+      ops.push({ updateOne: { filter, update } });
+    }
   }
   if (ops.length) await TrainingProofVolunteer.bulkWrite(ops);
   return ops.length;

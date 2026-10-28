@@ -11,6 +11,9 @@ const TrainingProofExportLogSchema = new mongoose.Schema(
     packages: { type: [String], default: [] },
     at: { type: Date, default: Date.now },
     by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    status: { type: String, enum: ['purging', 'complete'], default: 'complete', index: true },
+    // Internal recovery snapshot. Removed once cleanup completes.
+    cleanup: { type: [mongoose.Schema.Types.Mixed], default: undefined, select: false },
   },
   { timestamps: false }
 );

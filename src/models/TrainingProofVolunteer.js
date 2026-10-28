@@ -15,6 +15,9 @@ const TrainingProofVolunteerSchema = new mongoose.Schema(
     decidedAt: { type: Date, default: null },
     decidedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     stats: { type: mongoose.Schema.Types.Mixed, default: {} },
+    // Export ids already credited into stats.archived. Keeps retrying a purge
+    // idempotent after a process/network failure.
+    archivedExports: { type: [String], default: [], select: false },
   },
   { timestamps: false }
 );
