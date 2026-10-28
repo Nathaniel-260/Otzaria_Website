@@ -685,7 +685,8 @@ function buildAppReportMailHtml({ heading, bodyHtml, ctaUrl, ctaLabel, unsubscri
 }
 
 // עדכון למדווח שה-issue של הדיווח שלו על התוכנה נסגר
-export async function sendAppReportClosedNotification({ to, product, reportTitle, issueUrl, reasonText, unsubscribeUrl }) {
+// closingComment — התגובה שאיתה נסגר ה-issue (אם יש), מוצגת למדווח כלשונה
+export async function sendAppReportClosedNotification({ to, product, reportTitle, issueUrl, reasonText, closingComment, unsubscribeUrl }) {
     try {
         if (!to) return { sent: false, reason: 'missing_recipient_email' };
         const brand = appReportMailBranding(product);
@@ -694,7 +695,11 @@ export async function sendAppReportClosedNotification({ to, product, reportTitle
             heading: 'עדכון על הדיווח ששלחת',
             bodyHtml: `
                 <p style="font-size: 16px; line-height: 1.8;">שלום,</p>
-                <p style="font-size: 16px; line-height: 1.8;">${escapeHtml(reasonText)}</p>
+                <p style="font-size: 16px; line-height: 1.8;">${escapeHtml(reasonText)}</p>${closingComment ? `
+                <div style="border-right: 4px solid #d4a373; background-color: #fbf6f0; padding: 12px 16px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 0 0 8px 0; font-weight: bold;">תגובת הצוות בסגירת הדיווח:</p>
+                    <p style="margin: 0; font-size: 15px; line-height: 1.7; white-space: pre-wrap;">${escapeHtml(closingComment)}</p>
+                </div>` : ''}
                 <div style="background-color: #f0f0f0; padding: 16px; border-radius: 8px; margin: 20px 0;">
                     <p style="margin: 0;"><strong>הדיווח:</strong> ${escapeHtml(reportTitle || '')}</p>
                 </div>

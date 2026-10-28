@@ -41,6 +41,7 @@ export async function GET() {
       sourceUrl: u.sourceUrl,
       isOcr: u.isOcr,
       ocrDescription: u.ocrDescription,
+      allowOtherPlatforms: u.allowOtherPlatforms,
   }));
 
   return NextResponse.json({ success: true, uploads: formattedUploads });

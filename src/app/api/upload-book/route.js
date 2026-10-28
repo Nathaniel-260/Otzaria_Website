@@ -23,7 +23,8 @@ const uploadFileSchema = z.object({
   copyrightHolder: z.string().max(200, 'בעל הזכויות ארוך מדי').optional(),
   sourceUrl: z.string().url('כתובת לא תקינה').optional().or(z.literal('')),
   isOcr: z.boolean().optional(),
-  ocrDescription: z.string().max(500, 'תיאור OCR ארוך מדי').optional()
+  ocrDescription: z.string().max(500, 'תיאור OCR ארוך מדי').optional(),
+  allowOtherPlatforms: z.boolean().optional()
 });
 
 function normalizeOptionalText(value) {
@@ -47,6 +48,9 @@ function createMetadataHeader(metadata) {
         `בעל הזכויות: ${metadata.copyrightHolder}`,
         ...(metadata.sourceUrl ? [`מקור: ${metadata.sourceUrl}`] : []),
         `OCR: ${metadata.isOcr ? `כן - ${metadata.ocrDescription}` : 'לא'}`,
+        ...(typeof metadata.allowOtherPlatforms === 'boolean'
+            ? [`אישור ל'זית' ולפלטפורמות נוספות באישור אוצריא: ${metadata.allowOtherPlatforms ? 'כן' : 'לא'}`]
+            : []),
         '═══════════════════════════════════════════════════════════',
         '',
         '',
@@ -104,6 +108,8 @@ export async function POST(request) {
         const sourceUrl = normalizeOptionalText(formData.get('sourceUrl'));
         const isOcr = formData.get('isOcr') === 'true';
         const ocrDescription = normalizeOptionalText(formData.get('ocrDescription'));
+        const allowOtherPlatformsRaw = formData.get('allowOtherPlatforms');
+        const allowOtherPlatforms = allowOtherPlatformsRaw === 'true' ? true : allowOtherPlatformsRaw === 'false' ? false : undefined;
         const uploadType = normalizeOptionalText(formData.get('uploadType')) || 'single_page';
 
         // 3. אימות קלט עם Zod
@@ -118,12 +124,17 @@ export async function POST(request) {
           copyrightHolder,
           sourceUrl,
           isOcr,
-          ocrDescription
+          ocrDescription,
+          allowOtherPlatforms
         });
 
         if (!validationResult.success) {
           const errors = validationResult.error.issues.map(err => err.message).join(', ');
           return badRequest(errors);
+        }
+
+        if (uploadType === 'full_book' && allowOtherPlatforms === undefined) {
+          return badRequest("יש לציין האם אתה מאשר גם ל'זית' ולפלטפורמות נוספות");
         }
 
         // 4. בדיקת קובץ
@@ -149,7 +160,8 @@ export async function POST(request) {
                 copyrightHolder,
                 sourceUrl,
                 isOcr,
-                ocrDescription
+                ocrDescription,
+                allowOtherPlatforms
             };
             
             if (isTextFile(file.name)) {
@@ -228,6 +240,7 @@ export async function POST(request) {
             uploadData.sourceUrl = sourceUrl;
             uploadData.isOcr = isOcr;
             uploadData.ocrDescription = ocrDescription;
+            uploadData.allowOtherPlatforms = allowOtherPlatforms;
         }
 
         const upload = await Upload.create(uploadData);

@@ -35,6 +35,7 @@ export async function getAdminBadgeCounts(role) {
     scope.plugins
       ? Plugin.countDocuments({
           isHidden: false,
+          hasService: { $ne: true },
           $or: [{ isApproved: false }, { pendingUpdate: { $ne: null } }],
         })
       : 0,

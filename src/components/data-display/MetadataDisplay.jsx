@@ -4,7 +4,7 @@ export default function MetadataDisplay({ upload, className = '', textSize = 'te
     return null
   }
 
-  if (!upload.authorName && !upload.bookCategory && !upload.authorCategory && !upload.authorYear && !upload.publicationYear && !upload.copyrightHolder && !upload.sourceUrl && !upload.isOcr) {
+  if (!upload.authorName && !upload.bookCategory && !upload.authorCategory && !upload.authorYear && !upload.publicationYear && !upload.copyrightHolder && !upload.sourceUrl && !upload.isOcr && typeof upload.allowOtherPlatforms !== 'boolean') {
     return null
   }
 
@@ -33,6 +33,9 @@ export default function MetadataDisplay({ upload, className = '', textSize = 'te
       )}
       {upload.isOcr && (
         <div><span className="font-semibold">OCR:</span> {upload.ocrDescription}</div>
+      )}
+      {typeof upload.allowOtherPlatforms === 'boolean' && (
+        <div><span className="font-semibold">אישור ל'זית' ולפלטפורמות נוספות:</span> {upload.allowOtherPlatforms ? 'כן' : 'לא'}</div>
       )}
     </div>
   )
