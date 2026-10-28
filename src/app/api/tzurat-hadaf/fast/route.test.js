@@ -30,7 +30,7 @@ describe('GET /api/tzurat-hadaf/fast', () => {
     getServerSessionMock.mockReset()
     findByIdMock.mockReset()
     sampleMock.mockReset()
-    findByIdMock.mockReturnValue({ lean: () => Promise.resolve({ tzuratRashi: false, tzuratPracticeDone: false }) })
+    findByIdMock.mockReturnValue({ lean: () => Promise.resolve({ tzuratPracticeDone: false }) })
   })
 
   it('401 בלי session', async () => {
@@ -57,17 +57,19 @@ describe('GET /api/tzurat-hadaf/fast', () => {
     const res = await GET(req())
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body).toMatchObject({ item: null, needPractice: true, needRashi: false, rashi: false, practiceDone: false })
+    expect(body).toMatchObject({ item: null, needPractice: true, practiceDone: false })
     expect(sampleMock).not.toHaveBeenCalled()
   })
 
-  it('kind לא תקין — 400; רש"י בלי הדגל — needRashi', async () => {
+  it('kind לא תקין — 400; רש"י — לכל מתנדב', async () => {
     getServerSessionMock.mockResolvedValue({ user: { id: USER_ID, role: 'admin_books', isVerified: false } })
     expect((await GET(req('?kind=zz'))).status).toBe(400)
     getServerSessionMock.mockResolvedValue({ user: { id: USER_ID, role: 'user', isVerified: true } })
-    findByIdMock.mockReturnValue({ lean: () => Promise.resolve({ tzuratRashi: false, tzuratPracticeDone: true }) })
+    findByIdMock.mockReturnValue({ lean: () => Promise.resolve({ tzuratPracticeDone: true }) })
+    sampleMock.mockResolvedValue(null)
     const body = await (await GET(req('?kind=r'))).json()
-    expect(body).toMatchObject({ item: null, needRashi: true })
+    expect(body).toMatchObject({ item: null, needPractice: false })
+    expect(sampleMock).toHaveBeenCalledWith(USER_ID, expect.objectContaining({ kind: 'r' }))
   })
 })
 
@@ -75,7 +77,7 @@ it('counts statistics only when explicitly requested, not for every next questio
   const { fastStats } = await import('@/lib/tzuratHadaf/items')
   fastStats.mockClear()
   getServerSessionMock.mockResolvedValue({ user: { id: USER_ID, role: 'user', isVerified: true } })
-  findByIdMock.mockReturnValue({ lean: () => Promise.resolve({ tzuratRashi: false, tzuratPracticeDone: true }) })
+  findByIdMock.mockReturnValue({ lean: () => Promise.resolve({ tzuratPracticeDone: true }) })
   sampleMock.mockResolvedValue(null)
   expect((await (await GET(req())).json()).stats).toBe(null)
   expect(fastStats).not.toHaveBeenCalled()

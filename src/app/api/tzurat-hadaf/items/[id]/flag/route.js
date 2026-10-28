@@ -13,7 +13,7 @@ export async function POST(request, { params }) {
     const { id } = await params;
     const { body, tooBig } = await readJsonBody(request, 8192);
     if (tooBig) return tooBigResponse();
-    const r = await flagItem(id, g.userId, body?.reason, { canRashi: g.canRashi });
+    const r = await flagItem(id, g.userId, body?.reason);
     if (!r.ok) return fromResult(r);
     return json({ ok: true, flagged: r.flagged });
   } catch (e) {

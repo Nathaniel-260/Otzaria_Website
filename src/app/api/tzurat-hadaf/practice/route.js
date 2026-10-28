@@ -10,7 +10,7 @@ export async function GET() {
   const g = await requireTzuratSession();
   if (g.error) return g.error;
   try {
-    return json({ items: await practiceItems(g.userId, { canRashi: g.canRashi }) });
+    return json({ items: await practiceItems(g.userId) });
   } catch (e) {
     console.error('tzurat practice GET', e);
     return serverError();
@@ -24,7 +24,7 @@ export async function POST(request) {
     const { body, tooBig } = await readJsonBody(request, 64 * 1024);
     if (tooBig) return tooBigResponse();
     if (!body || !Array.isArray(body.answers)) return badRequest('רשימת התשובות חסרה');
-    return fromResult(await gradePractice(g.userId, body.answers, { canRashi: g.canRashi }));
+    return fromResult(await gradePractice(g.userId, body.answers));
   } catch (e) {
     console.error('tzurat practice POST', e);
     return serverError();

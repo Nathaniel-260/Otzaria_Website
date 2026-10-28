@@ -12,7 +12,7 @@ export async function POST(request, { params }) {
     const { body, tooBig } = await readJsonBody(request);
     if (tooBig) return tooBigResponse();
     if (!body || typeof body !== 'object') return badRequest('גוף הבקשה חסר');
-    const r = await submitPage(id, g.user, body, { canRashi: g.canRashi });
+    const r = await submitPage(id, g.user, body);
     if (!r.ok) return fromResult(r);
     return json({ submission: r.submission, points: r.points, warnings: r.warnings || [] });
   } catch (e) {

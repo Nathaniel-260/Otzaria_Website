@@ -10,7 +10,7 @@ export async function GET(request, { params }) {
   if (g.error) return g.error;
   try {
     const { id } = await params;
-    return fromResult(await pageDetail(id, g.userId, { canRashi: g.canRashi }));
+    return fromResult(await pageDetail(id, g.userId));
   } catch (e) {
     console.error('tzurat page', e);
     return serverError();

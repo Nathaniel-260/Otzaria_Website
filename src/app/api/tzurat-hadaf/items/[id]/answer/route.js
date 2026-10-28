@@ -13,7 +13,7 @@ export async function POST(request, { params }) {
     const { body, tooBig } = await readJsonBody(request, 8192);
     if (tooBig) return tooBigResponse();
     if (!body || typeof body.choice !== 'string') return badRequest('התשובה חסרה');
-    const r = await answerChoice(id, g.user, { revision: body.revision, choice: body.choice, text: body.text, via: body.via === 'page' ? 'page' : 'fast' }, { canRashi: g.canRashi });
+    const r = await answerChoice(id, g.user, { revision: body.revision, choice: body.choice, text: body.text, via: body.via === 'page' ? 'page' : 'fast' });
     if (!r.ok) return fromResult(r);
     return json({ status: r.status, points: r.points });
   } catch (e) {
