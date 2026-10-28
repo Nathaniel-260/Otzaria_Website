@@ -43,6 +43,11 @@ export function hasBooksAccess(role) {
   return role === ROLES.ADMIN || role === ROLES.ADMIN_BOOKS
 }
 
+/** ניהול צורת הדף (/library/admin/tzurat-hadaf, /api/admin/tzurat-hadaf) — מנהל כללי ומנהל ספרים */
+export function hasTzuratAdminAccess(role) {
+  return role === ROLES.ADMIN || role === ROLES.ADMIN_BOOKS
+}
+
 /** גישה לספריית הספרים עצמה: ניהול ספרים (/library/admin/books), קטגוריות, תמלול
  *  עמודים ב-/library/books. נכלל גם מנהל-ספרים-בלבד, בנוסף למנהלי הספרים הרחבים. */
 export function hasBookLibraryAccess(role) {
