@@ -10,6 +10,7 @@ import { boxStyle } from '../common/boxStyle'
 import { useInkWords } from '../router/useInkWords'
 import OcrTextEditor, { TEXT_CLASS, TEXT_STYLE } from './OcrTextEditor'
 import { inkBoxFor } from './caretWord'
+import { SCREEN_ACTIONS, keyOf } from './screenKeys'
 
 // פס-הצבע בצד הכרטיס לפי מה שסומן — כמו מסך ההגהה בתחנה
 const EDGE = {
@@ -21,25 +22,24 @@ const EDGE = {
   skip: 'border-s-outline-variant opacity-70',
 }
 
-const BUTTONS = [
-  { action: 'ok', label: 'נכון', icon: 'check', key: '1', variant: 'tonal' },
-  { action: 'fixed', label: 'תקן', icon: 'edit', key: '2', variant: 'outlined' },
-  { action: 'seg', label: 'חיתוך גרוע', icon: 'content_cut', key: '3', variant: 'outlined' },
-  { action: 'skip', label: 'דלג', icon: 'redo', key: '4', variant: 'text' },
-  { action: 'bad', label: 'לא קריא', icon: 'block', key: '5', variant: 'text' },
-  {
-    action: 'router',
+// הכפתורים — בסדר של SCREEN_ACTIONS, והמקש של כל אחד משם (בלי "חיתוך גרוע", screenKeys)
+const BUTTON_OF = {
+  ok: { label: 'נכון', icon: 'check', variant: 'tonal' },
+  fixed: { label: 'תקן', icon: 'edit', variant: 'outlined' },
+  skip: { label: 'דלג', icon: 'redo', variant: 'text' },
+  bad: { label: 'לא קריא', icon: 'block', variant: 'text' },
+  router: {
     label: 'הכתב שגוי',
     icon: 'call_split',
-    key: '6',
     variant: 'text',
     title: 'השורה תצא מההגהה ותחזור לנתב הכתב. אחרי שייקבע הכתב הנכון — היא תחזור להגהה',
   },
-]
+}
+const BUTTONS = SCREEN_ACTIONS.map((action) => ({ action, key: keyOf(action), ...BUTTON_OF[action] }))
 
 const shownText = (item) => (item.result?.action === 'fixed' ? item.result.text : item.text)
 
-// שורה אחת בזיהוי-הטקסט: התמונה, הטקסט (מוגה כולו — בלי מילה-מילה, ה-6), וששת הכפתורים.
+// שורה אחת בזיהוי-הטקסט: התמונה, הטקסט (מוגה כולו — בלי מילה-מילה, ה-6), וחמשת הכפתורים.
 // "תקן" (2, או לחיצה כפולה על הטקסט) פותח עריכה במקום: Enter שומר, Esc מבטל.
 // בעריכה המילה שתחת הסמן מסומנת בטקסט, ועל התמונה — רק כשהחלוקה לפי הדיו תואמת (caretWord).
 function OcrLineCard({ item, index, total, current, saving, editing, onSelect, onMark, onEdit, onCancelEdit, onShowCtx }) {
@@ -60,6 +60,8 @@ function OcrLineCard({ item, index, total, current, saving, editing, onSelect, o
     <article
       id={`tp-line-${item.id}`}
       aria-current={current ? 'true' : undefined}
+      // מקבל מיקוד בכניסה לסבב (OcrScreen) — לא בטאב
+      tabIndex={-1}
       onClick={(e) => {
         if (!e.target.closest('button,a,textarea')) onSelect()
       }}
@@ -95,7 +97,16 @@ function OcrLineCard({ item, index, total, current, saving, editing, onSelect, o
       </div>
 
       <div className="relative my-2 inline-block max-w-full overflow-hidden rounded border border-outline-variant bg-white leading-none">
-        <img src={item.img} alt={`תמונת שורה ${index + 1}`} className="block h-auto max-w-full" style={{ maxWidth: Math.min(item.w || 900, 900) }} draggable={false} />
+        {/* width/height — המקום של התמונה שמור עוד לפני שנטענה, כדי שהכרטיסים לא יזוזו כשהיא מגיעה */}
+        <img
+          src={item.img}
+          alt={`תמונת שורה ${index + 1}`}
+          width={item.w || undefined}
+          height={item.h || undefined}
+          className="block h-auto max-w-full"
+          style={{ maxWidth: Math.min(item.w || 900, 900) }}
+          draggable={false}
+        />
         {inkBox ? (
           <span
             data-tp-word-mark={caretWord.k}

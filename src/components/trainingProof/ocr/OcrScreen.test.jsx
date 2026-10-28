@@ -32,11 +32,21 @@ function api({ current, taken, mark } = {}) {
   })
 }
 
+// מיקום הכרטיסים בחלון (ב-jsdom אין פריסה): כל רכיב "נמצא" ב-rect.top
+const rect = { top: 300 }
+const realRect = Element.prototype.getBoundingClientRect
 beforeEach(() => {
   vi.clearAllMocks()
   window.scrollBy = vi.fn()
+  rect.top = 300
+  Element.prototype.getBoundingClientRect = function () {
+    return { top: rect.top, bottom: rect.top + 200, height: 200, left: 0, right: 0, width: 0 }
+  }
 })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  Element.prototype.getBoundingClientRect = realRect
+})
 
 describe('OcrScreen', () => {
   it('סבב פתוח — ממשיכים אותו בלי לקחת חדש; הכתב על כל שורה', async () => {
@@ -55,7 +65,7 @@ describe('OcrScreen', () => {
     expect(calls.find((c) => c.path === '/api/training-proof/round' && c.method === 'POST').body).toEqual({ section: 'ocr' })
   })
 
-  it('מקש 1 = נכון, נשמר מיד, ועוברים לשורה הבאה; 5 = לא קריא', async () => {
+  it('מקש 1 = נכון, נשמר מיד, ועוברים לשורה הבאה; 4 = לא קריא', async () => {
     const { calls } = api({ current: round([ocrPublic(0), ocrPublic(1)]) })
     const user = userEvent.setup()
     render(<OcrScreen />)
@@ -64,7 +74,7 @@ describe('OcrScreen', () => {
     await waitFor(() => expect(calls.find((c) => c.path === '/api/training-proof/items/o0/mark')?.body).toEqual({ action: 'ok' }))
     expect(await screen.findByText(/נשמר באתר: נכון/)).toBeInTheDocument()
     await waitFor(() => expect(document.getElementById('tp-line-o1')).toHaveAttribute('aria-current', 'true'))
-    await user.keyboard('5')
+    await user.keyboard('4')
     await waitFor(() => expect(calls.find((c) => c.path === '/api/training-proof/items/o1/mark')?.body).toEqual({ action: 'bad' }))
   })
 
@@ -141,12 +151,12 @@ describe('OcrScreen', () => {
     expect(c1.querySelector('[data-tp-word-mark]')).toBeNull()
   })
 
-  it('6 = הכתב שגוי — הודעה שהשורה חוזרת לנתב', async () => {
+  it('5 = הכתב שגוי — הודעה שהשורה חוזרת לנתב', async () => {
     api({ current: round([ocrPublic(0)]) })
     const user = userEvent.setup()
     render(<OcrScreen />)
     await screen.findByText('שורה 1 מתוך 1')
-    await user.keyboard('6')
+    await user.keyboard('5')
     await waitFor(() => expect(alert).toHaveBeenCalledWith('הועבר לנתב הכתב', expect.stringMatching(/תחזור להגהה/)))
   })
 
@@ -163,13 +173,63 @@ describe('OcrScreen', () => {
     await screen.findByText('שורה 1 מתוך 2')
     const more = screen.getByRole('button', { name: /קח 30 שורות נוספות/ })
     expect(more).toBeDisabled()
-    await user.keyboard('4')
+    await user.keyboard('3')
     expect(await screen.findByText(/דילגתם — השורה חזרה למאגר/)).toBeInTheDocument()
     expect(screen.getByText('1 מתוך 2')).toBeInTheDocument()
     await user.keyboard('1')
     await screen.findByText('סיימתם את הסבב')
     expect(screen.getByRole('button', { name: /קח 30 שורות נוספות/ })).toBeEnabled()
-    expect(screen.getByText(/1 נכונות · 0 תוקנו · 0 חיתוך גרוע \/ לא קריא · 1 דילגתם/)).toBeInTheDocument()
+    expect(screen.getByText(/^1 נכונות · 0 תוקנו · 0 לא קריא · 1 דילגתם · 0 חזרו לנתב$/)).toBeInTheDocument()
+  })
+
+  it('בלי "חיתוך גרוע": אין כפתור, 3 = דלג, ו-6 לא עושה כלום', async () => {
+    const { calls } = api({
+      current: round([ocrPublic(0), ocrPublic(1)]),
+      mark: (id, body) => ({ status: 200, data: { item: ocrPublic(0, { status: 'available' }), skipped: body.action === 'skip' } }),
+    })
+    const user = userEvent.setup()
+    render(<OcrScreen />)
+    await screen.findByText('שורה 1 מתוך 2')
+    expect(screen.queryByRole('button', { name: /חיתוך גרוע/ })).toBeNull()
+    expect(screen.queryByText(/חיתוך גרוע/)).toBeNull()
+    const card = document.getElementById('tp-line-o0')
+    expect(within(card).getAllByRole('button').filter((b) => b.querySelector('kbd')).map((b) => b.textContent.replace(/^[a-z_]+/, ''))).toEqual(['נכון 1', 'תקן 2', 'דלג 3', 'לא קריא 4', 'הכתב שגוי 5'])
+    await user.keyboard('6')
+    await user.keyboard('3')
+    await waitFor(() => expect(calls.filter((c) => c.path.endsWith('/mark')).map((c) => c.body)).toEqual([{ action: 'skip' }]))
+  })
+
+  it('"קח 30 נוספות": הסבב החדש — השורה הראשונה נגללת לתוך החלון ומקבלת מיקוד, והמקשים עובדים מיד', async () => {
+    const { calls } = api({
+      current: round([ocrPublic(0)]),
+      taken: { round: 'r2', items: [ocrPublic(5), ocrPublic(6)], open: 2, done: false },
+    })
+    const user = userEvent.setup()
+    render(<OcrScreen />)
+    await screen.findByText('שורה 1 מתוך 1')
+    await user.keyboard('1')
+    await screen.findByText('סיימתם את הסבב')
+    // הדף למטה, ליד הכפתור: ראש הרשימה הרחק מעל החלון
+    rect.top = -3000
+    window.scrollBy.mockClear()
+    await user.click(screen.getByRole('button', { name: /קח 30 שורות נוספות/ }))
+    await screen.findByText('שורה מספר 5')
+    const first = document.getElementById('tp-line-o5')
+    await waitFor(() => expect(document.activeElement).toBe(first))
+    expect(first).toHaveAttribute('aria-current', 'true')
+    expect(window.scrollBy).toHaveBeenCalledWith({ top: -3012, behavior: 'smooth' })
+    await user.keyboard('1')
+    await waitFor(() => expect(calls.find((c) => c.path === '/api/training-proof/items/o5/mark')?.body).toEqual({ action: 'ok' }))
+  })
+
+  it('חזרה לסבב אחרי רענון: השורה הפתוחה הראשונה נוכחית ובמיקוד; כשהיא כבר בחלון — בלי גלילה', async () => {
+    api({ current: round([ocrPublic(0, { status: 'submitted', result: { action: 'ok' } }), ocrPublic(1), ocrPublic(2)]) })
+    render(<OcrScreen />)
+    await screen.findByText('שורה 1 מתוך 3')
+    const open = document.getElementById('tp-line-o1')
+    await waitFor(() => expect(document.activeElement).toBe(open))
+    expect(open).toHaveAttribute('aria-current', 'true')
+    expect(window.scrollBy).not.toHaveBeenCalled()
   })
 
   it('בלי גישה — ההודעה ו"בקשת גישה"', async () => {
@@ -202,6 +262,6 @@ describe('OcrScreen', () => {
     expect(calls.find((c) => c.path === '/api/training-proof/round/release').body).toEqual({ section: 'ocr' })
     // הכפתורים בשורה עצמה — כולם עם המקש שלהם
     const card = document.getElementById('tp-line-o0')
-    expect(within(card).getByRole('button', { name: /הכתב שגוי/ })).toHaveTextContent('6')
+    expect(within(card).getByRole('button', { name: /הכתב שגוי/ })).toHaveTextContent('5')
   })
 })
