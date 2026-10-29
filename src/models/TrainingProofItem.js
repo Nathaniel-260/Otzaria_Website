@@ -45,6 +45,9 @@ const TrainingProofItemSchema = new mongoose.Schema(
     adminFixed: { type: Boolean, default: false },
     // התוצאה המקורית של המתנדב כשהמנהל תיקן — ל"שיעור ההתאמה"
     volResult: { type: mongoose.Schema.Types.Mixed, default: null },
+    // outbox: null עד שרשומת TrainingProofCorrection נשמרה. מאפשר להשלים כשל
+    // בלי להחזיר רשומות ישנות שנגזמו בכוונה ממגבלת היומן.
+    correctionLoggedAt: { type: Date, default: null },
   },
   { timestamps: false }
 );

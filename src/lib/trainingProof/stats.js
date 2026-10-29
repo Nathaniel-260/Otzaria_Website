@@ -10,7 +10,8 @@ import { SECTIONS } from './vocab.js';
 // (archiveDelta + applyArchive כאן). המונה הסופי = מה שחי באתר + מה שכבר ירד.
 
 const oid = (v) => new mongoose.Types.ObjectId(String(v));
-const zero = () => ({ saved: 0, pending: 0, approved: 0, unchanged: 0, rejected: 0, match: null });
+// corrected — כמה מהמאושרות המנהל תיקן ("תקן ואשר" ששינה משהו) = approved − unchanged
+const zero = () => ({ saved: 0, pending: 0, approved: 0, unchanged: 0, corrected: 0, rejected: 0, match: null });
 
 // המונים שנמחקים יחד עם הפריטים — לפי מתנדב ולפי חלק. items — מסמכים (lean) עם
 // section, status, vol, adminFixed, rejectedFor. מחזיר Map(userId → {section → {approved, unchanged, rejected}})
@@ -90,6 +91,7 @@ export async function volunteerStats(userId) {
     s.approved += a.approved || 0;
     s.unchanged += a.unchanged || 0;
     s.rejected += a.rejected || 0;
+    s.corrected = s.approved - s.unchanged;
     s.saved = s.pending + s.approved + s.rejected;
     const judged = s.approved + s.rejected;
     s.match = judged ? s.unchanged / judged : null;
