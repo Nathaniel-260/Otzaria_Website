@@ -50,10 +50,16 @@ export default function UploadCard({ section, onDone }) {
     if (alive.current) setList((l) => l.map((s, j) => (j === i ? { ...s, ...patch } : s)))
   }
 
-  // קובץ אחד: בדיקה בשרת, ואז מנה אחרי מנה
+  // קובץ אחד: בדיקה בשרת, ואז מנה אחרי מנה. מחזיר האם ייתכן שהנתונים השתנו.
   const one = async (file, i) => {
-    if (!/\.zip$/i.test(file.name)) return put(i, { phase: 'error', error: 'יש להעלות קובץ ZIP מתחנת-האימון' })
-    if (file.size > MAX_FILE_BYTES) return put(i, { phase: 'error', error: `הקובץ גדול מ-${Math.round(MAX_FILE_BYTES / 1024 / 1024)}MB — התחנה מפצלת לכמה קבצים` })
+    if (!/\.zip$/i.test(file.name)) {
+      put(i, { phase: 'error', error: 'יש להעלות קובץ ZIP מתחנת-האימון' })
+      return false
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      put(i, { phase: 'error', error: `הקובץ גדול מ-${Math.round(MAX_FILE_BYTES / 1024 / 1024)}MB — התחנה מפצלת לכמה קבצים` })
+      return false
+    }
     put(i, { phase: 'check' })
     const fd = new FormData()
     fd.append('section', section)
@@ -62,7 +68,9 @@ export default function UploadCard({ section, onDone }) {
     try {
       staged = await sendForm('/upload', fd)
     } catch (e) {
-      return put(i, { phase: 'error', error: e.message, errors: e.data?.errors, wrong: e.data?.wrongSection })
+      put(i, { phase: 'error', error: e.message, errors: e.data?.errors, wrong: e.data?.wrongSection })
+      // דחיית הרשאה/קובץ נעשית לפני כתיבה. תקלה בשרת או ברשת יכולה לקרות אחרי יצירת חבילה.
+      return ![400, 401, 403, 413].includes(e.status)
     }
     let progress = { done: 0, total: staged.total, inserted: 0, skipped: 0 }
     put(i, { phase: 'ingest', staged, progress })
@@ -76,7 +84,10 @@ export default function UploadCard({ section, onDone }) {
         if (r.finished) break
       } catch (e) {
         // שער שלא חיכה / תקלה רגעית — מנסים שוב את אותה מנה (היא ממשיכה מאותה נקודה)
-        if (e.status === 409 || ++tries > 4) return put(i, { phase: 'error', error: e.message })
+        if (e.status === 409 || ++tries > 4) {
+          put(i, { phase: 'error', error: e.message })
+          return true
+        }
         await new Promise((r) => setTimeout(r, 3000))
       }
     }
@@ -84,6 +95,7 @@ export default function UploadCard({ section, onDone }) {
       await sendJson(`/upload/${staged.token}`, undefined, 'DELETE').catch(() => {})
       put(i, { phase: 'stopped' })
     } else put(i, { phase: 'done' })
+    return true
   }
 
   const take = async (files) => {
@@ -97,14 +109,19 @@ export default function UploadCard({ section, onDone }) {
         put(i, { phase: 'cancelled' })
         continue
       }
-      await one(all[i], i)
-      onDone?.()
+      if (await one(all[i], i)) onDone?.()
     }
     if (alive.current) setBusy(false)
   }
 
   const finished = list.filter((s) => s.phase === 'done')
-  const total = (k) => finished.reduce((n, s) => n + (s.progress?.[k] || 0), 0)
+  const partial = list.some((s) => ['stopped', 'error'].includes(s.phase) && s.progress?.done > 0)
+  // גם קליטה חלקית נשארת באתר; סופרים אותה בנפרד ממספר הקבצים שהסתיימו.
+  const totals = list.reduce((sum, s) => {
+    sum.inserted += s.progress?.inserted || 0
+    sum.skipped += s.progress?.skipped || 0
+    return sum
+  }, { inserted: 0, skipped: 0 })
   return (
     <Card title={SECTION_LABELS[section]} icon={SECTION_ICONS[section]} className="min-w-0 flex-1 basis-72">
       <p className="text-sm text-on-surface/60">{HINTS[section]}</p>
@@ -149,7 +166,7 @@ export default function UploadCard({ section, onDone }) {
             </>
           ) : (
             <b>
-              {fmt(finished.length)} מתוך {fmt(list.length)} קבצים נקלטו: {fmt(total('inserted'))} חדשים{total('skipped') ? `, ${fmt(total('skipped'))} כבר היו באתר` : ''}.
+              {fmt(finished.length)} מתוך {fmt(list.length)} קבצים נקלטו: {fmt(totals.inserted)} חדשים{totals.skipped ? `, ${fmt(totals.skipped)} כבר היו באתר` : ''}{partial ? ' (כולל קליטה חלקית)' : ''}.
             </b>
           )}
         </div>
