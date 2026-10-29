@@ -6,11 +6,12 @@ import { fmt } from '../api'
 import { BTN, Empty, Muted } from '../bits'
 import { useReview } from './useReview'
 import { BulkBar, Pager } from './BulkBar'
-import OcrRow from './OcrRow'
+import OcrRow, { ADMIN_MARKS } from './OcrRow'
 import VolunteerPicker from './VolunteerPicker'
 import { useHandles, useRowKeys } from './rowKeys'
 import KeyHint, { Kbd } from './KeyHint'
 
+const MARK_KEYS = Object.fromEntries(ADMIN_MARKS.map((m) => [m.key, m.action]))
 const ACTION_FILTER = { ok: 'סימן: נכון', fixed: 'תיקן', seg: 'חיתוך גרוע', bad: 'לא קריא', router: 'הכתב שגוי' }
 const select = 'rounded-md border border-surface-variant bg-surface px-2 py-1 text-sm'
 
@@ -27,12 +28,13 @@ export default function OcrReview({ onChanged }) {
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
   const okInView = items.filter((x) => x.status === 'submitted' && x.result?.action === 'ok').length
   const H = useHandles()
-  // 1 אשר · 2 תקן ואשר (עריכה במקום; Enter שומר, Esc מבטל) · 3 / Delete דחה
+  // 1 אשר · 2 תקן ואשר (עריכה במקום; Enter שומר, Esc מבטל) · 3 / Delete דחה · 4 לא קריא · 5 לנתב
   const K = useRowKeys(items, (key, it) => {
     if (it.status !== 'submitted' || R.busy) return false
     if (key === '1') R.decide([it.id], 'approve')
     else if (key === '2') H.get(it.id)?.edit()
     else if (key === '3' || key === 'Delete') R.decide([it.id], 'reject')
+    else if (MARK_KEYS[key]) H.get(it.id)?.mark(MARK_KEYS[key])
     else return false
     return true
   })
@@ -111,7 +113,7 @@ export default function OcrReview({ onChanged }) {
       )}
 
       <KeyHint>
-        <Kbd>1</Kbd> אשר · <Kbd>2</Kbd> תקן ואשר (<Kbd>Enter</Kbd> שומר, <Kbd>Esc</Kbd> מבטל) · <Kbd>3</Kbd> או <Kbd>Delete</Kbd> דחה ·{' '}
+        <Kbd>1</Kbd> אשר · <Kbd>2</Kbd> תקן ואשר (<Kbd>Enter</Kbd> שומר, <Kbd>Esc</Kbd> מבטל) · <Kbd>3</Kbd> או <Kbd>Delete</Kbd> דחה · <Kbd>4</Kbd> לא קריא · <Kbd>5</Kbd> לנתב ·{' '}
         <Kbd>↓</Kbd>/<Kbd>↑</Kbd> שורה אחרת
       </KeyHint>
 
@@ -143,6 +145,7 @@ export default function OcrReview({ onChanged }) {
             onReject={(x) => R.decide([x.id], 'reject')}
             onUnapprove={(x) => R.decide([x.id], 'unapprove')}
             onFix={(x, text) => R.fix(x, { action: 'fixed', text })}
+            onMark={(x, action) => R.fix(x, { action })}
           />
         ))}
       </div>

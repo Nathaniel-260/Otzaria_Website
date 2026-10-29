@@ -557,6 +557,20 @@ describe('התיקונים של המנהל, לפי מתנדב', () => {
     J(await correctionsGET(new Request(`${URL0}/volunteers/${vol._id}/corrections${sec ? `?section=${sec}` : ''}`), P({ userId: String(vol._id) })))
   const volRow = async () => (await J(await volsGET())).approved.find((v) => v.userId === String(vol._id))
 
+  it('"לא קריא" / "לנתב" מהמנהל במקום מה שהמתנדב סימן: מאושר, נרשם כתיקון, והמתנדב נשמר', async () => {
+    const s = await upload('ocr', sampleEntries('ocr', { n: 3 }))
+    await ingest(s.token)
+    const marked = await volunteerMarks('ocr', [{ action: 'bad' }, { action: 'fixed', text: 'נוסח המתנדב' }, { action: 'router' }])
+    const [a, b, c] = marked.map((x) => String(x._id))
+    expect((await J(await fixPOST(jreq('POST', { id: a, mark: { action: 'ok' } })))).fixed).toBe(true)
+    expect((await J(await fixPOST(jreq('POST', { id: b, mark: { action: 'router' } })))).fixed).toBe(true)
+    expect((await J(await fixPOST(jreq('POST', { id: c, mark: { action: 'router' } })))).fixed).toBe(false)
+    const [ia, ib, ic] = await Promise.all([a, b, c].map((id) => TrainingProofItem.findById(id).lean()))
+    expect(ia).toMatchObject({ status: 'approved', adminFixed: true, result: { action: 'ok' }, volResult: { action: 'bad' } })
+    expect(ib).toMatchObject({ status: 'approved', adminFixed: true, result: { action: 'router' }, volResult: { action: 'fixed', text: 'נוסח המתנדב' } })
+    expect(ic.adminFixed).toBeFalsy()
+  })
+
   it('"תקן ואשר" נרשם למתנדב; תיקון זהה — לא; "החזר לממתינות" מוחק; המונה והיומן שורדים את ההורדה; קובץ-ההחזרה לא משתנה', async () => {
     const s = await upload('ocr', sampleEntries('ocr', { n: 4 }))
     await ingest(s.token)

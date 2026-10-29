@@ -78,6 +78,23 @@ describe('סקירת זיהוי-הטקסט — מקלדת', () => {
     await waitFor(() => expect(posts(calls, 'fix')).toEqual([{ id: 'o0', mark: { action: 'fixed', text: 'שורה 1 מתוקנת' } }]))
   })
 
+  it('4 = לא קריא, 5 = לנתב (במקום המתנדב); מקש של מה שהמתנדב כבר סימן — כלום', async () => {
+    const bad = { ...ocr(2), result: { action: 'bad' } }
+    const { calls } = server('ocr', [ocr(0), ocr(1), bad])
+    const user = userEvent.setup()
+    render(<OcrReview />)
+    await screen.findByText('שורה 0')
+    expect(screen.getByTestId('tp-review-keys')).toHaveTextContent('לא קריא')
+    await user.keyboard('4')
+    await waitFor(() => expect(posts(calls, 'fix')).toEqual([{ id: 'o0', mark: { action: 'bad' } }]))
+    await waitFor(() => expect(current()).toBe('o1'))
+    await user.keyboard('5')
+    await waitFor(() => expect(posts(calls, 'fix').at(-1)).toEqual({ id: 'o1', mark: { action: 'router' } }))
+    await waitFor(() => expect(current()).toBe('o2'))
+    await user.keyboard('4')
+    expect(posts(calls, 'fix')).toHaveLength(2)
+  })
+
   it('לחיצה על שורה בוחרת אותה; ↑ בראש הרשימה נשאר בראש', async () => {
     server('ocr', [ocr(0), ocr(1)])
     const user = userEvent.setup()
