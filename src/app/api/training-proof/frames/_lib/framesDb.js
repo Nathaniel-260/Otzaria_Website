@@ -134,6 +134,11 @@ export async function claimBook(userId, bookKey, now = new Date()) {
     { claimedBy: oid(userId), claimedUntil: { $gt: now }, book: { $ne: bookKey } },
     { book: 1, alias: 1 }
   ).lean();
+  // ספר שהוגש כולו נשאר "אצלו" עד תום 48 השעות — המונים קובעים אם הוא עדיין חוסם (rules.claimDecision)
+  if (otherClaims.length) {
+    const oc = await pageCounts(otherClaims.map((b) => b.book));
+    for (const b of otherClaims) b.counts = oc[b.book];
+  }
   const d = claimDecision(book, counts, userId, now, { otherClaims });
   if (!d.ok) return fail(d.status, d.error);
   if (d.already) return { ok: true, book: bookKey, claimedUntil: book.claimedUntil, already: true };

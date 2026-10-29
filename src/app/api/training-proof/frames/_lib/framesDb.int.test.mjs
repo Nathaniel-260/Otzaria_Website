@@ -234,6 +234,23 @@ test('כל העמודים סומנו — הספר "הושלם" ו-doneBy', async
   assert.equal((await claimBook(B, KEY, T0)).status, 409);
 });
 
+test('ספר שהוגש כולו וממתין לאישור — לא חוסם לקיחת ספר נוסף', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  await seed({ n: 2 });
+  await TrainingProofBook.create({ book: 'b-0000000001', alias: 'ספר 12', streams: [] });
+  const m = manifestOf('frames', { package_id: 'tp-20261027-00000001' });
+  await TrainingProofItem.create(itemDoc(m, framesItem(9, { uid: 'frames:fpages:999', book: 'b-0000000001' })));
+  await claimBook(A, KEY, T0);
+  const pages = (await bookDetail(A, KEY, { now: T0 })).pages;
+  await savePage(A, pages[0].id, marked(pages[0].frames), { now: T0 });
+  // עמוד אחד עוד פתוח — הספר בעבודה וחוסם
+  assert.equal((await claimBook(A, 'b-0000000001', T0)).status, 409);
+  assert.equal((await savePage(A, pages[1].id, marked(pages[1].frames), { now: T0 })).bookDone, true);
+  assert.equal((await listBooks(A, T0)).books.find((b) => b.book === KEY).state, 'done');
+  const r = await claimBook(A, 'b-0000000001', T0);
+  assert.equal(r.ok, true, r.error);
+});
+
 test('חבילה מושהית — הספר לא מופיע למתנדבים', async (t) => {
   if (db.skip) return t.skip(db.skip);
   await seed({ open: false });
