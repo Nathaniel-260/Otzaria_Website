@@ -247,8 +247,33 @@ test('ספר שהוגש כולו וממתין לאישור — לא חוסם ל�
   assert.equal((await claimBook(A, 'b-0000000001', T0)).status, 409);
   assert.equal((await savePage(A, pages[1].id, marked(pages[1].frames), { now: T0 })).bookDone, true);
   assert.equal((await listBooks(A, T0)).books.find((b) => b.book === KEY).state, 'done');
+  const aggregate = TrainingProofItem.aggregate;
+  const calls = t.mock.method(TrainingProofItem, 'aggregate', function (...args) {
+    return aggregate.apply(this, args);
+  });
   const r = await claimBook(A, 'b-0000000001', T0);
   assert.equal(r.ok, true, r.error);
+  assert.equal(calls.mock.callCount(), 1, 'מוני הספר המבוקש והספר הקודם נקראים יחד');
+  calls.mock.restore();
+
+  // אם המנהל דוחה עמוד בספר הקודם, הוא שוב חוסם גם אחרי שהספר החדש שוחרר.
+  await TrainingProofItem.updateOne({ _id: pages[0].id }, { $set: { status: 'available', result: null, vol: null } });
+  assert.equal((await releaseBook(A, 'b-0000000001')).ok, true);
+  assert.equal((await claimBook(A, 'b-0000000001', T0)).status, 409);
+});
+
+test('ספירת ספר משתמשת באינדקס ולא קוראת עמודים מספרים אחרים', async (t) => {
+  if (db.skip) return t.skip(db.skip);
+  await seed({ n: 2 });
+  await TrainingProofItem.collection.insertMany(Array.from({ length: 500 }, (_, i) => ({
+    section: 'frames', book: `other-${i}`, status: 'available', packageId: 'other-package', uid: `other-${i}`,
+  })));
+  const plan = await TrainingProofItem.aggregate([
+    { $match: { section: 'frames', book: { $in: [KEY] } } },
+    { $group: { _id: '$book', total: { $sum: 1 }, done: { $sum: { $cond: [{ $in: ['$status', ['submitted', 'approved']] }, 1, 0] } } } },
+  ]).explain('executionStats');
+  const stats = plan.stages?.[0]?.$cursor?.executionStats || plan.executionStats;
+  assert.equal(stats.totalDocsExamined, 2, 'רק שני עמודי הספר המבוקש נקראים');
 });
 
 test('חבילה מושהית — הספר לא מופיע למתנדבים', async (t) => {
