@@ -29,6 +29,7 @@ function fixture(mode = 'success', pm2App = 'otzaria') {
   write(seed, '.gitignore', 'node_modules/\n.next/\n.env\nstorage/\nvar/\npublic/uploads/\npublic/tessdata/\npublic/version.json\npublic/export-editor/\n')
   write(seed, 'app.js', 'one\n'); write(seed, 'package.json', '{"scripts":{"build":"fixture"}}\n')
   write(seed, 'public/asset.txt', 'tracked\n')
+  write(seed, 'scripts/check-production-trace.cjs', '// fixture packaged-runtime verification\n')
   run('git', ['add', '.']); run('git', ['-c', 'commit.gpgsign=false', 'commit', '-qm', 'one'])
   run('git', ['init', '--bare', '-q', remote], root)
   run('git', ['remote', 'add', 'origin', remote]); run('git', ['push', '-q', '-u', 'origin', 'HEAD:master'])
@@ -47,7 +48,12 @@ function fixture(mode = 'success', pm2App = 'otzaria') {
   command('npm', `
 echo "npm $*" >> "$TEST_ROOT/trace"
 case "$1" in
-  ci) [[ "$TEST_MODE" != install ]] || exit 9; mkdir -p node_modules ;;
+  ci)
+    [[ "$TEST_MODE" != install ]] || exit 9
+    mkdir -p node_modules/.bin
+    printf '#!/usr/bin/env bash\\nexit 0\\n' > node_modules/.bin/next
+    chmod +x node_modules/.bin/next
+    ;;
   install) [[ "$*" == *"#$TEST_VALIDATOR"* ]] || exit 8 ;;
   run)
     [[ "$2" == build ]] || exit 7
@@ -72,19 +78,23 @@ if [[ "$1" == describe && "$TEST_MODE" == missing_process ]]; then exit 9; fi
 if [[ "$1" == restart && "$TEST_MODE" == restart ]]; then exit 9; fi
 `)
   command('curl', `
+last="\${!#}"
+if [[ "$last" == */api/dicta/health ]]; then printf '{"status":"ok"}'; exit 0; fi
 version=$(cat "$TEST_LIVE/public/version.json")
 if [[ "$TEST_MODE" == health && "$version" == *one* ]]; then exit 22; fi
 if [[ "$TEST_MODE" == health_second && "$version" == *two* ]]; then exit 22; fi
+if [[ "$TEST_MODE" == recovery_unhealthy && "$(readlink -f "$TEST_LIVE")" == *otzaria-releases* ]]; then exit 22; fi
 printf '%s' "$version"
 `)
   command('sleep', ':\n')
 
-  const deploy = (sha, validator = 'a'.repeat(40), currentMode = mode) => spawnSync(
+  const deploy = (sha, validator = 'a'.repeat(40), currentMode = mode, extraEnv = {}) => spawnSync(
     'bash', [deployScript, sha, validator, live], {
       env: {
         ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`,
         TEST_ROOT: root, TEST_LIVE: live, TEST_MODE: currentMode,
         TEST_VALIDATOR: validator, TEST_PM2_APP: pm2App, PM2_APP: pm2App,
+        ...extraEnv,
       },
       encoding: 'utf8', timeout: 30000,
     },
@@ -205,10 +215,117 @@ test('redeploying identical website and validator commits is a safe no-op', () =
     const validator = 'a'.repeat(40)
     assert.equal(f.deploy(f.first, validator).status, 0)
     const release = fs.realpathSync(f.live)
+    const npmCalls = f.trace().match(/^npm /gm)?.length
     const result = f.deploy(f.first, validator, 'require_cache')
     assert.equal(result.status, 0, result.stdout + result.stderr)
     assert.equal(fs.realpathSync(f.live), release)
     assert.equal(f.releases().length, 1)
     assert.match(result.stdout, /already active/)
+    assert.equal(f.trace().match(/^npm /gm)?.length, npmCalls)
+  } finally { f.remove() }
+})
+
+test('failed repeat deployment can never delete the active release', () => {
+  const f = fixture()
+  try {
+    const validator = 'a'.repeat(40)
+    assert.equal(f.deploy(f.first, validator).status, 0)
+    const active = fs.realpathSync(f.live)
+    const result = f.deploy(f.first, validator, 'build')
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+    assert.equal(fs.realpathSync(f.live), active)
+    assert.equal(f.readLive('public/version.json'), '{"version":"one"}')
+  } finally { f.remove() }
+})
+
+for (const [name, extraEnv] of [
+  ['build equals live', root => ({ BUILD_DIR: path.join(root, 'otzaria-web') })],
+  ['releases equal shared', root => ({ RELEASES_DIR: path.join(root, 'same'), SHARED_DIR: path.join(root, 'same') })],
+  ['releases outside root', root => ({ RELEASES_DIR: path.join(root, 'nested', 'releases') })],
+]) {
+  test(`unsafe path configuration is rejected: ${name}`, () => {
+    const f = fixture()
+    try {
+      const result = f.deploy(f.first, 'a'.repeat(40), 'success', extraEnv(f.root))
+      assert.notEqual(result.status, 0)
+      assert.match(result.stderr, /Deployment path|paths must be distinct/)
+      assert.equal(f.readLive('storage/keep'), 'storage')
+      assert.doesNotMatch(f.trace(), /npm |pm2 stop/)
+    } finally { f.remove() }
+  })
+}
+
+test('a pre-existing legacy recovery directory blocks migration before PM2 stops', () => {
+  const f = fixture()
+  try {
+    const legacy = path.join(f.root, `.otzaria-legacy.${f.first}-${'a'.repeat(40)}`)
+    fs.mkdirSync(legacy)
+    fs.writeFileSync(path.join(legacy, 'do-not-delete'), 'recovery')
+    const result = f.deploy(f.first)
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /Legacy recovery data already exists/)
+    assert.equal(fs.readFileSync(path.join(legacy, 'do-not-delete'), 'utf8'), 'recovery')
+    assert.doesNotMatch(f.trace(), /npm |pm2 stop/)
+  } finally { f.remove() }
+})
+
+test('host-local deployment lock rejects a concurrent invocation', () => {
+  const f = fixture()
+  const lock = path.join(f.root, '.otzaria-deploy.lock')
+  try {
+    // The outer shell retains fd 8 while the child deployment tries fd 9.
+    const command = `exec 8>"${lock}"; flock -n 8; PATH="${path.join(f.root, 'bin')}:$PATH" TEST_ROOT="${f.root}" TEST_LIVE="${f.live}" TEST_MODE=success TEST_VALIDATOR=${'a'.repeat(40)} TEST_PM2_APP=otzaria PM2_APP=otzaria bash "${deployScript}" ${f.first} ${'a'.repeat(40)} "${f.live}"`
+    const result = spawnSync('bash', ['-c', command], { encoding: 'utf8' })
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /already running/)
+  } finally {
+    f.remove()
+  }
+})
+
+test('an interrupted migration with a missing live path is recovered safely', () => {
+  const f = fixture()
+  try {
+    const legacy = path.join(f.root, `.otzaria-legacy.${f.first}-${'a'.repeat(40)}`)
+    fs.renameSync(f.live, legacy)
+    const result = f.deploy(f.first)
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+    assert.equal(f.readLive('storage/keep'), 'storage')
+    assert.equal(fs.existsSync(legacy), false)
+    assert.match(result.stdout, /Recovering an interrupted one-time migration/)
+  } finally { f.remove() }
+})
+
+test('an interrupted migration after link swap removes legacy only after health passes', () => {
+  const f = fixture()
+  try {
+    const validator = 'a'.repeat(40)
+    assert.equal(f.deploy(f.first, validator).status, 0)
+    const legacy = path.join(f.root, `.otzaria-legacy.${f.first}-${validator}`)
+    fs.mkdirSync(legacy)
+    fs.writeFileSync(path.join(legacy, 'recovery-marker'), 'keep until healthy')
+    const result = f.deploy(f.first, validator)
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+    assert.equal(fs.existsSync(legacy), false)
+    assert.match(result.stdout, /already active/)
+  } finally { f.remove() }
+})
+
+test('an unhealthy release after interrupted link swap rolls back to legacy', () => {
+  const f = fixture()
+  try {
+    const validator = 'a'.repeat(40)
+    assert.equal(f.deploy(f.first, validator).status, 0)
+    const failedRelease = fs.realpathSync(f.live)
+    const legacy = path.join(f.root, `.otzaria-legacy.${f.first}-${validator}`)
+    fs.mkdirSync(path.join(legacy, 'public'), { recursive: true })
+    fs.writeFileSync(path.join(legacy, 'public/version.json'), '{"version":"legacy"}')
+    fs.writeFileSync(path.join(legacy, 'app.js'), 'legacy')
+    const result = f.deploy(f.first, validator, 'recovery_unhealthy')
+    assert.notEqual(result.status, 0, result.stdout + result.stderr)
+    assert.equal(fs.lstatSync(f.live).isSymbolicLink(), false)
+    assert.equal(f.readLive('public/version.json'), '{"version":"legacy"}')
+    assert.equal(fs.existsSync(failedRelease), false)
+    assert.match(result.stderr, /Legacy checkout restored/)
   } finally { f.remove() }
 })
