@@ -9,7 +9,9 @@ const TrainingProofCorrectionSchema = new mongoose.Schema(
   {
     vol: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     section: { type: String, enum: SECTIONS, required: true },
-    item: { type: mongoose.Schema.Types.ObjectId, default: null, index: true },
+    // רשומה אחת לכל מחזור-חיים של פריט. ה-upsert לפי item הופך את סנכרון היומן
+    // ל-idempotent: ניסיון חוזר אחרי כשל אינו יוצר כפילות.
+    item: { type: mongoose.Schema.Types.ObjectId, required: true, unique: true },
     uid: { type: String, default: '' },
     alias: { type: String, default: '' },
     page: { type: Number, default: null },

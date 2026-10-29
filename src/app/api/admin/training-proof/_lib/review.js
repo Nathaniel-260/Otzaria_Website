@@ -6,7 +6,7 @@ import User from '@/models/User';
 import { SECTIONS } from '@/lib/trainingProof/vocab';
 import { MARK_CHECKS, sameResult } from '@/lib/trainingProof/marks';
 import { volunteerStats } from '@/lib/trainingProof/stats';
-import { logCorrection, dropCorrections } from '@/lib/trainingProof/corrections';
+import { logCorrection, reconcileCorrections } from '@/lib/trainingProof/corrections';
 import { oid } from './http';
 import { PAGE_SIZE, adminItem, approveSet, rejectUpdate, unapproveUpdate, reviewFilter, routerAgrees, matchPct, framesChanges } from './rules';
 
@@ -120,12 +120,21 @@ export async function unapproveIds(section, ids) {
     { adminFixed: 1, volResult: 1 }
   ).lean();
   if (!docs.length) return 0;
-  const res = await TrainingProofItem.bulkWrite(
-    docs.map((d) => ({ updateOne: { filter: { _id: d._id, status: 'approved' }, update: unapproveUpdate(d) } }))
-  );
-  // התיקון של המנהל בוטל — וגם הרשומה שלו ביומן
-  await dropCorrections(docs.filter((d) => d.adminFixed).map((d) => d._id));
-  return res.modifiedCount;
+  // findOneAndUpdate מחזיר בדיוק אילו עדכונים מותנים הצליחו. כך מרוץ עם מנהל אחר
+  // אינו מוחק יומן של פריט שלא הוחזר בפועל.
+  const changed = [];
+  for (const d of docs) {
+    const updated = await TrainingProofItem.findOneAndUpdate(
+      { _id: d._id, section, status: 'approved' },
+      unapproveUpdate(d),
+      { returnDocument: 'after', lean: true }
+    );
+    if (updated) changed.push(updated._id);
+  }
+  // reconciliation בודק שוב את המצב הנוכחי: אם הפריט כבר תוקן ואושר מחדש במרוץ,
+  // הרשומה החדשה נבנית מחדש במקום להימחק.
+  await reconcileCorrections(changed);
+  return changed.length;
 }
 
 // אישור גורף על כל התור בחלק. kind:
@@ -171,7 +180,7 @@ export async function fixAndApprove(id, mark, by, now = new Date(), check = null
   const same = sameResult(item.section, item.result, result);
   const set = same
     ? approveSet(oid(by), now)
-    : { ...approveSet(oid(by), now), result, adminFixed: true, volResult: item.result };
+    : { ...approveSet(oid(by), now), result, adminFixed: true, volResult: item.result, correctionLoggedAt: null };
   const doc = await TrainingProofItem.findOneAndUpdate(
     { _id: item._id, status: 'submitted', submittedAt: item.submittedAt },
     { $set: set },
@@ -181,7 +190,13 @@ export async function fixAndApprove(id, mark, by, now = new Date(), check = null
   // יומן התיקונים של המנהל, לפי מתנדב (שורד את מחיקת הפריט בהורדה)
   if (!same) {
     const changes = item.section === 'frames' ? framesChanges(item.result?.frames, result.frames) : null;
-    await logCorrection(doc, { by, at: now, changes });
+    try {
+      await logCorrection(doc, { by, at: now, changes });
+    } catch (e) {
+      // האישור האטומי הוא מקור-האמת. listCorrections והייצוא ישלימו את היומן;
+      // אין להחזיר 500 מטעה לאחר שהפעולה כבר הצליחה ואין לנסות לאשר שוב.
+      console.error('training-proof correction log deferred', String(doc._id), e?.message || e);
+    }
   }
   const names = await namesOf([doc.vol]);
   return { ok: true, item: adminItem(doc, names), fixed: !same };

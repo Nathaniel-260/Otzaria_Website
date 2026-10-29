@@ -26,6 +26,7 @@ import TrainingProofVolunteer from '@/models/TrainingProofVolunteer'
 import TrainingProofBook from '@/models/TrainingProofBook'
 import TrainingProofExportLog from '@/models/TrainingProofExportLog'
 import TrainingProofExportLock from '@/models/TrainingProofExportLock'
+import TrainingProofCorrection from '@/models/TrainingProofCorrection'
 import PageProofBook from '@/models/PageProofBook'
 import { startMongo } from '@/lib/corrections/testing/mongo.js'
 import { sampleEntries, ocrItem, routerItem } from '@/lib/trainingProof/testFixtures'
@@ -631,5 +632,47 @@ describe('התיקונים של המנהל, לפי מתנדב', () => {
     expect((await J(await correctionsGET(new Request('http://x'), P({ userId: 'nope' })))).status).toBe(400)
     as(vol)
     expect((await J(await correctionsGET(new Request('http://x'), P({ userId: String(vol._id) })))).status).toBe(403)
+  })
+
+  it('כשל זמני בכתיבת היומן אינו הופך אישור מוצלח ל-500, והקריאה הבאה משלימה אותו בלי כפילות', async () => {
+    const s = await upload('ocr', sampleEntries('ocr', { n: 1 }))
+    await ingest(s.token)
+    const [marked] = await volunteerMarks('ocr', [{ action: 'ok' }])
+    const write = vi.spyOn(TrainingProofCorrection, 'findOneAndUpdate').mockRejectedValueOnce(new Error('temporary log failure'))
+    const res = await J(await fixPOST(jreq('POST', { id: String(marked._id), mark: { action: 'fixed', text: 'תיקון' } })))
+    expect(res.status).toBe(200)
+    expect(res.fixed).toBe(true)
+    expect((await TrainingProofItem.findById(marked._id).lean()).status).toBe('approved')
+    expect(await TrainingProofCorrection.countDocuments()).toBe(0)
+    write.mockRestore()
+
+    expect((await corrections()).items).toHaveLength(1)
+    expect((await corrections()).items).toHaveLength(1)
+    expect(await TrainingProofCorrection.countDocuments({ item: marked._id })).toBe(1)
+  })
+
+  it('החזר לממתינות מוחק יומן רק לפריט שהעדכון המותנה שלו הצליח', async () => {
+    const s = await upload('ocr', sampleEntries('ocr', { n: 2 }))
+    await ingest(s.token)
+    const marked = await volunteerMarks('ocr', [{ action: 'ok' }, { action: 'ok' }])
+    for (const d of marked) await fixPOST(jreq('POST', { id: String(d._id), mark: { action: 'bad' } }))
+    expect((await corrections()).items).toHaveLength(2)
+
+    const original = TrainingProofItem.findOneAndUpdate.bind(TrainingProofItem)
+    const raced = String(marked[1]._id)
+    const update = vi.spyOn(TrainingProofItem, 'findOneAndUpdate').mockImplementation((filter, ...args) => {
+      if (filter.status === 'approved' && String(filter._id) === raced) return Promise.resolve(null)
+      return original(filter, ...args)
+    })
+    const res = await J(await decidePOST(jreq('POST', {
+      section: 'ocr', ids: marked.map((d) => String(d._id)), decision: 'unapprove',
+    })))
+    update.mockRestore()
+
+    expect(res.count).toBe(1)
+    expect((await TrainingProofItem.findById(marked[0]._id).lean()).status).toBe('submitted')
+    expect((await TrainingProofItem.findById(marked[1]._id).lean()).status).toBe('approved')
+    expect((await corrections()).items).toHaveLength(1)
+    expect(await TrainingProofCorrection.exists({ item: marked[1]._id })).toBeTruthy()
   })
 })

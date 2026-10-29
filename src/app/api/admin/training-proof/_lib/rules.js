@@ -162,7 +162,7 @@ export function rejectUpdate(vol) {
 
 // "החזר לממתינות": מאושר ← ממתין. אם המנהל תיקן — חוזרת התוצאה של המתנדב
 export function unapproveUpdate(item) {
-  const set = { status: 'submitted', reviewedAt: null, reviewedBy: null, adminFixed: false, volResult: null };
+  const set = { status: 'submitted', reviewedAt: null, reviewedBy: null, adminFixed: false, volResult: null, correctionLoggedAt: null };
   if (item.adminFixed && item.volResult) set.result = item.volResult;
   return { $set: set };
 }
