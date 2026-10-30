@@ -149,6 +149,16 @@ describe('מצב ספר ותפיסת ספר (48 שעות)', () => {
     expect(r.error).toMatch(/ספר 12/)
   })
 
+  it('הספר הקודם הוגש כולו וממתין לאישור → לא חוסם ספר חדש', () => {
+    const prev = { book: 'b-0000000001', alias: 'ספר 33' }
+    expect(claimDecision(book(), counts(), A, now, { otherClaims: [{ ...prev, counts: counts(2, 0, 2) }] })).toEqual({ ok: true, already: false })
+    // עוד לא הוגש כולו (או שהמנהל דחה עמוד והוא שוב פתוח) → חוסם
+    const r = claimDecision(book(), counts(), A, now, { otherClaims: [{ ...prev, counts: counts(1, 0, 2) }] })
+    expect(r).toMatchObject({ ok: false, status: 409 })
+    expect(r.error).toMatch(/ספר 33/)
+    expect(claimDecision(book(), counts(), A, now, { otherClaims: [{ ...prev, counts: counts(1, 1, 2) }] }).ok).toBe(false)
+  })
+
   it('ספר שלא קיים → 404', () => {
     expect(claimDecision(null, counts(), A, now).status).toBe(404)
   })

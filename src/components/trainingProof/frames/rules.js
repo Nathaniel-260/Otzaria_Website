@@ -133,6 +133,9 @@ export const isDoneState = (st) => DONE_STATES.includes(st);
 export const claimActive = (book, now = new Date()) =>
   !!book?.claimedBy && !!book.claimedUntil && new Date(book.claimedUntil).getTime() > now.getTime();
 
+// כל עמודי הספר סומנו (ממתינים לאישור / אושרו)? counts כמו ב-bookState
+export const bookDone = (c) => !!c && c.total > 0 && (c.done || 0) >= c.total;
+
 // מצב ספר ברשימה. counts = {total, done, draft, by: {userId: עמודים}}; userId — המתנדב שמסתכל.
 // מחזיר {state, claimedBy, claimedUntil, worked, workedBy}:
 //   done    — כל העמודים סומנו (ממתינים לאישור / אושרו) — אין מה לקחת
@@ -146,7 +149,7 @@ export function bookState(book, counts, userId, now = new Date()) {
   const by = Object.entries(c.by || {}).sort((a, b) => b[1] - a[1]);
   const workedBy = book.lastBy ? String(book.lastBy) : by[0]?.[0] || null;
   const base = { worked, workedBy, claimedBy: null, claimedUntil: null };
-  if (c.total > 0 && c.done >= c.total) return { ...base, state: 'done' };
+  if (bookDone(c)) return { ...base, state: 'done' };
   if (claimActive(book, now)) {
     const mine = String(book.claimedBy) === String(userId);
     return { ...base, state: mine ? 'mine' : 'taken', claimedBy: String(book.claimedBy), claimedUntil: new Date(book.claimedUntil) };
@@ -154,7 +157,9 @@ export function bookState(book, counts, userId, now = new Date()) {
   return { ...base, state: worked > 0 ? 'partial' : 'free' };
 }
 
-// האם המתנדב יכול לקחת את הספר עכשיו. otherClaims — ספרים אחרים שאצלו בתוקף ({book, alias}).
+// האם המתנדב יכול לקחת את הספר עכשיו. otherClaims — ספרים אחרים שאצלו בתוקף ({book, alias, counts}).
+// ספר שסיים והגיש (כל עמודיו ממתינים לאישור) אינו "בעבודה" ואינו חוסם; עמוד שהמנהל דחה חוזר
+// להיות פתוח, ואז הספר שוב בעבודה וחוסם — כל עוד הוא אצל המתנדב.
 // מחזיר {ok:true} או {ok:false, status, error}. התפיסה עצמה — עדכון מותנה אטומי בשרת
 export function claimDecision(book, counts, userId, now = new Date(), { otherClaims = [] } = {}) {
   if (!book) return { ok: false, status: 404, error: 'הספר לא נמצא' };
@@ -162,7 +167,7 @@ export function claimDecision(book, counts, userId, now = new Date(), { otherCla
   if (st.state === 'done') return { ok: false, status: 409, error: 'כל עמודי הספר כבר סומנו' };
   if (st.state === 'taken') return { ok: false, status: 409, error: 'הספר בעבודה אצל מתנדב אחר' };
   if (st.state === 'mine') return { ok: true, already: true };
-  const others = otherClaims.filter((b) => b.book !== book.book);
+  const others = otherClaims.filter((b) => b.book !== book.book && !bookDone(b.counts));
   if (others.length >= MAX_BOOKS_PER_VOLUNTEER) {
     return { ok: false, status: 409, error: `כבר יש לך ספר בעבודה (${others[0].alias || 'ספר'}). סיימו או שחררו אותו קודם` };
   }

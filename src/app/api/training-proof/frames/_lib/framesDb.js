@@ -127,13 +127,18 @@ export async function listBooks(userId, now = new Date()) {
 // "קח את הספר" / "המשך מהעבודה הקודמת": 48 שעות. ספר שכבר אצלך — בלי לשנות את המועד
 export async function claimBook(userId, bookKey, now = new Date()) {
   await sweepBooks(now);
-  const book = await TrainingProofBook.findOne({ book: bookKey }).lean();
-  const counts = (await pageCounts([bookKey]))[bookKey] || { total: 0, done: 0, draft: 0, by: {} };
+  const [book, otherClaims] = await Promise.all([
+    TrainingProofBook.findOne({ book: bookKey }).lean(),
+    TrainingProofBook.find(
+      { claimedBy: oid(userId), claimedUntil: { $gt: now }, book: { $ne: bookKey } },
+      { book: 1, alias: 1 }
+    ).lean(),
+  ]);
+  // ספירה אחת לספר המבוקש ולכל הספרים האחרים שאצלו — גם ספר שהוגש כולו נשאר תפוס ל-48 שעות.
+  const countsByBook = await pageCounts([bookKey, ...otherClaims.map((b) => b.book)]);
+  const counts = countsByBook[bookKey] || { total: 0, done: 0, draft: 0, by: {} };
   if (book && !counts.total) return fail(404, 'אין בספר הזה עמודים לעבודה');
-  const otherClaims = await TrainingProofBook.find(
-    { claimedBy: oid(userId), claimedUntil: { $gt: now }, book: { $ne: bookKey } },
-    { book: 1, alias: 1 }
-  ).lean();
+  for (const b of otherClaims) b.counts = countsByBook[b.book];
   const d = claimDecision(book, counts, userId, now, { otherClaims });
   if (!d.ok) return fail(d.status, d.error);
   if (d.already) return { ok: true, book: bookKey, claimedUntil: book.claimedUntil, already: true };

@@ -60,5 +60,7 @@ TrainingProofItemSchema.index({ heldBy: 1, section: 1, status: 1 });
 // "ההגהות שלי" והסקירה בניהול
 TrainingProofItemSchema.index({ vol: 1, section: 1, status: 1 });
 TrainingProofItemSchema.index({ packageId: 1, part: 1 });
+// ספירת עמודי ספר בגלאי בלי לסרוק את כל עמודי החלק
+TrainingProofItemSchema.index({ section: 1, book: 1 });
 
 export default mongoose.models.TrainingProofItem || mongoose.model('TrainingProofItem', TrainingProofItemSchema);
