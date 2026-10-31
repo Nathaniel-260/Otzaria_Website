@@ -106,7 +106,7 @@ printf '%s' "$version"
     run('git', ['push', '-q', 'origin', 'HEAD:master'])
     return run('git', ['rev-parse', 'HEAD'])
   }
-  const cloneBroker = () => run('git', ['clone', '-q', remote, path.join(root, 'broker')], root)
+  const cloneBroker = () => run('git', ['clone', '-q', '-b', 'master', remote, path.join(root, 'broker')], root)
   const brokerGit = (...args) => run('git', args, path.join(root, 'broker'))
   return {
     root, live, first, deploy, addCommit, cloneBroker, brokerGit,
