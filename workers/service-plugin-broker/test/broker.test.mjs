@@ -6,7 +6,7 @@ import { Broker, keepSetFrom, pruneDataDir } from '../src/broker.js'
 import { HttpError, LeaseLostError, abortReason } from '../src/errors.js'
 import { startHeartbeat } from '../src/heartbeat.js'
 import { WorkerApi } from '../src/api.js'
-import { codeFingerprint } from '../src/codeVersion.js'
+import { codeFiles, codeFingerprint } from '../src/codeVersion.js'
 import { tempDir } from './helpers.mjs'
 
 const REVIEW_ID = 'c'.repeat(24)
@@ -182,10 +182,36 @@ test('codeFingerprint: משתנה בשינוי תוכן, בקובץ חדש וב�
   assert.notEqual(await codeFingerprint(paths), added)
 })
 
-test('codeFingerprint: ברירת המחדל מכסה את הקוד שהמתווך טוען', async () => {
-  const { CODE_PATHS } = await import('../src/codeVersion.js')
-  const { readFile } = await import('node:fs/promises')
-  for (const file of CODE_PATHS.filter((p) => p.endsWith('.js') || p.endsWith('.json'))) await readFile(file)
+test('codeFingerprint: עוקב אחרי ייבוא יחסי אל מחוץ לנתיבים, גם בעומק', async (t) => {
+  const dir = await tempDir(t)
+  await mkdir(path.join(dir, 'broker', 'src'), { recursive: true })
+  await mkdir(path.join(dir, 'lib', 'shared'), { recursive: true })
+  await writeFile(path.join(dir, 'broker', 'src', 'main.js'), "import { p } from '../../lib/policy.js'\nexport { a } from \"../../lib/auth.js\"\n")
+  await writeFile(path.join(dir, 'lib', 'policy.js'), "import x from './shared/deep.js'\n")
+  await writeFile(path.join(dir, 'lib', 'auth.js'), 'auth')
+  await writeFile(path.join(dir, 'lib', 'shared', 'deep.js'), 'one')
+  await writeFile(path.join(dir, 'lib', 'unrelated.js'), 'u')
+  const paths = [path.join(dir, 'broker', 'src')]
+  const base = await codeFingerprint(paths)
+  await writeFile(path.join(dir, 'lib', 'unrelated.js'), 'U')
+  assert.equal(await codeFingerprint(paths), base)
+  await writeFile(path.join(dir, 'lib', 'shared', 'deep.js'), 'two')
+  const deep = await codeFingerprint(paths)
+  assert.notEqual(deep, base)
+  await writeFile(path.join(dir, 'lib', 'auth.js'), 'AUTH')
+  assert.notEqual(await codeFingerprint(paths), deep)
+})
+
+test('codeFingerprint: ברירת המחדל מכסה את הקוד שהמתווך טוען, כולל קובצי האתר המשותפים', async () => {
+  const files = await codeFiles()
+  const repo = path.resolve(import.meta.dirname, '..', '..', '..')
+  for (const shared of ['servicePlugins/policy.js', 'servicePlugins/workerAuth.js', 'servicePlugins/config.js',
+    'pluginArchive.js', 'pluginLimits.js']) {
+    const file = path.join(repo, 'src', 'lib', shared)
+    assert.ok(files.has(file), shared)
+    assert.ok(files.get(file), `${shared} קיים`)
+  }
+  assert.ok(![...files.values()].includes(null), 'כל הייבוא היחסי נמצא בדיסק')
   assert.match(await codeFingerprint(), /^[0-9a-f]{64}$/)
 })
 
