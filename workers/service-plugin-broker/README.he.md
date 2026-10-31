@@ -65,10 +65,12 @@ journalctl -u otzaria-service-broker -f
 
 | מצב | מה קורה | הערות |
 |---|---|---|
-| `api_key` | `claude --bare` עם `ANTHROPIC_API_KEY`. `--bare` מדלג על הגדרות, hooks, CLAUDE.md ו־OAuth | המצב המתאים לשירות שפועל עבור אחרים |
+| `api_key` | `claude --bare` עם `ANTHROPIC_API_KEY`. `--bare` מדלג על הגדרות, hooks, CLAUDE.md ו־OAuth | חיוב לפי שימוש ב־API |
 | `subscription` | בלי `--bare`, עם `--setting-sources user` ו־`--settings '{"disableAllHooks":true}'`; ההתחברות היא OAuth שנשמר ב־HOME של המשתמש הייעודי (`claude` → `/login` פעם אחת) | `~/.claude/settings.json` של המשתמש הייעודי חייב להיות מינימלי: בלי hooks, בלי `permissions.allow`, בלי `additionalDirectories` ובלי שרתי MCP (נבדק בעלייה) |
 
-**לפני בחירת `subscription`:** לפי [עמוד המשפט והציות של Anthropic](https://code.claude.com/docs/en/legal-and-compliance.md), התחברות OAuth של מנוי Pro/Max מיועדת לשימוש אישי רגיל, ושירותים שפועלים עבור אחרים צריכים להשתמש במפתחות API. הבודק סורק הגשות של מפתחים חיצוניים, ולכן יש לוודא שהשימוש המתוכנן תואם את תנאי המנוי לפני הפעלה. אין ברירת מחדל כדי שההחלטה תתקבל במודע.
+אין ברירת מחדל: `api_key` מחויב לפי שימוש, ו־`subscription` (Pro/Max/Team) צורך ממכסת המנוי, המשותפת לכל שימוש אחר באותו חשבון. כשנגמרת המכסה, ההגשות ממתינות עד מועד האיפוס שמדווח (`waiting_quota`).
+
+אם ההתחברות מועתקת ממשתמש אחר בשרת (`~/.claude/.credentials.json`), יש לסנכרן את שני העותקים: טוקן הרענון מתחלף בכל רענון, ועותק שלא קיבל את הטוקן החדש מתנתק.
 
 ## בידוד (`SANDBOX_WRAPPER`)
 
