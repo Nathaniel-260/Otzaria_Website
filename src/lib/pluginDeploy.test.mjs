@@ -94,6 +94,7 @@ printf '%s' "$version"
         ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`,
         TEST_ROOT: root, TEST_LIVE: live, TEST_MODE: currentMode,
         TEST_VALIDATOR: validator, TEST_PM2_APP: pm2App, PM2_APP: pm2App,
+        BROKER_DIR: path.join(root, 'broker'),
         ...extraEnv,
       },
       encoding: 'utf8', timeout: 30000,
@@ -105,8 +106,10 @@ printf '%s' "$version"
     run('git', ['push', '-q', 'origin', 'HEAD:master'])
     return run('git', ['rev-parse', 'HEAD'])
   }
+  const cloneBroker = () => run('git', ['clone', '-q', '-b', 'master', remote, path.join(root, 'broker')], root)
+  const brokerGit = (...args) => run('git', args, path.join(root, 'broker'))
   return {
-    root, live, first, deploy, addCommit,
+    root, live, first, deploy, addCommit, cloneBroker, brokerGit,
     trace: () => fs.existsSync(path.join(root, 'trace')) ? fs.readFileSync(path.join(root, 'trace'), 'utf8') : '',
     releases: () => fs.existsSync(path.join(root, 'otzaria-releases')) ? fs.readdirSync(path.join(root, 'otzaria-releases')) : [],
     readLive: relative => fs.readFileSync(path.join(live, relative), 'utf8').trim(),
@@ -327,5 +330,41 @@ test('an unhealthy release after interrupted link swap rolls back to legacy', ()
     assert.equal(f.readLive('public/version.json'), '{"version":"legacy"}')
     assert.equal(fs.existsSync(failedRelease), false)
     assert.match(result.stderr, /Legacy checkout restored/)
+  } finally { f.remove() }
+})
+
+test('a successful deployment moves the broker checkout to the deployed commit', () => {
+  const f = fixture()
+  try {
+    assert.equal(f.deploy(f.first).status, 0)
+    f.cloneBroker()
+    const second = f.addCommit('two')
+    const result = f.deploy(second, 'b'.repeat(40))
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+    assert.equal(fs.readFileSync(path.join(f.root, 'broker', 'app.js'), 'utf8').trim(), 'two')
+    assert.match(result.stdout, /broker checkout updated/)
+  } finally { f.remove() }
+})
+
+test('a failed broker update warns, and retrying the same deployment repairs it', () => {
+  const f = fixture()
+  try {
+    assert.equal(f.deploy(f.first).status, 0)
+    f.cloneBroker()
+    const broker = path.join(f.root, 'broker')
+    const origin = f.brokerGit('remote', 'get-url', 'origin')
+    f.brokerGit('remote', 'set-url', 'origin', path.join(f.root, 'missing'))
+    const second = f.addCommit('two')
+    const failed = f.deploy(second, 'b'.repeat(40))
+    assert.equal(failed.status, 0, failed.stdout + failed.stderr)
+    assert.equal(f.readLive('public/version.json'), '{"version":"two"}')
+    assert.match(failed.stderr, /broker checkout was not updated/)
+    assert.equal(fs.readFileSync(path.join(broker, 'app.js'), 'utf8').trim(), 'one')
+
+    f.brokerGit('remote', 'set-url', 'origin', origin)
+    const retried = f.deploy(second, 'b'.repeat(40))
+    assert.equal(retried.status, 0, retried.stdout + retried.stderr)
+    assert.match(retried.stdout, /Release already active/)
+    assert.equal(fs.readFileSync(path.join(broker, 'app.js'), 'utf8').trim(), 'two')
   } finally { f.remove() }
 })

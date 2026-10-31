@@ -9,6 +9,7 @@ BUILD_DIR=${BUILD_DIR:-$ROOT_DIR/otzaria-build}
 RELEASES_DIR=${RELEASES_DIR:-$ROOT_DIR/otzaria-releases}
 SHARED_DIR=${SHARED_DIR:-$ROOT_DIR/otzaria-shared}
 PM2_APP=${PM2_APP:-otzaria}
+BROKER_DIR=${BROKER_DIR:-/opt/otzaria-website}
 
 [[ "$DEPLOY_REF" =~ ^[a-f0-9]{40}$ && "$VALIDATOR_REF" =~ ^[a-f0-9]{40}$ ]] || {
   echo 'Deployment requires immutable commit SHAs' >&2
@@ -124,6 +125,22 @@ check_health() {
   return 1
 }
 
+# The service-plugin broker (workers/service-plugin-broker) runs under systemd from
+# its own checkout. Deployment only moves that checkout to the deployed commit: the
+# broker notices changes to the code it loads and restarts itself between jobs, so
+# a deployment never interrupts a running review. This also runs when the release
+# is already active, so retrying a deployment repairs a failed broker update. The
+# website is live by then, so a failure here only warns.
+sync_broker() {
+  git -C "$BROKER_DIR" rev-parse --git-dir >/dev/null 2>&1 || return 0
+  if git -C "$BROKER_DIR" fetch --depth 1 origin "$DEPLOY_REF" &&
+     git -C "$BROKER_DIR" reset --hard "$DEPLOY_REF"; then
+    echo "Service-plugin broker checkout updated: $BROKER_DIR"
+  else
+    echo "Warning: the service-plugin broker checkout was not updated ($BROKER_DIR)" >&2
+  fi
+}
+
 if [[ -n "$ACTIVE_RELEASE" && "$ACTIVE_RELEASE" == "$NEW_RELEASE" ]]; then
   if ! check_health "$ACTIVE_RELEASE/public/version.json"; then
     if ! pm2 restart "$PM2_APP" || ! check_health "$ACTIVE_RELEASE/public/version.json"; then
@@ -148,6 +165,7 @@ if [[ -n "$ACTIVE_RELEASE" && "$ACTIVE_RELEASE" == "$NEW_RELEASE" ]]; then
   fi
   if [[ -n "$RECOVERED_LEGACY" ]]; then rm -rf "$RECOVERED_LEGACY"; fi
   echo "Release already active: $NEW_RELEASE"
+  sync_broker
   exit 0
 fi
 
@@ -341,3 +359,5 @@ fi
 COMPLETE=true
 if [[ -n "$LEGACY_PATH" ]]; then rm -rf "$LEGACY_PATH"; fi
 echo "Deployment healthy: $NEW_RELEASE"
+
+sync_broker
