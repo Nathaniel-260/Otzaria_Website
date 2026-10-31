@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
-import { mkdir, readdir } from 'node:fs/promises'
+import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { test } from 'node:test'
 import { Broker, keepSetFrom, pruneDataDir } from '../src/broker.js'
 import { HttpError, LeaseLostError, abortReason } from '../src/errors.js'
 import { startHeartbeat } from '../src/heartbeat.js'
 import { WorkerApi } from '../src/api.js'
+import { codeFingerprint } from '../src/codeVersion.js'
 import { tempDir } from './helpers.mjs'
 
 const REVIEW_ID = 'c'.repeat(24)
@@ -116,6 +117,76 @@ test('לולאה ראשית: 503 (שבת), שגיאת רשת ו-204 אינם מ�
   broker = new Broker({ config: { dataDir: dir }, api, idlePollMs: 5, backoffBaseMs: 5 })
   await broker.run()
   assert.equal(claims, 4)
+})
+
+test('לולאה ראשית: קוד שהתעדכן בדיסק → המשימה הפעילה מסתיימת, ורק אז יציאה לאתחול', async (t) => {
+  const dir = await tempDir(t)
+  let code = 'v1'
+  const events = []
+  const api = {
+    maintenance: async () => ({ keep: [] }),
+    claim: async () => {
+      events.push('claim')
+      return { job }
+    },
+  }
+  const broker = new Broker({ config: { dataDir: dir }, api, idlePollMs: 5, codeFingerprint: async () => code })
+  broker.runJob = async () => {
+    events.push('job_start')
+    code = 'v2' // הפריסה מחליפה את העותק באמצע המשימה
+    events.push('job_end')
+  }
+  await broker.run()
+  assert.deepEqual(events, ['claim', 'job_start', 'job_end'])
+  assert.equal(broker.restartRequested, true)
+})
+
+test('לולאה ראשית: טביעה זהה או כשל בחישובה אינם מאתחלים', async (t) => {
+  const dir = await tempDir(t)
+  let claims = 0
+  let calls = 0
+  let broker
+  const api = {
+    maintenance: async () => ({ keep: [] }),
+    claim: async () => {
+      if (++claims === 3) broker.stop('test')
+      return { job: null, retryAfterMs: 5 }
+    },
+  }
+  const fingerprint = async () => {
+    if (++calls === 2) throw new Error('EIO')
+    return 'same'
+  }
+  broker = new Broker({ config: { dataDir: dir }, api, idlePollMs: 5, codeFingerprint: fingerprint })
+  await broker.run()
+  assert.equal(claims, 3)
+  assert.equal(broker.restartRequested, false)
+})
+
+test('codeFingerprint: משתנה בשינוי תוכן, בקובץ חדש ובמחיקה; יציב אחרת', async (t) => {
+  const dir = await tempDir(t)
+  await mkdir(path.join(dir, 'src', 'stages'), { recursive: true })
+  await writeFile(path.join(dir, 'src', 'a.js'), 'a')
+  await writeFile(path.join(dir, 'src', 'stages', 'b.js'), 'b')
+  await writeFile(path.join(dir, 'lib.js'), 'l')
+  const paths = [path.join(dir, 'src'), path.join(dir, 'lib.js')]
+  const base = await codeFingerprint(paths)
+  assert.equal(await codeFingerprint(paths), base)
+  await writeFile(path.join(dir, 'src', 'stages', 'b.js'), 'B')
+  const changed = await codeFingerprint(paths)
+  assert.notEqual(changed, base)
+  await writeFile(path.join(dir, 'src', 'c.js'), 'c')
+  const added = await codeFingerprint(paths)
+  assert.notEqual(added, changed)
+  await rm(path.join(dir, 'lib.js'))
+  assert.notEqual(await codeFingerprint(paths), added)
+})
+
+test('codeFingerprint: ברירת המחדל מכסה את הקוד שהמתווך טוען', async () => {
+  const { CODE_PATHS } = await import('../src/codeVersion.js')
+  const { readFile } = await import('node:fs/promises')
+  for (const file of CODE_PATHS.filter((p) => p.endsWith('.js') || p.endsWith('.json'))) await readFile(file)
+  assert.match(await codeFingerprint(), /^[0-9a-f]{64}$/)
 })
 
 test('WorkerApi: 204 עם Retry-After, 409 lease_lost, 503 ניתן לניסיון חוזר; הסוד רק בכותרת', async () => {
