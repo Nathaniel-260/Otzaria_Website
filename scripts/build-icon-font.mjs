@@ -4,8 +4,8 @@
  *
  * למה: הבקשה המקורית ל-Google Fonts ביקשה את הגופן המשתנה עם כל טווחי האיכסים
  * (opsz/wght/FILL/GRAD) — קובץ WOFF2 של ~3.96MB שנטען בכל ביקור קר, ממקור חיצוני
- * (DNS/TLS נוספים) ומחזיק stylesheet חוסם-רינדור. האתר משתמש בפועל רק במופע
- * הסטטי (24/400/0/0) ובכמה מאות אייקונים, ולכן subset מקומי שוקל עשרות KB.
+ * (DNS/TLS נוספים) ומחזיק stylesheet חוסם-רינדור. האתר משתמש בפועל רק ב-opsz 24,
+ * FILL 0, GRAD 0, במשקל 300–400 ובכמה מאות אייקונים, ולכן subset מקומי שוקל עשרות KB.
  *
  * שימוש:
  *   node scripts/build-icon-font.mjs           # בונה מחדש (דורש רשת) ומעדכן את הפלטים
@@ -42,8 +42,12 @@ const UNIVERSE_OUT = path.join(ROOT, 'scripts', 'material-symbols-names.txt')
 
 const FONT_BASENAME = 'material-symbols-outlined'
 const FAMILY = 'Material Symbols Outlined'
-// מופע סטטי: opsz=24, wght=400, FILL=0, GRAD=0 — האתר אינו משתמש באיכסים משתנים.
-const AXES = 'opsz,wght,FILL,GRAD@24,400,0,0'
+// opsz=24, FILL=0, GRAD=0 קבועים; wght משתנה בטווח 300–400: האתר כולו במשקל 400 (font-weight:
+// normal ב-base.css), וכלי העורך (Button size="tool", --tool-icon-weight) — 300, אייקון דק.
+// ציר אחד בטווח צר מוסיף כ-40% לגודל ה-subset (עדיין עשרות KB).
+const WGHT_MIN = 300
+const WGHT_MAX = 400
+const AXES = `opsz,wght,FILL,GRAD@24,${WGHT_MIN}..${WGHT_MAX},0,0`
 const METADATA_URL = 'https://fonts.google.com/metadata/icons?incomplete=true&key=material_symbols'
 const CSS_API = 'https://fonts.googleapis.com/css2'
 // Google מחזיר WOFF2 רק ל-User-Agent מודרני; בלעדיו נקבל TTF ענק.
@@ -213,13 +217,13 @@ async function build() {
     CSS_OUT,
     `/* ============================================================
  * icon-font.css — נוצר אוטומטית על ידי scripts/build-icon-font.mjs. אין לערוך.
- * subset מקומי של ${FAMILY} (${names.length} אייקונים, מופע סטטי ${AXES}).
+ * subset מקומי של ${FAMILY} (${names.length} אייקונים, ${AXES}).
  * ============================================================ */
 
 @font-face {
   font-family: '${FAMILY}';
   font-style: normal;
-  font-weight: 400;
+  font-weight: ${WGHT_MIN} ${WGHT_MAX};
   /* block ולא swap — אחרת שם האייקון מוצג כטקסט עד שהגופן עולה */
   font-display: block;
   src: url('${publicUrl}') format('woff2');
